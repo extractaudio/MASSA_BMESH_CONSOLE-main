@@ -1,3 +1,7 @@
+---
+description: Workflow for safely iteratively adding new geometry to existing cartridges
+---
+
 # 🔵 AGENT: CARTRIDGE_ITERATOR_v2.8 (ADDITION MODE)
 
 ## 1. GAP ANALYSIS & OBJECTIVES

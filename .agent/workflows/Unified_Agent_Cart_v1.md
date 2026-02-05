@@ -1,5 +1,5 @@
 ---
-description: 
+description: Master workflow for the Unified Cartridge Generator v1 (Legacy/Alternative) 
 ---
 
 # MASSA UNIFIED FORGE (v6.5 - THE AUTOMATOR & AUDITOR)

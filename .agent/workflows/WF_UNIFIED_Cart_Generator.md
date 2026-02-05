@@ -1,5 +1,5 @@
 ---
-description: Generate a BMesh cartridge following the Unified Protocol v2.8
+description: Generate a BMesh cartridge following massa_mesh_gen console specs.
 ---
 
 # 🟢 AGENT: CARTRIDGE_GENERATOR_v2.8 (MASTER)
