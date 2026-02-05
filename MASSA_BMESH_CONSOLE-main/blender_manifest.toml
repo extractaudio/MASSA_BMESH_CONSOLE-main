@@ -1,0 +1,24 @@
+schema_version = "1.0.0"
+
+id = "massa_mesh_gen"
+version = "1.0.2"
+name = "Massa Mesh Generator"
+tagline = "Procedural Geometry for UE5 Pipeline"
+maintainer = "3D_Massa"
+type = "add-on"
+website = "https://yourwebsite.com"
+
+
+# --- COMPATIBILITY ---
+blender_version_min = "4.5.0"
+
+# --- LICENSE ---
+license = ["SPDX:GPL-3.0-or-later"]
+
+
+# --- PERMISSIONS ---
+[permissions]
+files = "Required for baking and debug logging."
+
+[build]
+paths_exclude_pattern = ["__pycache__/*", "/.git/*", "/*.zip"]
