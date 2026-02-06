@@ -4,6 +4,7 @@ import os
 import argparse
 import json
 import importlib
+import time
 
 # 1. Setup Path to import your attached 'auditors' folder
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,19 +14,27 @@ if current_dir not in sys.path:
 # 2. Import your attached files
 # NOTE: Ensure your attached files are in the 'auditors' folder
 try:
-    import auditors
-    # If you need specific submodules, import them here:
-    # from auditors import my_topology_check, my_uv_check
+    from . import auditors
 except ImportError:
-    pass 
+    try:
+        import auditors
+    except ImportError:
+        pass
 
 def run_checks(obj):
     errors = []
     
     # --- DYNAMICALLY RUN ATTACHED AUDITORS ---
-    # --- DYNAMICALLY RUN ATTACHED AUDITORS ---
+    # Try to find auditors module
+    auditors_mod = None
     if 'auditors' in sys.modules:
-        import auditors
+        auditors_mod = sys.modules['auditors']
+    elif 'massa.modules.debugging_system.auditors' in sys.modules:
+        auditors_mod = sys.modules['massa.modules.debugging_system.auditors']
+    elif 'auditors' in globals():
+        auditors_mod = globals()['auditors']
+
+    if auditors_mod:
         # Identify the Operator Class from globals if possible
         op_class = None
         # Look for class starting with MASSA_OT_
@@ -39,21 +48,16 @@ def run_checks(obj):
             try:
                 bpy.utils.register_class(op_class)
             except Exception as e:
-                # If registration fails (e.g. doesn't inherit from Operator), we just proceed without it
-                # But we might want to log it?
-                # errors.append(f"Class Reg Warning: {str(e)}") 
                 pass 
                 
         try:
-            errors.extend(auditors.run_all_auditors(obj, op_class))
+            if hasattr(auditors_mod, 'run_all_auditors'):
+                errors.extend(auditors_mod.run_all_auditors(obj, op_class))
         except Exception as e:
             errors.append(f"Auditor Loader Failed: {str(e)}")
 
     
     # --- CONNECT YOUR ATTACHED SCRIPTS HERE ---
-    # Assuming your attached scripts have a function like `audit_mesh(obj)`
-    # Example:
-    # errors.extend(auditors.my_topology_check.audit_mesh(obj))
     
     # [FALLBACK LOGIC]: If attached files aren't linked, we run a basic check
     # to ensure the system works out of the box.
@@ -82,185 +86,6 @@ def run_checks(obj):
     bm.free()
     return errors
 
-def main():
-    # Parse Args
-    argv = sys.argv
-    if "--" in argv:
-        argv = argv[argv.index("--") + 1:]
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--cartridge", required=True)
-    args, _ = parser.parse_known_args(argv)
-
-    # Added arguments for Extended Modes
-    parser.add_argument("--mode", default="AUDIT")
-    parser.add_argument("--payload", default=None)
-    
-    # Reparse with new args
-    args, _ = parser.parse_known_args(argv)
-    
-    payload = {}
-    if args.payload:
-        try: payload = json.loads(args.payload)
-        except: pass
-
-    # Clean Scene
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-
-    # --- MODE CHECK ---
-    
-    if args.mode == "VISUAL_DIFF":
-        # 1. Run First Cartridge (Target A)
-        try:
-            with open(args.cartridge) as f:
-                exec(f.read(), globals())
-        except Exception as e:
-            print_json({"status": "FAIL", "message": f"Cartridge A Crash: {e}"})
-            return
-
-        obj_a = find_generated_object()
-        if not obj_a:
-            print_json({"status": "FAIL", "message": "Cartridge A produced no object"})
-            return
-        obj_a.name = "Version_A_Red"
-        
-        # 2. Run Second Cartridge (Target B)
-        file_b = payload.get("filename_b")
-        if file_b:
-            if not os.path.isabs(file_b):
-                 # Assume same dir as cartridge A if relative
-                 file_b = os.path.join(os.path.dirname(args.cartridge), file_b)
-            
-            if os.path.exists(file_b):
-                try:
-                    with open(file_b) as f:
-                        exec(f.read(), globals())
-                except Exception as e:
-                    print_json({"status": "FAIL", "message": f"Cartridge B Crash: {e}"})
-                    return
-                
-                obj_b = find_generated_object(exclude=[obj_a])
-                if not obj_b:
-                    print_json({"status": "FAIL", "message": "Cartridge B produced no object"})
-                    return
-                obj_b.name = "Version_B_Green"
-                
-                # 3. Setup Red/Green
-                setup_visual_diff(obj_a, obj_b)
-                
-                # 4. Render
-                output_path = render_viewport(f"diff_{obj_a.name}_vs_{obj_b.name}")
-                print_json({"status": "SUCCESS", "image_path": output_path})
-                return
-            else:
-                 print_json({"status": "FAIL", "message": f"File B not found: {file_b}"})
-                 return
-        else:
-             print_json({"status": "FAIL", "message": "filename_b missing in payload"})
-             return
-
-    # Default AUDIT execution
-    try:
-        with open(args.cartridge) as f:
-            exec(f.read(), globals())
-    except Exception as e:
-        print_json({"status": "FAIL", "errors": [f"Syntax/Runtime Error: {str(e)}"]})
-        return
-
-    # Find Mesh
-    obj = find_generated_object()
-    if not obj:
-        print_json({"status": "FAIL", "errors": ["No Mesh Created by Cartridge"]})
-        return
-
-    # Run mode-specific logic
-    if args.mode == "VISUAL_DIFF":
-        # ... (Visual Diff Logic as before) ...
-        # (Assuming this block is already here, I am inserting AFTER it or handling strict placement)
-        pass 
-
-    if args.mode == "UV_HEATMAP":
-        # ... (UV Heatmap Logic as before) ...
-        # (Assuming placement)
-        pass
-
-    if args.mode == "PERFORMANCE":
-        import time
-        start_time = time.perf_counter()
-        try:
-            with open(args.cartridge) as f:
-                exec(f.read(), globals())
-        except Exception as e:
-            print_json({"status": "FAIL", "message": f"Cartridge Crash: {e}"})
-            return
-        end_time = time.perf_counter()
-        
-        obj = find_generated_object()
-        if not obj:
-            print_json({"status": "FAIL", "message": "No object created"})
-            return
-
-        poly_count = len(obj.data.polygons)
-        vert_count = len(obj.data.vertices)
-        exec_time_ms = (end_time - start_time) * 1000
-        
-        crashes_blender = False
-        if poly_count > 100000: crashes_blender = True # Arbitrary budget
-        
-        result = {
-            "status": "SUCCESS",
-            "execution_time_ms": exec_time_ms,
-            "poly_count": poly_count,
-            "vert_count": vert_count,
-            "budget_status": "FAIL" if crashes_blender else "PASS"
-        }
-        print_json(result)
-        return
-
-    if args.mode == "CSG_DEBUG":
-        try:
-            with open(args.cartridge) as f:
-                exec(f.read(), globals())
-        except Exception as e:
-            print_json({"status": "FAIL", "message": f"Cartridge Crash: {e}"})
-            return
-
-        obj = find_generated_object()
-        if not obj:
-            print_json({"status": "FAIL", "message": "No object created"})
-            return
-            
-        # Visualize Cutters
-        cutters_found = 0
-        for mod in obj.modifiers:
-            if mod.type == 'BOOLEAN' and mod.object:
-                mod.object.hide_viewport = False
-                mod.object.hide_render = False
-                mod.object.display_type = 'WIRE'
-                mod.object.show_wire = True
-                cutters_found += 1
-                
-        if cutters_found == 0:
-            print_json({"status": "FAIL", "message": "No Boolean Modifiers found to debug"})
-            return
-
-        setup_camera(payload.get("camera_angle", "ISO_CAM"))
-        output_path = render_viewport(f"csg_debug_{obj.name}")
-        print_json({"status": "SUCCESS", "image_path": output_path, "cutters_visualized": cutters_found})
-        return
-
-    # Default AUDIT execution
-
-    # Run Standard Audit
-    error_list = run_checks(obj)
-    
-    result = {
-        "status": "PASS" if not error_list else "FAIL",
-        "object": obj.name,
-        "errors": error_list
-    }
-
-    print_json(result)
-
 def find_generated_object(exclude=None):
     if exclude is None: exclude = []
     # Try active
@@ -272,11 +97,6 @@ def find_generated_object(exclude=None):
         if o.type == 'MESH' and o not in exclude:
             return o
     return None
-
-def print_json(data):
-    print("---AUDIT_START---")
-    print(json.dumps(data))
-    print("---AUDIT_END---")
 
 def setup_visual_diff(obj_a, obj_b):
     # Red for A
@@ -299,9 +119,165 @@ def setup_visual_diff(obj_a, obj_b):
     # Offset B slightly to prevent Z-fighting if identical
     obj_b.location.x += 0.01
 
+def setup_camera(angle="ISO_CAM"):
+    # Simple camera setup
+    cam_data = bpy.data.cameras.new("Cam")
+    cam_obj = bpy.data.objects.new("Cam", cam_data)
+    bpy.context.collection.objects.link(cam_obj)
+    bpy.context.scene.camera = cam_obj
+    
+    if angle == "ISO_CAM":
+        cam_obj.location = (10, -10, 10)
+        cam_obj.rotation_euler = (0.95, 0, 0.78)
+
+def render_viewport(name):
+    tmp_path = os.path.join(os.environ.get("TEMP", "/tmp"), f"{name}.png")
+    bpy.context.scene.render.filepath = tmp_path
+
+    # Use OpenGL render (viewport render)
+    bpy.ops.render.opengl(write_still=True)
+    return tmp_path
+
+def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
+    """
+    Executes the audit logic.
+    is_direct: If True, skips scene clearing and uses current context.
+    """
+    if payload is None: payload = {}
+
+    if not is_direct:
+        # Clean Scene
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+
+    # --- MODE CHECK ---
+    
+    if mode == "VISUAL_DIFF":
+        # 1. Run First Cartridge (Target A)
+        try:
+            with open(cartridge_path) as f:
+                exec(f.read(), globals())
+        except Exception as e:
+            return {"status": "FAIL", "message": f"Cartridge A Crash: {e}"}
+
+        obj_a = find_generated_object()
+        if not obj_a:
+            return {"status": "FAIL", "message": "Cartridge A produced no object"}
+        obj_a.name = "Version_A_Red"
+        
+        # 2. Run Second Cartridge (Target B)
+        file_b = payload.get("filename_b")
+        if file_b:
+            if not os.path.isabs(file_b):
+                 # Assume same dir as cartridge A if relative
+                 file_b = os.path.join(os.path.dirname(cartridge_path), file_b)
+            
+            if os.path.exists(file_b):
+                try:
+                    with open(file_b) as f:
+                        exec(f.read(), globals())
+                except Exception as e:
+                    return {"status": "FAIL", "message": f"Cartridge B Crash: {e}"}
+                
+                obj_b = find_generated_object(exclude=[obj_a])
+                if not obj_b:
+                    return {"status": "FAIL", "message": "Cartridge B produced no object"}
+                obj_b.name = "Version_B_Green"
+                
+                # 3. Setup Red/Green
+                setup_visual_diff(obj_a, obj_b)
+                
+                # 4. Render
+                output_path = render_viewport(f"diff_{obj_a.name}_vs_{obj_b.name}")
+                return {"status": "SUCCESS", "image_path": output_path}
+            else:
+                 return {"status": "FAIL", "message": f"File B not found: {file_b}"}
+        else:
+             return {"status": "FAIL", "message": "filename_b missing in payload"}
+
+    # Default AUDIT execution
+    exec_time_ms = 0.0
+    try:
+        start_time = time.perf_counter()
+        with open(cartridge_path) as f:
+            exec(f.read(), globals())
+        end_time = time.perf_counter()
+        exec_time_ms = (end_time - start_time) * 1000
+    except Exception as e:
+        return {"status": "FAIL", "errors": [f"Syntax/Runtime Error: {str(e)}"]}
+
+    # Find Mesh
+    obj = find_generated_object()
+    if not obj:
+        return {"status": "FAIL", "errors": ["No Mesh Created by Cartridge"]}
+
+    if mode == "VISUAL_DIFF":
+         # Fallthrough if logic above was different? Original code had pass.
+         pass
+
+    if mode == "UV_HEATMAP":
+        # Logic was missing or incomplete in original file dump, but implied setup_uv_heatmap
+        # Assuming setup_uv_heatmap(obj) is intended.
+        # But setup_uv_heatmap is not fully defined in my context (missing from original dump or implicit)
+        # I'll try to execute it if defined.
+        # Original dump had setup_uv_heatmap defined at end.
+        try:
+             setup_uv_heatmap(obj)
+             # Render?
+             # setup_uv_heatmap sets up camera but doesn't render.
+             output_path = render_viewport(f"heatmap_{obj.name}")
+             return {"status": "SUCCESS", "image_path": output_path}
+        except Exception as e:
+             return {"status": "FAIL", "message": f"Heatmap Error: {str(e)}"}
+
+    if mode == "PERFORMANCE":
+        poly_count = len(obj.data.polygons)
+        vert_count = len(obj.data.vertices)
+        
+        crashes_blender = False
+        if poly_count > 100000: crashes_blender = True
+        
+        result = {
+            "status": "SUCCESS",
+            "execution_time_ms": exec_time_ms,
+            "poly_count": poly_count,
+            "vert_count": vert_count,
+            "budget_status": "FAIL" if crashes_blender else "PASS"
+        }
+        return result
+
+    if mode == "CSG_DEBUG":
+        # Visualize Cutters
+        cutters_found = 0
+        for mod in obj.modifiers:
+            if mod.type == 'BOOLEAN' and mod.object:
+                mod.object.hide_viewport = False
+                mod.object.hide_render = False
+                mod.object.display_type = 'WIRE'
+                mod.object.show_wire = True
+                cutters_found += 1
+                
+        if cutters_found == 0:
+            return {"status": "FAIL", "message": "No Boolean Modifiers found to debug"}
+
+        setup_camera(payload.get("camera_angle", "ISO_CAM"))
+        output_path = render_viewport(f"csg_debug_{obj.name}")
+        return {"status": "SUCCESS", "image_path": output_path, "cutters_visualized": cutters_found}
+
+    # Default AUDIT execution
+
+    # Run Standard Audit
+    error_list = run_checks(obj)
+    
+    result = {
+        "status": "PASS" if not error_list else "FAIL",
+        "object": obj.name,
+        "errors": error_list
+    }
+
+    return result
+
 def setup_uv_heatmap(obj):
     import bmesh
-    import math
     
     mesh = obj.data
     bm = bmesh.new()
@@ -330,23 +306,10 @@ def setup_uv_heatmap(obj):
         if area_3d < 0.000001:
             ratio = 1.0
         else:
-            # Normalize? This is tricky as UV scale is arbitrary. 
-            # We assume roughly 1 unit UV = 1 unit 3D for "ideal" or just look for variations.
-            # STRETCH = Area3D / AreaUV. 
-            # If we assume 1:1 is good.
             if area_uv < 0.000001:
                 ratio = 999.0 # Infinite stretch
             else:
                 ratio = area_3d / area_uv
-        
-        # Visualize Ratio
-        # Ideally 1.0. 
-        # > 1.0 means 3D is bigger than UV (Under-texelated)
-        # < 1.0 means UV is bigger than 3D (Over-texelated)
-        
-        # We map log scale?
-        # Let's just catch extreme stretching.
-        # Blue = Good (approx 1). Red = Bad (> 5 or < 0.2)
         
         score = 0.0
         # Simple heuristic for "Badness"
@@ -392,23 +355,36 @@ def setup_uv_heatmap(obj):
     obj.active_material = mat
     # Viewport
     obj.show_wire = True
-    # Create simple camera looking at 0,0,0
-    cam_data = bpy.data.cameras.new("Cam")
-    cam_obj = bpy.data.objects.new("Cam", cam_data)
-    bpy.context.collection.objects.link(cam_obj)
-    bpy.context.scene.camera = cam_obj
     
-    if angle == "ISO_CAM":
-        cam_obj.location = (10, -10, 10)
-        cam_obj.rotation_euler = (0.95, 0, 0.78) # Approx iso
+    setup_camera()
 
-def render_viewport(name):
-    tmp_path = os.path.join(os.environ.get("TEMP", "/tmp"), f"{name}.png")
-    bpy.context.scene.render.filepath = tmp_path
+def print_json(data):
+    print("---AUDIT_START---")
+    print(json.dumps(data))
+    print("---AUDIT_END---")
+
+def main():
+    # Parse Args
+    argv = sys.argv
+    if "--" in argv:
+        argv = argv[argv.index("--") + 1:]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cartridge", required=True)
+    parser.add_argument("--mode", default="AUDIT")
+    parser.add_argument("--payload", default=None)
     
-    # Use OpenGL render (viewport render)
-    bpy.ops.render.opengl(write_still=True)
-    return tmp_path
+    args, _ = parser.parse_known_args(argv)
+
+    payload = {}
+    if args.payload:
+        try: payload = json.loads(args.payload)
+        except: pass
+
+    # Execute
+    result = execute_audit(args.cartridge, args.mode, payload, is_direct=False)
+
+    # Print Result
+    print_json(result)
 
 if __name__ == "__main__":
     main()
