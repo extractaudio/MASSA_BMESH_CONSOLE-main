@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import PointerProperty, EnumProperty
+from bpy.props import PointerProperty, EnumProperty, IntProperty
 from .massa_properties import MassaPropertiesMixin
 
 
@@ -21,6 +21,14 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
             ("EDGES", "Edges", "Edge Role Interpreter", "EDGESEL", 5),
         ],
         default="SHAPE",
+    )
+
+    mcp_port: IntProperty(
+        name="Port",
+        default=5555,
+        min=1024,
+        max=65535,
+        description="Port for MCP Bridge Communication"
     )
 
     # --- 2. GLOBAL VISUALIZATION (Redefined with ICONS) ---

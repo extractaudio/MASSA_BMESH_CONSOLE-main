@@ -14,6 +14,9 @@ class MASSA_PT_Main(bpy.types.Panel):
         layout = self.layout
         console = context.scene.massa_console  # Access state properties
         obj = context.active_object
+        
+        # Import Bridge for Status Check
+        from ..MCP import mcp_bridge
 
         # Helper to draw buttons safely
         def draw_safe_button(col_layout, mod_data):
@@ -36,6 +39,31 @@ class MASSA_PT_Main(bpy.types.Panel):
                     text=f"{meta['name']} (Icon Error)",
                     icon="QUESTION",
                 )
+
+        # --- 0. MCP SERVER HEADER ---
+        box = layout.box()
+        row = box.row()
+        row.label(text="MCP SERVER STATUS:", icon="PREFERENCES")
+        
+        is_running = mcp_bridge.is_running()
+        addr = mcp_bridge.get_address()
+        
+        row = box.row()
+        if is_running:
+            row.label(text=f"Active ({addr})", icon="CHECKMARK")
+            # [ARCHITECT UDPATE] Stop Button (Red Alert)
+            sub = row.row()
+            sub.alert = True
+            sub.operator("massa.stop_mcp_server", text="Stop Server", icon="X")
+        else:
+            row.label(text="Offline", icon="ERROR")
+            row.operator("massa.start_mcp_server", text="Start MCP Bridge", icon="URL")
+            
+            # [ARCHITECT UDPATE] Show Port Config when Offline
+            row = box.row()
+            row.prop(console, "mcp_port", text="Bridge Port")
+
+        layout.separator()
 
         # --- 1. PRIMITIVES GROUP ---
         box = layout.box()
@@ -184,12 +212,6 @@ class MASSA_PT_Main(bpy.types.Panel):
 
         elif console.ui_tab == "SLOTS":
             ui_shared.draw_slots_tab(col, console, slot_names={}, stats=None)
-
-        # --- 6. MCP BRIDGE ---
-        layout.separator()
-        box = layout.box()
-        box.label(text="System", icon="PREFERENCES")
-        box.operator("massa.start_mcp_server", text="Start MCP Bridge", icon="URL")
 
         layout.separator()
         row = layout.row()
