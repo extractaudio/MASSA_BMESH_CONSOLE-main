@@ -1,8 +1,9 @@
 import json
 from enum import Enum
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Tuple, Union
 from core.server import mcp
 from skills import inspector
+from core.bridge_client import send_bridge
 
 # --- TOOLS ---
 
@@ -155,3 +156,97 @@ def create_bmesh_object(name: str, script_content: str) -> str:
     })
     
     return json.dumps(result, indent=2)
+
+@mcp.tool()
+def transform_object(
+    name: str,
+    location: Optional[List[float]] = None,
+    rotation: Optional[List[float]] = None,
+    scale: Optional[List[float]] = None,
+    mode: Literal["ABSOLUTE", "RELATIVE"] = "ABSOLUTE"
+) -> str:
+    """
+    Move, Rotate, and Rescale an object in the Blender scene.
+    
+    Args:
+        name: Name of the object to transform.
+        location: [x, y, z] coordinates to move to (or offset by).
+        rotation: [x, y, z] rotation in DEGREES.
+        scale: [x, y, z] scale factors.
+        mode: 'ABSOLUTE' (set values) or 'RELATIVE' (add/multiply values).
+              - Relative Location: Adds to current location.
+              - Relative Rotation: Adds to current rotation (euler).
+              - Relative Scale: Multiplies current scale.
+              
+    Returns:
+        Status message with new transforms.
+    """
+    payload = {
+        "name": name,
+        "location": location,
+        "rotation": rotation,
+        "scale": scale,
+        "mode": mode
+    }
+    dummy_path = "global_skill_placeholder.py"
+    
+    result = inspector._invoke_bridge(dummy_path, mode="SKILL_EXEC", payload={
+        "skill": "transform_object",
+        "params": payload
+    })
+    
+    return json.dumps(result, indent=2)
+
+@mcp.tool()
+def execute_contextual_op(op_id: str, space_type: str = "VIEW_3D") -> str:
+    """
+    [System State] Executes a Blender Operator inside a temporary context override.
+    Crucial for Blender 5.0+ strict context rules.
+    """
+    return json.dumps(send_bridge("execute_contextual_op", {"op_id": op_id, "space_type": space_type}))
+
+@mcp.tool()
+def edit_node_graph(object_name: str, tree_type: str, operation: str, params: dict) -> str:
+    """
+    [Engineer State] Adds, links, or modifies nodes in Geometry, Shader, or Compositor trees.
+    operation: 'ADD_NODE', 'CONNECT', 'SET_VALUE'.
+    """
+    p = {"object_name": object_name, "tree_type": tree_type, "operation": operation}
+    p.update(params)
+    return json.dumps(send_bridge("edit_node_graph", p))
+
+@mcp.tool()
+def inspect_evaluated_data(object_name: str) -> str:
+    """
+    [Engineer State] Returns the mesh statistics from the Dependency Graph (Evaluated).
+    Essential for Geometry Nodes where the source mesh differs from the viewport result.
+    """
+    return json.dumps(send_bridge("inspect_evaluated_data", {"object_name": object_name}))
+
+@mcp.tool()
+def manage_action_slots(object_name: str, operation: str, slot_name: str, action_name: str = None) -> str:
+    """
+    [Iterate State] Creates and assigns Animation Layers using the new Slotted Action system.
+    operation: 'CREATE' or 'ASSIGN'.
+    """
+    return json.dumps(send_bridge("manage_action_slots", {
+        "object_name": object_name, 
+        "operation": operation, 
+        "slot_name": slot_name, 
+        "action_name": action_name
+    }))
+
+@mcp.tool()
+def query_asset_browser(query: str = None, library_name: str = None) -> str:
+    """
+    [Integration State] Searches for assets in local and external libraries.
+    """
+    return json.dumps(send_bridge("query_asset_browser", {"query": query, "library_name": library_name}))
+
+@mcp.tool()
+def configure_eevee_next(settings: dict) -> str:
+    """
+    [Polish State] Configures settings for the new EEVEE Next render engine.
+    settings example: {"raytracing": True, "shadows": True, "gtao": True}
+    """
+    return json.dumps(send_bridge("configure_eevee_next", {"settings": settings}))

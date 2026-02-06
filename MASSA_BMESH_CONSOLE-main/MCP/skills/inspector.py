@@ -5,6 +5,7 @@ import subprocess
 import time
 from typing import Literal, Optional, Dict, Any
 from core.server import mcp
+from core.bridge_client import send_bridge
 
 # --- CONFIGURATION ---
 # --- CONFIGURATION ---
@@ -94,18 +95,16 @@ def audit_console() -> str:
     except Exception as e:
         return f"System Failure during Console Audit: {str(e)}"
 
+    return json.dumps(telemetry, indent=2)
+
 @mcp.tool()
-def audit_cartridge_geometry(filename: str) -> str:
+def audit_cartridge_geometry(filename: str, execution_mode: str = "BACKGROUND") -> str:
     """
     Performs the 'Shadow Audit' (Phase 6) on a geometry cartridge.
     
-    This runs the code in a headless Blender instance to verify:
-    1. Topology Health (Zero-area faces, Non-manifold edges).
-    2. Slot Integrity (Are edges actually selected?).
-    3. Execution Stability (Does it crash?).
-    
     Args:
         filename: The name of the cartridge file (e.g., 'Tank_Tread.py').
+        execution_mode: 'BACKGROUND' (subprocess) or 'LIVE' (active viewport).
         
     Returns:
         JSON string containing the Audit Report (Pass/Fail, Stats, Errors).
@@ -117,25 +116,42 @@ def audit_cartridge_geometry(filename: str) -> str:
     if not os.path.exists(filepath):
         return f"Error: File {filename} not found."
 
-    # Invoke the bridge in 'audit' mode
-    telemetry = _invoke_bridge(filepath, mode="AUDIT")
-    
-    return json.dumps(telemetry, indent=2)
+    if execution_mode.upper() == "LIVE":
+        # Live / Direct Execution
+        payload = {
+            "path": filepath,
+            "mode": "AUDIT",
+            "payload": {}
+        }
+        result = send_bridge("audit_cartridge_direct", payload)
+        # Bridge returns {"report": ...} usually, or strict runner result
+        return json.dumps(result.get("report", result), indent=2)
+    else:
+        # Background Execution
+        telemetry = _invoke_bridge(filepath, mode="AUDIT")
+        return json.dumps(telemetry, indent=2)
+
+    if result.get("status") == "SUCCESS":
+        image_path = result.get("image_path")
+        return f"Viewport Captured: {image_path}"
+    else:
+        return f"Failed to capture viewport: {result.get('message')}"
 
 @mcp.tool()
 def inspect_viewport(
     filename: str, 
     angle: Literal["FRONT", "RIGHT", "TOP", "ISO_CAM", "FOCUS_SELECTED"] = "ISO_CAM",
-    view_mode: Literal["SOLID", "WIREFRAME", "MATERIAL"] = "WIREFRAME"
+    view_mode: Literal["SOLID", "WIREFRAME", "MATERIAL"] = "WIREFRAME",
+    execution_mode: str = "BACKGROUND"
 ) -> str:
     """
     'Sees' the mesh by rendering a viewport snapshot.
-    Use this to visually verify seam placement, shape proportions, and topology flow.
     
     Args:
         filename: The cartridge to visualize.
-        angle: Camera position. 'FOCUS_SELECTED' centers the view on the generated object.
-        view_mode: 'WIREFRAME' is best for checking topology and seams.
+        angle: Camera position.
+        view_mode: 'WIREFRAME' best for topology.
+        execution_mode: 'BACKGROUND' or 'LIVE' (sees active viewport).
         
     Returns:
         str: Path to the generated image file.
@@ -150,14 +166,41 @@ def inspect_viewport(
         "resolution": [1024, 1024]
     }
 
-    # Invoke bridge in 'render' mode
-    result = _invoke_bridge(filepath, mode="RENDER", payload=payload)
-    
-    if result.get("status") == "SUCCESS":
-        image_path = result.get("image_path")
-        return f"Viewport Captured: {image_path}"
+    if execution_mode.upper() == "LIVE":
+        bridge_payload = {
+            "path": filepath,
+            "mode": "RENDER",
+            "payload": payload
+        }
+        # Use audit_cartridge_direct which now wraps runner.execute_audit(..., mode='RENDER')
+        # Note: mcp_bridge.py -> audit_cartridge_direct -> runner.execute_audit
+        result = send_bridge("audit_cartridge_direct", bridge_payload)
+        
+        # Retrieve report/result
+        # mcp_bridge usually wraps runner output in "report" key
+        real_result = result.get("report", result)
     else:
-        return f"Failed to capture viewport: {result.get('message')}"
+        real_result = _invoke_bridge(filepath, mode="RENDER", payload=payload)
+    
+    if real_result.get("status") == "SUCCESS":
+        image_path = real_result.get("image_path")
+        return f"Viewport Captured ({execution_mode}): {image_path}"
+    else:
+        return f"Failed to capture viewport: {real_result.get('message')}"
+
+@mcp.tool()
+def scan_visuals(view_mode: str = "SOLID") -> str:
+    """
+    [Polish State] Returns Base64 image of the active viewport (Live Session).
+    
+    Args:
+        view_mode: 'SOLID' or 'WIRE' (default: 'SOLID').
+        
+    Returns:
+        JSON string containing the base64 image data.
+    """
+    result = send_bridge("get_vision", {"mode": view_mode})
+    return json.dumps(result, indent=2)
 
 @mcp.tool()
 def stress_test_ui_parameters(filename: str, parameter_json: str) -> str:
@@ -185,6 +228,27 @@ def stress_test_ui_parameters(filename: str, parameter_json: str) -> str:
     # Invoke bridge in 'stress_test' mode with params
     result = _invoke_bridge(filepath, mode="STRESS_TEST", payload=params)
     
+    return json.dumps(result, indent=2)
+
+@mcp.tool()
+def inspect_cartridge_live(cartridge_id: str, keep_in_scene: bool = False) -> str:
+    """
+    [Polish State] Visual Audit (Live).
+    Generates the cartridge in the active scene, captures a screenshot, and (optionally) deletes it.
+    Use this to 'see' a specific cartridge without cluttering the scene.
+    
+    Args:
+        cartridge_id: The ID of the cartridge (e.g., 'prim_con_house_generator').
+        keep_in_scene: If True, the object remains after inspection.
+        
+    Returns:
+        JSON with Base64 image.
+    """
+    payload = {
+        "cartridge_id": cartridge_id,
+        "cleanup": not keep_in_scene
+    }
+    result = send_bridge("inspect_cartridge_live", payload)
     return json.dumps(result, indent=2)
 
 @mcp.tool()

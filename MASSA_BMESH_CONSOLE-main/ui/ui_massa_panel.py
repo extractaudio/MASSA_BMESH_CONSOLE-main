@@ -66,6 +66,20 @@ class MASSA_PT_Main(bpy.types.Panel):
             # [ARCHITECT UDPATE] Show Port Config when Offline
             row = box.row()
             row.prop(console, "mcp_port", text="Bridge Port")
+            
+            # [ARCHITECT UDPATE] Force Stop (for Desyncs - Only show if Offline to allow reset)
+            # If online, the main Stop button handles it.
+            sub = row.row()
+            sub.operator("massa.stop_mcp_server", text="Force Reset", icon="X")
+
+        # [ARCHITECT UDPATE] Force Stop (Always Visible Option)
+        # We place this here just in case, but make it subtle if Active
+        if is_running:
+             layout.separator()
+             row = box.row()
+             row.alignment = "RIGHT" 
+             # Main stop button is above, this is backup
+             row.operator("massa.stop_mcp_server", text="Kill Process", icon="CANCEL")
 
         layout.separator()
 

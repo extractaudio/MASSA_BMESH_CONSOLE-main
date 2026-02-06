@@ -141,9 +141,48 @@ def scan_geometry_data():
     return send_bridge("get_bounds")
 
 @mcp.tool()
+def inspect_scene(limit: int = 20, offset: int = 0, object_type: str = None):
+    """[Engineer State] Lists objects in the scene with basic info (Location, Type, Visibility)."""
+    return send_bridge("get_scene_info", {"limit": limit, "offset": offset, "object_type": object_type})
+
+@mcp.tool()
+def inspect_object(object_name: str):
+    """[Engineer State] Detailed info about a specific object (Modifiers, Constraints, Parents, Health)."""
+    return send_bridge("get_object_info", {"object_name": object_name})
+
+@mcp.tool()
 def scan_visuals(view_mode: str = "WIRE"):
     """[Polish State] Returns Base64 image of viewport."""
     return send_bridge("get_vision", {"mode": view_mode})
+
+@mcp.tool()
+def restore_selection():
+    """[Error Recovery] Reselects the last object targeted by a Massa operation. Fixes 'No Active Object' errors."""
+    return send_bridge("restore_last_selection")
+
+@mcp.tool()
+def run_script(code: str):
+    """[Repair State] Executes raw Python code in Blender context. Use for advanced debugging or one-off queries."""
+    return send_bridge("execute_code", {"code": code})
+
+@mcp.tool()
+def massa_generator(cartridge_id: str, creation_params: dict = None, modification_params: dict = None):
+    """
+    [Integration Test] Automated UI Tester.
+    1. Creates a cartridge (cartridge_id) with initial properties (creation_params).
+    2. OPTIONAL: Sets new properties (modification_params) and triggers 'Resurrect' to test Redo logic.
+    """
+    params = {
+        "cartridge_id": cartridge_id,
+        "creation_params": creation_params or {},
+        "modification_params": modification_params
+    }
+    return send_bridge("test_generator_ui", params)
+
+@mcp.tool()
+def forge_bmesh(script_content: str, name: str = "New_Object"):
+    """[Forge State] Creates a mesh from a raw BMesh script (bypassing Cartridge system). Useful for prototyping geometry logic."""
+    return send_bridge("create_bmesh", {"script_content": script_content, "name": name})
 
 @mcp.tool()
 def file_system_edit(filename: str, mode: str, content: str = None):
@@ -169,6 +208,11 @@ def read_library_source(filename: str):
     path = os.path.join(CARTRIDGE_DIR, filename)
     if not os.path.exists(path): return "Error: File not found."
     with open(path, 'r') as f: return f.read()
+
+@mcp.tool()
+def list_materials():
+    """[Discovery State] Lists all materials currently in the Blender file. Use this to find valid inputs for 'mat_' slots."""
+    return send_bridge("get_materials")
 
 @mcp.tool()
 def audit_cartridge(filename: str):
@@ -226,6 +270,75 @@ def audit_console():
             return result.stdout
         except Exception as e:
             return f"Audit execution failed: {str(e)}"
+
+@mcp.tool()
+def execute_contextual_op(op_id: str, space_type: str = "VIEW_3D"):
+    """
+    [System State] Executes a Blender Operator inside a temporary context override.
+    Crucial for Blender 5.0+ strict context rules.
+    """
+    return send_bridge("execute_contextual_op", {"op_id": op_id, "space_type": space_type})
+
+@mcp.tool()
+def edit_node_graph(object_name: str, tree_type: str, operation: str, params: dict):
+    """
+    [Engineer State] Adds, links, or modifies nodes in Geometry, Shader, or Compositor trees.
+    operation: 'ADD_NODE', 'CONNECT', 'SET_VALUE'.
+    """
+    p = {"object_name": object_name, "tree_type": tree_type, "operation": operation}
+    p.update(params)
+    return send_bridge("edit_node_graph", p)
+
+@mcp.tool()
+def inspect_evaluated_data(object_name: str):
+    """
+    [Engineer State] Returns the mesh statistics from the Dependency Graph (Evaluated).
+    Essential for Geometry Nodes where the source mesh differs from the viewport result.
+    """
+    return send_bridge("inspect_evaluated_data", {"object_name": object_name})
+
+@mcp.tool()
+def manage_action_slots(object_name: str, operation: str, slot_name: str, action_name: str = None):
+    """
+    [Iterate State] Creates and assigns Animation Layers using the new Slotted Action system.
+    operation: 'CREATE' or 'ASSIGN'.
+    """
+    return send_bridge("manage_action_slots", {
+        "object_name": object_name, 
+        "operation": operation, 
+        "slot_name": slot_name, 
+        "action_name": action_name
+    })
+
+@mcp.tool()
+def query_asset_browser(query: str = None, library_name: str = None):
+    """
+    [Integration State] Searches for assets in local and external libraries.
+    """
+    return send_bridge("query_asset_browser", {"query": query, "library_name": library_name})
+
+@mcp.tool()
+def configure_eevee_next(settings: dict):
+    """
+    [Polish State] Configures settings for the new EEVEE Next render engine.
+    settings example: {"raytracing": True, "shadows": True, "gtao": True}
+    """
+    return send_bridge("configure_eevee_next", {"settings": settings})
+
+@mcp.tool()
+def organize_outliner(method: str = "BY_NAME", rules: dict = None, ignore_hidden: bool = True):
+    """
+    [Polish State] Organizes the Blender Outliner by grouping objects into collections.
+    
+    Args:
+        method: Strategy to use. 
+               - "BY_NAME": Groups by Name Prefix (e.g. Wall_01 -> Wall). 
+               - "BY_TYPE": Groups by Object Type (MESH, LIGHT, CAMERA).
+               - "BY_PREFIX": Uses 'rules' dict {prefix: collection_name}.
+        rules: Dictionary for "BY_PREFIX" mode. e.g. {"rect_": "Rectangles", "circle_": "Circles"}
+        ignore_hidden: If True, skips objects hidden in the viewport.
+    """
+    return send_bridge("organize_outliner", {"method": method, "rules": rules, "ignore_hidden": ignore_hidden})
 
 if __name__ == "__main__":
     mcp.run()
