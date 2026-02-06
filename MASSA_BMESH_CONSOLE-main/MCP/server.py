@@ -9,7 +9,10 @@ mcp = FastMCP("Massa_Modular_Architect")
 # CONSTANTS
 BLENDER_EXE = r"C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
 BRIDGE_PORT = 5555
-CARTRIDGE_DIR = os.path.join(os.getcwd(), "cartridges")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CARTRIDGE_DIR = os.path.abspath(os.path.join(BASE_DIR, "../modules/cartridges"))
+DEBUG_SYSTEM_DIR = os.path.abspath(os.path.join(BASE_DIR, "../modules/debugging_system"))
+AGENT_WORKFLOWS_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../.agent/workflows"))
 
 def send_bridge(skill, params=None):
     try:
@@ -33,17 +36,56 @@ def send_bridge(skill, params=None):
 @mcp.resource("massa://protocol/orchestration")
 def get_orchestration():
     """Reads WF_MCP_ORCHESTRATION.md"""
-    with open("WF_MCP_ORCHESTRATION.md", "r") as f: return f.read()
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_MCP_ORCHESTRATION.md")
+    with open(path, "r") as f: return f.read()
 
 @mcp.resource("massa://protocol/repair")
 def get_repair_protocol():
     """Reads WF_DEBUG_PROTOCOLS.md"""
-    with open("WF_DEBUG_PROTOCOLS.md", "r") as f: return f.read()
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_DEBUG_PROTOCOLS.md")
+    with open(path, "r") as f: return f.read()
 
 @mcp.resource("massa://protocol/iterate")
 def get_iterate_protocol():
     """Reads WF_ITERATION_LOGIC.md"""
-    with open("WF_ITERATION_LOGIC.md", "r") as f: return f.read()
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_ITERATION_LOGIC.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/generator_workflow")
+def get_generator_workflow():
+    """Reads WF_UNIFIED_Cart_Generator.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_UNIFIED_Cart_Generator.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/iterator_workflow")
+def get_iterator_workflow():
+    """Reads WF_UNIFIED_Cart_Iterator.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_UNIFIED_Cart_Iterator.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/repair_workflow")
+def get_repair_workflow():
+    """Reads WF_Cart_Repair.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_Cart_Repair.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/console_understanding")
+def get_console_understanding():
+    """Reads WF_Console_Understanding.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_Console_Understanding.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/audit_cartridge")
+def get_audit_cartridge_protocol():
+    """Reads audit_cartridge.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "audit_cartridge.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/audit_console")
+def get_audit_console_protocol():
+    """Reads audit_console.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "audit_console.md")
+    with open(path, "r") as f: return f.read()
 
 # --- TOOLS ---
 
@@ -95,6 +137,35 @@ def file_system_edit(filename: str, mode: str, content: str = None):
     elif mode == 'WRITE':
         with open(path, 'w') as f: f.write(content)
         return "File updated."
+
+@mcp.tool()
+def audit_cartridge(filename: str):
+    """[Audit State] Runs the background auditor on a specific cartridge."""
+    bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge.py")
+    filename = os.path.basename(filename)
+    cartridge_path = os.path.join(CARTRIDGE_DIR, filename)
+
+    if not os.path.exists(cartridge_path):
+        return f"Error: Cartridge {filename} not found."
+
+    cmd = ["python", bridge_script, cartridge_path]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout
+    except Exception as e:
+        return f"Audit execution failed: {str(e)}"
+
+@mcp.tool()
+def audit_console():
+    """[Audit State] Runs the background auditor on the Massa Console architecture."""
+    bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge_console.py")
+
+    cmd = ["python", bridge_script]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        return result.stdout
+    except Exception as e:
+        return f"Audit execution failed: {str(e)}"
 
 if __name__ == "__main__":
     mcp.run()
