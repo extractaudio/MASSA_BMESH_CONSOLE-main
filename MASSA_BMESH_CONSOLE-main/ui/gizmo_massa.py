@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import GizmoGroup
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 class MASSA_GGT_GizmoGroup(GizmoGroup):
     bl_idname = "MASSA_GGT_gizmo_group"
@@ -92,5 +92,5 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
         # 0.4m above Condemnation (0.8m total)
         pos_res = Vector((center_x, center_y, max_z + 0.8))
 
-        self.gizmo_condemn.matrix_basis.translation = pos_con
-        self.gizmo_resurrect.matrix_basis.translation = pos_res
+        self.gizmo_condemn.matrix_basis = Matrix.Translation(pos_con)
+        self.gizmo_resurrect.matrix_basis = Matrix.Translation(pos_res)
