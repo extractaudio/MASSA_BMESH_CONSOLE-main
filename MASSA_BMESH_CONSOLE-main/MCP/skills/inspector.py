@@ -7,10 +7,12 @@ from typing import Literal, Optional, Dict, Any
 from core.server import mcp
 
 # --- CONFIGURATION ---
+# --- CONFIGURATION ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 CARTRIDGE_DIR = os.path.join(BASE_DIR, "geometry_cartridges")
 OUTPUT_DIR = os.path.join(BASE_DIR, "audit_output")
 BRIDGE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "runner.py")
+BRIDGE_CONSOLE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "bridge_console.py")
 
 # Ensure output directory exists for visual dumps
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -62,6 +64,35 @@ def _invoke_bridge(target_file: str, mode: str, payload: Dict[str, Any] = None) 
         return {"status": "SYSTEM_FAILURE", "message": str(e)}
 
 # --- MCP TOOLS ---
+
+@mcp.tool()
+def audit_console() -> str:
+    """
+    [Phase 0] System Health Check.
+    Runs the specialized 'bridge_console.py' script to verify the Host Environment/Addon Registry.
+    
+    Returns:
+        str: Console Audit Report (PASS/FAIL).
+    """
+    if not os.path.exists(BRIDGE_CONSOLE_SCRIPT):
+        return f"Error: Bridge Console script not found at {BRIDGE_CONSOLE_SCRIPT}"
+
+    try:
+        # Run the console bridge
+        result = subprocess.run(
+            ["python", BRIDGE_CONSOLE_SCRIPT], 
+            capture_output=True, 
+            text=True, 
+            timeout=30
+        )
+        
+        if result.returncode != 0:
+            return f"Console Audit Crashed:\n{result.stderr}"
+            
+        return result.stdout
+        
+    except Exception as e:
+        return f"System Failure during Console Audit: {str(e)}"
 
 @mcp.tool()
 def audit_cartridge_geometry(filename: str) -> str:

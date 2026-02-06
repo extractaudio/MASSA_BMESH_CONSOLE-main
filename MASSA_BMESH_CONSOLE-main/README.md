@@ -77,3 +77,67 @@ I have workflows to prompt, repair and optimize these scripts.. they are very ma
 
 just dont.. it fallows a rule of 5, which means many of the references are needed across 5 separate files.
 if you stuff it in Jules then you might have a chance.
+
+
+
+Based on my re-analysis of the MCP/skills directory, here are the MCP server tools currently defined in each file, including the newly added tools:
+
+1. cartridge_forge.py
+Tools for creating, managing, and versioning geometry cartridges.
+
+create_primitive_cartridge
+: Generates a new BMesh cartridge from primitives (Cube, Cylinder, etc.).
+write_cartridge_script
+: Writes raw Python code to a cartridge file (for Redo/Fixes).
+read_cartridge_script
+: Reads the content of an existing cartridge.
+list_geometry_cartridges
+ (NEW): Lists all available geometry cartridge files in the library.
+duplicate_cartridge
+ (NEW): Creates a copy/backup of a cartridge for versioning.
+
+2. inspector.py
+Tools for auditing, verifying, and visualizing geometry data.
+
+audit_cartridge_geometry
+: Runs the headless "Shadow Audit" (Phase 6) for topology and stability.
+inspect_viewport
+: Captures a visual snapshot of the mesh (Wireframe, Material, etc.).
+stress_test_ui_parameters
+: Simulates user parameter changes to verify stability.
+run_blender_analysis
+: Runs deep analysis tools (Print3D, UV Overlap, Face Area).
+visual_regression_diff
+: [Phase 1] Overlays wireframes of two versions to visualize changes.
+inspect_uv_heatmap
+: [Phase 2] Generates a heatmap of UV stretching.
+audit_performance
+: [Phase 3] Checks execution time and polycount against budgets.
+debug_csg_tree
+: [Phase 4] Visualizes hidden boolean "cutter" objects.
+visualize_edge_slots
+ (NEW): [Phase 4] Highlights specific edge slots (seams, bevels) to verify procedural selection logic.
+verify_material_logic
+ (NEW): [Phase 4] Static analysis to ensure the cartridge correctly retrieves the MAT_TAG layer for material assignment dynamics.
+
+3. mechanic.py
+Tools for automated code injection and quick fixes.
+
+repair_topology_logic
+: Injects mandatory Phase 3 cleanup (remove_doubles, recalc_face_normals).
+fix_uv_pinching
+: Adjusts UV smart_project margins to prevent pinching.
+resolve_context_errors
+: Replaces viewport-dependent bpy.ops with data-dependent bmesh.ops.
+ensure_imports
+: Checks for and adds missing imports (bpy, bmesh, mathutils).
+check_scale_safety
+: [Phase 5] Detects microscopic parameters that lead to merge errors.
+inject_boolean_jitter
+: [Phase 5] Injects random offsets to prevent co-planar boolean failures.
+inject_standard_slots
+: [Phase 5] Injects the mandatory 
+slots
+ dictionary if missing.
+
+4. knowledge.py

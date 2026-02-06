@@ -1,5 +1,5 @@
 from core.server import create_mcp_server
-from skills import cartridge_forge, inspector, mechanic, knowledge
+from skills import cartridge_forge, inspector, mechanic, knowledge, blender_ops, workflow_runner
 
 mcp = create_mcp_server()
 
@@ -14,11 +14,25 @@ mcp.tool()(inspector.session_launch)
 mcp.tool()(inspector.scan_telemetry)
 mcp.tool()(inspector.scan_slots)
 mcp.tool()(inspector.scan_visuals)
+mcp.tool()(inspector.audit_cartridge_geometry)
+mcp.tool()(inspector.audit_console)
 
 # Mechanic
 mcp.tool()(mechanic.file_system_edit)
-mcp.tool()(mechanic.audit_cartridge)
-mcp.tool()(mechanic.audit_console)
+
+# Blender Ops
+mcp.tool()(blender_ops.get_scene_info)
+mcp.tool()(blender_ops.get_object_info)
+mcp.tool()(blender_ops.get_viewport_screenshot)
+mcp.tool()(blender_ops.execute_blender_code)
+mcp.tool()(blender_ops.create_bmesh_object)
+
+# Workflow Engine
+mcp.tool()(workflow_runner.start_workflow)
+mcp.tool()(workflow_runner.next_step)
+mcp.tool()(workflow_runner.previous_step)
+mcp.tool()(workflow_runner.get_workflow_status)
+mcp.tool()(workflow_runner.list_available_workflows)
 
 # --- REGISTER RESOURCES ---
 
