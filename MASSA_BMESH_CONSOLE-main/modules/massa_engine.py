@@ -70,6 +70,7 @@ def run_pipeline(op, context):
     bm = bmesh.new()
     try:
         op.build_shape(bm)
+        massa_surface.auto_detect_edge_slots(bm)
         process_edge_slots(bm, op)
         if abs(op.global_scale - 1.0) > 0.001:
             bmesh.ops.scale(bm, vec=(op.global_scale,) * 3, verts=bm.verts)
