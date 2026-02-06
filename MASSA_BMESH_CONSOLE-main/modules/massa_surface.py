@@ -264,6 +264,51 @@ def _calc_uv_ratio(faces, uv_layer):
     return math.sqrt(tuv / t3d) if t3d > 0.0001 else 0.0
 
 
+def auto_detect_edge_slots(bm):
+    """
+    Populates MASSA_EDGE_SLOTS based on Material Boundaries.
+    Slot ID = max(mat_index_A, mat_index_B)
+    """
+    try:
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+    except:
+        return
+
+    bm.edges.ensure_lookup_table()
+
+    for e in bm.edges:
+        # Skip if already assigned (Manual Override Priority)
+        if e[edge_slots] != 0:
+            continue
+
+        if not e.is_manifold:
+            continue
+
+        # We only care about edges with exactly 2 faces for boundary checks
+        # (Non-manifold or multi-face edges are ambiguous)
+        if len(e.link_faces) != 2:
+            continue
+
+        f1 = e.link_faces[0]
+        f2 = e.link_faces[1]
+
+        m1 = f1.material_index
+        m2 = f2.material_index
+
+        if m1 != m2:
+            # Boundary detected
+            # Assign to the higher slot index (Assuming 0 is base)
+            target = max(m1, m2)
+
+            # Clamp to 4 (UI only supports 4 slots)
+            if target > 4:
+                target = 4
+
+            e[edge_slots] = target
+
+
 def tag_structure_edges(bm, op):
     """
     Writes edge data to 'Massa_Viz_ID' (Edge Int Layer) for GN Visualization.
