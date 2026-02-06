@@ -25,6 +25,13 @@ description: Workflow for correcting UV seams and packing logic
 
 ## 2. THE UNWRAPPING WORKFLOW
 
+### 🟢 PHASE 0: SYSTEM HEALTH CHECK
+
+**Goal:** Ensure the Engine is capable of Seam/Slot interpretation.
+
+1. **Run System Audit:** `python debugging_system/bridge_console.py`
+2. **Verify:** `MASSA_EDGE_SLOTS` layer check must PASS.
+
 ### 🟣 PHASE 1: TOPOLOGY ANALYSIS
 
 1. **Read Topology:** Identify sharp angles (>60 deg) and cylindrical caps.

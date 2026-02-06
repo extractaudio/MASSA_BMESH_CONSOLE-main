@@ -278,9 +278,30 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
     """
     Revised UV Tab Layout: Compact, Contextual, Organized.
     """
+    # --- 1. SOLVERS (The Algorithm) - MOVED TO TOP ---
+    box = layout.box()
+    # Header row with Icon and Dropdown
+    row = box.row(align=True)
+    row.label(text="Auto-Solver", icon="MOD_UVPROJECT")
+    row.prop(owner, "seam_solver_mode", text="")
+
+    # Contextual Parameters
+    if owner.seam_solver_mode != "NONE":
+        col = box.column(align=True)
+        col.separator(factor=0.5)
+
+        if owner.seam_solver_mode in {"HARD_SURFACE", "AUTO"}:
+            col.prop(owner, "seam_cluster_tol")
+        elif owner.seam_solver_mode in {"ORGANIC", "SMART_TUBE", "BOX_STRIP"}:
+            col.prop(owner, "seam_orient")
+            if owner.seam_solver_mode == "ORGANIC":
+                col.prop(owner, "seam_straightness")
+
+    layout.separator()
+
     layout.label(text="Seam Intelligence", icon="GROUP_UVS")
 
-    # --- 1. DRIVERS (The Main Control Deck) ---
+    # --- 2. DRIVERS (The Main Control Deck) ---
     box = layout.box()
 
     # Header: Main Switch
@@ -324,27 +345,6 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
                 grid.prop(owner, "seam_use_cont", text="Contour")
                 grid.prop(owner, "seam_use_guide", text="Guide")
                 grid.prop(owner, "seam_use_detail", text="Detail")
-
-    layout.separator()
-
-    # --- 2. SOLVERS (The Algorithm) ---
-    box = layout.box()
-    # Header row with Icon and Dropdown
-    row = box.row(align=True)
-    row.label(text="Auto-Solver", icon="MOD_UVPROJECT")
-    row.prop(owner, "seam_solver_mode", text="")
-
-    # Contextual Parameters
-    if owner.seam_solver_mode != "NONE":
-        col = box.column(align=True)
-        col.separator(factor=0.5)
-
-        if owner.seam_solver_mode in {"HARD_SURFACE", "AUTO"}:
-            col.prop(owner, "seam_cluster_tol")
-        elif owner.seam_solver_mode in {"ORGANIC", "SMART_TUBE", "BOX_STRIP"}:
-            col.prop(owner, "seam_orient")
-            if owner.seam_solver_mode == "ORGANIC":
-                col.prop(owner, "seam_straightness")
 
     layout.separator()
 

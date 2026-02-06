@@ -20,6 +20,7 @@ from . import prim_con_window
 from . import prim_con_doorway
 from . import prim_con_porch_decking
 from . import prim_con_cabinet
+from . import prim_con_house_generator
 
 # --- CORE PRIMITIVES (cart_prim_*) ---
 from . import cart_prim_rock_boulder
@@ -87,6 +88,7 @@ MODULES = [
     prim_con_doorway,
     prim_con_porch_decking,
     prim_con_cabinet,
+    prim_con_house_generator,
     # Core
     cart_prim_rock_boulder,
     cart_plank,
@@ -147,6 +149,7 @@ CLASSES = [
     prim_con_doorway.MASSA_OT_prim_con_doorway,
     prim_con_porch_decking.MASSA_OT_prim_con_porch_decking,
     prim_con_cabinet.MASSA_OT_prim_con_cabinet,
+    prim_con_house_generator.MASSA_OT_prim_con_house_generator,
     # Core
     cart_prim_rock_boulder.MASSA_OT_PrimRockBoulder,
     cart_plank.MASSA_OT_Plank,

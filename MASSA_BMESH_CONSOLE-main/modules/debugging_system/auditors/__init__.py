@@ -2,10 +2,10 @@ import pkgutil
 import importlib
 import inspect
 
-def run_all_auditors(obj):
+def run_all_auditors(obj, op_class=None):
     """
     Dynamically finds all scripts in this 'auditors' folder,
-    imports them, and looks for a function called 'audit_mesh(obj)'.
+    imports them, and looks for a function called 'audit_mesh(obj, op_class=None)'.
     """
     errors = []
     package_path = __path__
@@ -21,8 +21,13 @@ def run_all_auditors(obj):
             if hasattr(module, 'audit_mesh') and inspect.isfunction(module.audit_mesh):
                 
                 # 4. Run the Audit
-                # Expectation: audit_mesh(obj) returns a list of error strings
-                result = module.audit_mesh(obj)
+                # Expectation: audit_mesh(obj, op_class) -> list of error strings
+                # We handle both signatures for backward compatibility
+                sig = inspect.signature(module.audit_mesh)
+                if 'op_class' in sig.parameters:
+                    result = module.audit_mesh(obj, op_class=op_class)
+                else:
+                    result = module.audit_mesh(obj)
                 
                 if result and isinstance(result, list):
                     errors.extend(result)

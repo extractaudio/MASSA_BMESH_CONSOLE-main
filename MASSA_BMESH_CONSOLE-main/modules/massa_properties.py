@@ -50,7 +50,7 @@ class MassaPropertiesMixin:
     )
 
     # --- SEAM LOGIC (UVs) ---
-    seam_active: BoolProperty(name="Write Seams", default=True)
+    seam_active: BoolProperty(name="Write Seams", default=False)
 
     # 1. DRIVERS
     seam_from_angle: BoolProperty(name="Seam from Angle", default=True)
@@ -85,7 +85,7 @@ class MassaPropertiesMixin:
     )
 
     # 2. CLEANUP
-    seam_cleanup_flat: BoolProperty(name="Remove Flat Seams", default=True)
+    seam_cleanup_flat: BoolProperty(name="Remove Flat Seams", default=False)
     seam_cleanup_thresh: FloatProperty(
         name="Flat Tol",
         default=5.0,
