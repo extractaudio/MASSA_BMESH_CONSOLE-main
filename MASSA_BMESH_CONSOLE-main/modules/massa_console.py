@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import PointerProperty, EnumProperty, IntProperty
+from bpy.props import PointerProperty, EnumProperty, IntProperty, BoolProperty
 from .massa_properties import MassaPropertiesMixin
 
 
@@ -29,6 +29,12 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
         min=1024,
         max=65535,
         description="Port for MCP Bridge Communication"
+    )
+
+    mcp_use_direct_mode: BoolProperty(
+        name="Direct Execution",
+        default=False,
+        description="If True, MCP audits run in this Blender Instance (Modifies Active Scene)"
     )
 
     # --- 2. GLOBAL VISUALIZATION (Redefined with ICONS) ---

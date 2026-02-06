@@ -25,26 +25,6 @@ def setup_massa_env():
         massa_mod = importlib.util.module_from_spec(spec)
         sys.modules["massa"] = massa_mod
         
-        # We must add the parent of the addon root to sys.path so submodules can be resolved 
-        # normally if they were standard, but here we are doing some magic.
-        # Actually, if we use the package 'massa', we want sub-imports to work.
-        # When 'massa' __init__ runs, it does 'from .utils import ...'
-        # This requires 'massa' to be in sys.modules (done).
-        # And it generally requires the loader to know where to look.
-        
-        # Crucial: For submodules like 'massa.utils' to be found, we usually need correct pathing.
-        # But since we are manually defining the root 'massa', we might need to help it find submodules?
-        # A simple hack: Add the addon_root to sys.path, but that enables 'import utils', not 'massa.utils'.
-        
-        # Better approach:
-        # Just add the addon_root to sys.path.
-        # Then inside the scripts, assume they are top level for now?
-        # NO, the scripts use relative imports 'from ..modules'. This REQUIRES them to be in a package.
-        
-        # Let's try the safest Blender Addon Dev approach:
-        # Just register the classes we need manually if the package loader is too fragile in headless.
-        # BUT, the __init__.py handles complex reloading.
-        
         # Let's execute the __init__ module.
         spec.loader.exec_module(massa_mod)
         
@@ -59,25 +39,23 @@ def setup_massa_env():
         import traceback
         return False, f"Setup Error: {str(e)}\n{traceback.format_exc()}"
 
-def run_tests():
+def execute_console_audit(is_direct=False):
     report = {"status": "PASS", "errors": [], "logs": []}
     
     # 1. Setup Environment
-    ok, msg = setup_massa_env()
-    report["logs"].append(msg)
-    if not ok:
-        report["status"] = "FAIL"
-        report["errors"].append(msg)
-        return report
+    if not is_direct:
+        ok, msg = setup_massa_env()
+        report["logs"].append(msg)
+        if not ok:
+            report["status"] = "FAIL"
+            report["errors"].append(msg)
+            return report
         
-    # 2. Create Test Context
-    # We need a 3D view context for some operators, but massive parts work context-free.
-    # Let's clean scene.
-    bpy.ops.wm.read_factory_settings(use_empty=True)
+        # 2. Create Test Context
+        bpy.ops.wm.read_factory_settings(use_empty=True)
     
     # 3. Test: Operator Registration
     # Check if a known operator is registered
-    op_id = "MASSA_OT_prim_con_beam" # from our research
     # The actual bl_idname is "massa.gen_prim_con_beam"
     
     if not hasattr(bpy.ops.massa, "gen_prim_con_beam"):
@@ -116,8 +94,6 @@ def run_tests():
         bm.free()
         
         # 6. Test: Redo Panel Simulation (Resurrection)
-        # Change a property and ensure it updates? 
-        # This is hard in headless without calling the operator again.
         # But we can check if the object has the resurrection ID
         if "massa_op_id" not in obj:
              report["status"] = "FAIL"
@@ -135,7 +111,7 @@ def run_tests():
     return report
 
 if __name__ == "__main__":
-    final_report = run_tests()
+    final_report = execute_console_audit(is_direct=False)
     print("---AUDIT_START---")
     print(json.dumps(final_report, indent=4))
     print("---AUDIT_END---")

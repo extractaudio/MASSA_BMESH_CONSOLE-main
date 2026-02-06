@@ -55,6 +55,10 @@ class MASSA_PT_Main(bpy.types.Panel):
             sub = row.row()
             sub.alert = True
             sub.operator("massa.stop_mcp_server", text="Stop Server", icon="X")
+
+            # [ARCHITECT UDPATE] Direct Execution Toggle
+            row = box.row()
+            row.prop(console, "mcp_use_direct_mode", toggle=True, icon="CONSOLE")
         else:
             row.label(text="Offline", icon="ERROR")
             row.operator("massa.start_mcp_server", text="Start MCP Bridge", icon="URL")
