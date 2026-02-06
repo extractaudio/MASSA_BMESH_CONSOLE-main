@@ -17,7 +17,7 @@ from .modules import massa_console  # 1. BRAIN
 from .modules import massa_engine  # 2. CORE
 from .operators import massa_base, massa_tools, massa_console_op  # 3. LOGIC
 from .modules import cartridges  # 4. CONTENT
-from .ui import ui_massa_panel, gizmo_massa  # 5. INTERFACE
+from .ui import ui_massa_panel, ui_massa_pie, gizmo_massa  # 5. INTERFACE
 from .MCP import mcp_bridge  # 6. MCP BRIDGE
 
 # --- MANUAL OVERRIDE / HOT RELOAD LOGIC ---
@@ -57,11 +57,15 @@ if "massa_console" in locals():
                 importlib.reload(mod)
 
         importlib.reload(ui_massa_panel)  # The Face
+        importlib.reload(ui_massa_pie)
         importlib.reload(gizmo_massa)
 
         print("Massa: Reload Complete.")
     except Exception as e:
         print(f"Massa: Reload Error: {e}")
+
+
+addon_keymaps = []
 
 
 def register():
@@ -84,12 +88,36 @@ def register():
 
     # 4. Register UI
     bpy.utils.register_class(ui_massa_panel.MASSA_PT_Main)
+    bpy.utils.register_class(ui_massa_pie.MASSA_MT_category_primitives)
+    bpy.utils.register_class(ui_massa_pie.MASSA_MT_category_construction)
+    bpy.utils.register_class(ui_massa_pie.MASSA_MT_category_architecture)
+    bpy.utils.register_class(ui_massa_pie.MASSA_MT_category_buildings)
+    bpy.utils.register_class(ui_massa_pie.MASSA_MT_pie_add)
     bpy.utils.register_class(gizmo_massa.MASSA_GGT_GizmoGroup)
+
+    # 5. Keymaps
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.addon
+    if kc:
+        km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
+        kmi = km.keymap_items.new("wm.call_menu_pie", "I", "PRESS", ctrl=True)
+        kmi.properties.name = "MASSA_MT_pie_add"
+        addon_keymaps.append((km, kmi))
 
 
 def unregister():
-    # 1. Unregister UI
+    # 1. Unregister Keymaps
+    for km, kmi in addon_keymaps:
+        km.keymap_items.remove(kmi)
+    addon_keymaps.clear()
+
+    # 2. Unregister UI
     bpy.utils.unregister_class(gizmo_massa.MASSA_GGT_GizmoGroup)
+    bpy.utils.unregister_class(ui_massa_pie.MASSA_MT_pie_add)
+    bpy.utils.unregister_class(ui_massa_pie.MASSA_MT_category_buildings)
+    bpy.utils.unregister_class(ui_massa_pie.MASSA_MT_category_architecture)
+    bpy.utils.unregister_class(ui_massa_pie.MASSA_MT_category_construction)
+    bpy.utils.unregister_class(ui_massa_pie.MASSA_MT_category_primitives)
     bpy.utils.unregister_class(ui_massa_panel.MASSA_PT_Main)
 
     # 2. Unregister Cartridges
