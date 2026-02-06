@@ -36,17 +36,44 @@ def send_bridge(skill, params=None):
 @mcp.resource("massa://protocol/orchestration")
 def get_orchestration():
     """Reads WF_MCP_ORCHESTRATION.md"""
-    with open("WF_MCP_ORCHESTRATION.md", "r") as f: return f.read()
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_MCP_ORCHESTRATION.md")
+    with open(path, "r") as f: return f.read()
 
 @mcp.resource("massa://protocol/repair")
 def get_repair_protocol():
     """Reads WF_DEBUG_PROTOCOLS.md"""
-    with open("WF_DEBUG_PROTOCOLS.md", "r") as f: return f.read()
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_DEBUG_PROTOCOLS.md")
+    with open(path, "r") as f: return f.read()
 
 @mcp.resource("massa://protocol/iterate")
 def get_iterate_protocol():
     """Reads WF_ITERATION_LOGIC.md"""
-    with open("WF_ITERATION_LOGIC.md", "r") as f: return f.read()
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_ITERATION_LOGIC.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/generator_workflow")
+def get_generator_workflow():
+    """Reads WF_UNIFIED_Cart_Generator.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_UNIFIED_Cart_Generator.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/iterator_workflow")
+def get_iterator_workflow():
+    """Reads WF_UNIFIED_Cart_Iterator.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_UNIFIED_Cart_Iterator.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/repair_workflow")
+def get_repair_workflow():
+    """Reads WF_Cart_Repair.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_Cart_Repair.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/console_understanding")
+def get_console_understanding():
+    """Reads WF_Console_Understanding.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_Console_Understanding.md")
+    with open(path, "r") as f: return f.read()
 
 @mcp.resource("massa://protocol/audit_cartridge")
 def get_audit_cartridge_protocol():
