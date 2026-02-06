@@ -23,7 +23,8 @@ description: Generate a BMesh cartridge following massa_mesh_gen console specs.
 
 **Goal:** Ensure the Host Environment (Console) is healthy before generating chips.
 
-1. **Run System Audit:** `python debugging_system/bridge_console.py`
+1. **Run System Audit:** Call `inspector.audit_console()`.
+    * *Tool:* `audit_console`
 2. **Verify:** Import/Registry must be PASS.
 
 ### 🟣 PHASE 1: INGESTION & INTENT
@@ -186,11 +187,11 @@ for e in bm.edges:
 1. **Staging:** Save the current code to: `geometry_cartridges/_temp_candidate.py`
     *Do not overwrite any final files yet.*
 
-2. **Execute Audit:** Trigger the specialized Audit Workflow.
-    * **Workflow:** `[.agent/workflows/audit_cartridge.md](.agent/workflows/audit_cartridge.md)`
-    * **Context:** Pass `geometry_cartridges/_temp_candidate.py` as the target path.
+2. **Execute Audit:** Trigger the Shadow Audit.
+    * **Tool:** `inspector.audit_cartridge_geometry(filename="_temp_candidate.py")`
+    * *Note:* The tool internally runs the bridge logic.
 
-3. **Ingest Telemetry (JSON):** Parse the JSON response from the bridge.
+3. **Ingest Telemetry (JSON):** Parse the JSON response.
 
 4. **Decision Matrix:**
     * ❌ **CASE A: STATUS == "FAIL"**

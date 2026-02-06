@@ -19,8 +19,7 @@ description: Workflow for repairing geometry cartridges using a 4-phase protocol
 ### 🔴 PHASE 1: DIAGNOSIS (THE CRASH)
 
 1. **Ingest Source:** Read the broken `.py` file.
-2. **Run Bridge (Initial Test):**
-    `python debugging_system/bridge.py geometry_cartridges/broken_file.py`
+2. **Run Bridge (Initial Test):** Call `inspector.audit_cartridge_geometry(filename="broken_file.py")`
 3. **Classify Error:**
     * *Type A: Syntax/Runtime* (NameError, Indentation, ContextError).
     * *Type B: Topological* (Zero-Area Faces, Non-Manifold).
@@ -51,8 +50,7 @@ description: Workflow for repairing geometry cartridges using a 4-phase protocol
 ### 🟣 PHASE 3: THE VERIFICATION AUDIT
 
 1. **Staging:** Save fixed code to `geometry_cartridges/_temp_repair.py`.
-2. **Execute Bridge:**
-    `python debugging_system/bridge.py geometry_cartridges/_temp_repair.py`
+2. **Execute Bridge:** Call `inspector.audit_cartridge_geometry(filename="_temp_repair.py")`
 3. **Loop:**
     * If `STATUS == "FAIL"`: Return to Phase 2 with new error data.
     * If `STATUS == "PASS"`: Proceed to Phase 4.

@@ -144,11 +144,8 @@ for e in new_edges:
 **The Loop Protocol:**
 
 1. **Staging:** Save the full, updated code to: `geometry_cartridges/_temp_iteration.py`
-2. **Execute Bridge:**
-
-    ```bash
-    python debugging_system/bridge.py geometry_cartridges/_temp_iteration.py
-    ```
+2. **Execute Bridge:** Trigger the Shadow Audit.
+    * **Tool:** `inspector.audit_cartridge_geometry(filename="_temp_iteration.py")`
 
 3. **Decision Matrix:**
     * ❌ **CASE A: STATUS == "FAIL"**

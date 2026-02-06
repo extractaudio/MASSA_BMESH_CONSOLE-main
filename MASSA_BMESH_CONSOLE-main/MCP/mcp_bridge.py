@@ -173,6 +173,136 @@ def process_queue():
             elif skill == 'get_vision':
                 data["image"] = capture_viewport(params.get('mode', 'WIRE'))
 
+            elif skill == 'get_scene_info':
+                limit = params.get('limit', 20)
+                offset = params.get('offset', 0)
+                obj_type = params.get('object_type')
+                
+                objects = []
+                count = 0
+                skipped = 0
+                
+                for obj in bpy.data.objects:
+                    if obj_type and obj.type != obj_type:
+                        continue
+                        
+                    if skipped < offset:
+                        skipped += 1
+                        continue
+                        
+                    if count >= limit:
+                        break
+                        
+                    objects.append({
+                        "name": obj.name,
+                        "type": obj.type,
+                        "location": list(obj.location),
+                        "visible": not obj.hide_viewport
+                    })
+                    count += 1
+                    
+                data["scene_info"] = {
+                    "total_objects": len(bpy.data.objects),
+                    "returned": len(objects),
+                    "objects": objects
+                }
+
+            elif skill == 'get_object_info':
+                name = params.get('object_name')
+                obj = bpy.data.objects.get(name)
+                if obj:
+                    # Health Checks
+                    applied_scale = all(abs(s - 1.0) < 0.001 for s in obj.scale)
+                    
+                    data["object_info"] = {
+                        "name": obj.name,
+                        "type": obj.type,
+                        "location": list(obj.location),
+                        "rotation": list(obj.rotation_euler),
+                        "scale": list(obj.scale),
+                        "dimensions": list(obj.dimensions),
+                        "modifiers": [m.name for m in obj.modifiers],
+                        "constraints": [c.name for c in obj.constraints],
+                        "parent": obj.parent.name if obj.parent else None,
+                        "collections": [c.name for c in obj.users_collection],
+                        "health_check": {
+                            "applied_scale": applied_scale,
+                            "has_uvs": bool(obj.data.uv_layers) if obj.type == 'MESH' else None
+                        }
+                    }
+                else:
+                    data = {"status": "error", "msg": f"Object '{name}' not found"}
+
+            elif skill == 'execute_code':
+                code = params.get('code')
+                try:
+                    # Capture stdout
+                    import io
+                    import contextlib
+                    f = io.StringIO()
+                    with contextlib.redirect_stdout(f):
+                        exec(code, {'bpy': bpy, 'bmesh': bmesh})
+                    data["output"] = f.getvalue()
+                except Exception as e:
+                    data = {"status": "error", "msg": f"Execution Error: {str(e)}"}
+
+            elif skill == 'create_bmesh':
+                name = params.get('name', 'New_Object')
+                script = params.get('script_content', '')
+                
+                try:
+                    bm = bmesh.new()
+                    # Safe context for script execution
+                    local_vars = {
+                        'bm': bm,
+                        'bmesh': bmesh,
+                        'bpy': bpy,
+                        'mathutils': bpy.types.bpy_prop_collection, # weak mock, ideally import mathutils
+                        'Vector': None, # Should verify if available
+                        'Matrix': None,
+                        'EPSILON': 0.0001
+                    }
+                    # Try to import mathutils if possible or assume it's there
+                    import mathutils
+                    local_vars['mathutils'] = mathutils
+                    local_vars['Vector'] = mathutils.Vector
+                    local_vars['Matrix'] = mathutils.Matrix
+                    
+                    exec(script, {}, local_vars)
+                    
+                    # Convert to Mesh
+                    mesh = bpy.data.meshes.new(name)
+                    bm.to_mesh(mesh)
+                    bm.free()
+                    
+                    obj = bpy.data.objects.new(name, mesh)
+                    bpy.context.collection.objects.link(obj)
+                    
+                    # Hard 10 Slot Mandate
+                    required_slots = [
+                        "Mat_Standard", "Mat_Glass", "Mat_Emission", "Mat_Dark",
+                        "Mat_Metal", "Mat_Accent", "Mat_Utility", "Mat_Transparent",
+                        "Mat_Scifi", "Mat_Detail" 
+                    ] # Example placeholder slots if not defined elsewhere
+                    
+                    # Or just ensure 10 slots exist
+                    for i in range(10):
+                        mat_name = f"Slot_{i}"
+                        mat = bpy.data.materials.get(mat_name)
+                        if not mat:
+                            mat = bpy.data.materials.new(mat_name)
+                        obj.data.materials.append(mat)
+                        
+                    # Select
+                    bpy.ops.object.select_all(action='DESELECT')
+                    obj.select_set(True)
+                    bpy.context.view_layer.objects.active = obj
+                    
+                    data["msg"] = f"Created Object: {obj.name}"
+                    
+                except Exception as e:
+                    data = {"status": "error", "msg": f"BMesh Script Error: {str(e)}"}
+
             else:
                 data = {"status": "error", "msg": f"Unknown Skill: {skill}"}
 

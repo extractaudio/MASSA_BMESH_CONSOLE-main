@@ -87,6 +87,18 @@ def get_audit_console_protocol():
     path = os.path.join(AGENT_WORKFLOWS_DIR, "audit_console.md")
     with open(path, "r") as f: return f.read()
 
+@mcp.resource("massa://protocol/cartridge_search")
+def get_cartridge_search_protocol():
+    """Reads WF_Cartridge_Search.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_Cartridge_Search.md")
+    with open(path, "r") as f: return f.read()
+
+@mcp.resource("massa://protocol/slot_standardization")
+def get_slot_standardization_protocol():
+    """Reads WF_Slot_Standardization.md"""
+    path = os.path.join(AGENT_WORKFLOWS_DIR, "WF_Slot_Standardization.md")
+    with open(path, "r") as f: return f.read()
+
 # --- TOOLS ---
 
 @mcp.tool()
