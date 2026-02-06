@@ -23,10 +23,29 @@ def run_checks(obj):
     errors = []
     
     # --- DYNAMICALLY RUN ATTACHED AUDITORS ---
+    # --- DYNAMICALLY RUN ATTACHED AUDITORS ---
     if 'auditors' in sys.modules:
         import auditors
+        # Identify the Operator Class from globals if possible
+        op_class = None
+        # Look for class starting with MASSA_OT_
+        for name, val in globals().items():
+            if name.startswith("MASSA_OT_") and isinstance(val, type):
+                op_class = val
+                break
+        
+        # Register Class to populate bl_rna
+        if op_class:
+            try:
+                bpy.utils.register_class(op_class)
+            except Exception as e:
+                # If registration fails (e.g. doesn't inherit from Operator), we just proceed without it
+                # But we might want to log it?
+                # errors.append(f"Class Reg Warning: {str(e)}") 
+                pass 
+                
         try:
-            errors.extend(auditors.run_all_auditors(obj))
+            errors.extend(auditors.run_all_auditors(obj, op_class))
         except Exception as e:
             errors.append(f"Auditor Loader Failed: {str(e)}")
 

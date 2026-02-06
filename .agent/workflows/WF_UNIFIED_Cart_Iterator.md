@@ -2,6 +2,11 @@
 description: Workflow for safely iteratively adding new geometry to existing cartridges
 ---
 
+---
+
+description: Workflow for safely iteratively adding new geometry to existing cartridges
+---
+
 # 🔵 AGENT: CARTRIDGE_ITERATOR_v2.8 (ADDITION MODE)
 
 ## 1. GAP ANALYSIS & OBJECTIVES
@@ -18,6 +23,13 @@ description: Workflow for safely iteratively adding new geometry to existing car
 ---
 
 ## 2. THE ADDITIVE PIPELINE
+
+### 🟢 PHASE 0: SYSTEM HEALTH CHECK
+
+**Goal:** Ensure the Host Environment (Console) is healthy before iterating on chips.
+
+1. **Run System Audit:** `python debugging_system/bridge_console.py`
+2. **Verify:** Import/Registry must be PASS.
 
 ### 🟣 PHASE 1: INGESTION & CONTEXT
 
@@ -38,7 +50,8 @@ description: Workflow for safely iteratively adding new geometry to existing car
 **Constraint:** You must rewrite the **ENTIRE** file. Do not output snippets.
 
 * **Keep:** Imports, Header, `bmesh.new()`, and existing geometry logic.
-* **Keep:** The `slots = {...}` dictionary initialization.
+* **Keep:** Imports, Header, `bmesh.new()`, and existing geometry logic.
+* **Keep:** The `selection_groups = {...}` (or `slots = {...}`) dictionary initialization.
 * **Target:** The **Injection Point** is strictly *after* existing logic but *before* the Finalization Block.
 
 ```python
@@ -63,36 +76,53 @@ description: Workflow for safely iteratively adding new geometry to existing car
   * **Boolean:** If adding details, use `bmesh.ops.boolean` carefully.
 * **Variable Isolation (Crucial):** Capture the return of your new operations into new variables (e.g., `new_verts`) so you don't accidentally select the old geometry.
 
-### 🟠 PHASE 4: EDGE SLOT EXTENSION (CRITICAL)
+### 🟠 PHASE 4: SLOT ALIGNMENT & EXTENSION (CRITICAL)
 
-**Goal:** Manage selections for the NEW geometry without breaking OLD slots.
+**Goal:** Manage selections for NEW geometry and ensure compliance with the Slot System.
 
-1. **Extend Dictionary:**
-    * **Rule:** Do not overwrite `slots`.
-    * **Add:** New keys for the new features.
+#### A. EXTENDING SELECTION GROUPS
 
-    ```python
-    slots['new_feature_name'] = []
-    ```
+**Goal:** Create new lists to track your new geometry for operations.
+**Rule:** Do not overwrite the existing `selection_groups` (formerly `slots`) if they exist. Add new keys.
 
-2. **Geometric Selection (The Delta):**
-    * **Constraint:** You cannot rely on indices (0, 1, 2) as the old geometry took those.
-    * **Method:** Select based on "Last Created" variables from Phase 3.
+```python
+# 1. Extend Dictionary
+selection_groups['new_feature_name'] = []
+```
 
-    *Example: specific selection of NEW geometry*
+# 2. Populate from Phase 3 Variables
 
-    ```python
-    # We select edges that belong to the new logic we just wrote
-    for v in new_verts:
-        for e in v.link_edges:
-            slots['antenna_spikes'].append(e)
-    ```
+for v in new_verts:
+    for e in v.link_edges:
+        selection_groups['new_feature_name'].append(e)
 
-3. **Execute Operations:** Apply modifiers only to the new slots.
+# 3. Execute Operations
 
-    ```python
-    bmesh.ops.bevel(bm, geom=slots['antenna_spikes'], ...)
-    ```
+bmesh.ops.bevel(bm, geom=selection_groups['new_feature_name'], ...)
+
+```
+
+#### B. MATERIAL TAGGING (THE HARD 10)
+**Mandate:** New faces must be assigned to a valid Material Slot (0-9).
+**Method:** Access the "MAT_TAG" layer.
+
+```python
+tag_layer = bm.faces.layers.int.get("MAT_TAG")
+for f in new_faces:
+    f[tag_layer] = 1 # Example: Assign to Slot 1 (Detail)
+```
+
+#### C. EDGE SLOT TAGGING
+
+**Mandate:** New edges must be tagged in "MASSA_EDGE_SLOTS".
+**Method:** Access the "MASSA_EDGE_SLOTS" layer.
+
+```python
+edge_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+for e in new_edges:
+    if e.is_boundary:
+        e[edge_layer] = 1 # Perimeter
+```
 
 ### 🟣 PHASE 5: UV RE-INTEGRATION
 

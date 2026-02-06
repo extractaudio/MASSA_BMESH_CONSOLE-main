@@ -292,7 +292,21 @@ def _generate_output(op, context, bm, socket_data, manifest):
     context.view_layer.objects.active = obj
     obj.select_set(True)
 
-    obj["massa_op_id"] = op.bl_idname
+    # [ARCHITECT FIX] Robust ID Storage
+    op_id = op.bl_idname
+    try:
+        meta_id = op._get_cartridge_meta().get("id", "")
+        if meta_id:
+            op_id = f"massa.gen_{meta_id}"
+    except:
+        pass
+
+    # Fallback: Fix internal class name leakage (MASSA_OT_gen_ -> massa.gen_)
+    if op_id.startswith("MASSA_OT_gen_"):
+        suffix = op_id.split("MASSA_OT_gen_")[-1]
+        op_id = f"massa.gen_{suffix}"
+        
+    obj["massa_op_id"] = op_id
 
     # [ARCHITECT NEW] Save Parameters for Resurrection
     try:
@@ -398,7 +412,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
         if not obj.select_get():
             obj.select_set(True)
 
-    if context.space_data.type == "VIEW_3D":
+    if context.space_data and context.space_data.type == "VIEW_3D":
         overlay = context.space_data.overlay
         if viz_mode == "NATIVE":
             overlay.show_edge_seams = True

@@ -29,10 +29,11 @@ python debugging_system/bridge.py geometry_cartridges/candidate.py
 
 ### Analyze
 
-If status: **FAIL**: Read the `errors` list.
+If status: **FAIL**: Read the `errors` list, which now includes Fuzzer output.
 
-- If errors mention "Zero-Area Faces", check your vertex coordinate math.
-- If errors mention "Pinched UVs", ensure your unwrapping logic (e.g., `smart_project`, `unwrap`) uses sufficient margin or angle_based methods.
+- **FUZZ_CRASH**: The cartridge crashed when randomized parameters were applied. Check the `PARAMS` log to see what values caused the break.
+- **CRITICAL_LOOSE_VERTS**: You have vertices floating in space (not part of an edge).
+- **CRITICAL_WIRE_EDGES**: You have edges that don't make a face.
 
 ### Iterate
 

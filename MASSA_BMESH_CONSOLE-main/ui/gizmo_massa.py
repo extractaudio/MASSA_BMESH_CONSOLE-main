@@ -7,13 +7,19 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
     bl_label = "Massa Gizmos"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'WINDOW'
-    bl_options = {'3D', 'PERSISTENT'}
+    bl_options = {'3D', 'PERSISTENT', 'DEPTH_3D', 'SHOW_MODAL_ALL'}
 
     @classmethod
     def poll(cls, context):
         # Only show if object is selected and is a Massa object
-        obj = context.object
-        return obj and obj.select_get() and "massa_op_id" in obj
+        obj = context.active_object
+        if not obj:
+            return False
+        # Ensure we are in Object Mode
+        if context.mode != 'OBJECT':
+            return False
+        # Check for Massa ID
+        return "massa_op_id" in obj
 
     def setup(self, context):
         # 1. Resurrection Button (Top)
@@ -49,18 +55,31 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
         self.gizmo_condemn = gz_con
 
     def draw_prepare(self, context):
-        obj = context.object
-        if not obj: return
+        # Validate Gizmos exist (prevent AttributeError during Redo/Undo cycles)
+        if not hasattr(self, "gizmo_condemn") or not hasattr(self, "gizmo_resurrect"):
+            return
+
+        obj = context.active_object
+        if not obj: 
+            return
 
         # Calculate positioning above the object
         # We use bounding box to find the highest point relative to world space
         try:
-            bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-            center_x = sum(v.x for v in bbox) / 8.0
-            center_y = sum(v.y for v in bbox) / 8.0
-            max_z = max(v.z for v in bbox)
-        except:
-            # Fallback if bbox calculation fails or invalid
+            # Safely calculate world-space bounding box
+            if obj.type == 'MESH' and obj.bound_box:
+                bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                center_x = sum(v.x for v in bbox) / 8.0
+                center_y = sum(v.y for v in bbox) / 8.0
+                max_z = max(v.z for v in bbox)
+            else:
+                # Fallback for empty or non-mesh
+                center_x = obj.matrix_world.translation.x
+                center_y = obj.matrix_world.translation.y
+                max_z = obj.matrix_world.translation.z
+        except Exception as e:
+            # Fallback if calculation fails
+            # print(f"Massa Gizmo Error: {e}")
             center_x = obj.matrix_world.translation.x
             center_y = obj.matrix_world.translation.y
             max_z = obj.matrix_world.translation.z

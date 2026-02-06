@@ -137,10 +137,18 @@ class MASSA_PT_Main(bpy.types.Panel):
             # This triggers the specific operator (e.g. Box), allowing the Redo Panel to appear.
             op_id = obj["massa_op_id"]
             try:
-                op = col.operator(
+                # [ARCHITECT UDPATE] Red Alert Button for Resurrection
+                row = col.row()
+                row.alert = True
+                row.scale_y = 1.2
+                op = row.operator(
                     op_id, text="Resurrect Selected", icon="FILE_REFRESH"
                 )
                 op.rerun_mode = True
+
+                # [ARCHITECT UPDATE] Condemn (Finalize) Button
+                col.separator(factor=0.5)
+                col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
             except Exception:
                 col.label(text="Unknown Operator", icon="ERROR")
 

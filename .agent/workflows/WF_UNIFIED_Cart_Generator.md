@@ -2,7 +2,7 @@
 description: Generate a BMesh cartridge following massa_mesh_gen console specs.
 ---
 
-# 🟢 AGENT: CARTRIDGE_GENERATOR_v2.8 (MASTER)
+# AGENT: CARTRIDGE_GENERATOR (MASTER)
 
 ## 1. GAP ANALYSIS & OBJECTIVES
 
@@ -18,6 +18,13 @@ description: Generate a BMesh cartridge following massa_mesh_gen console specs.
 ---
 
 ## 2. THE MONOLITHIC PIPELINE
+
+### 🟢 PHASE 0: SYSTEM HEALTH CHECK
+
+**Goal:** Ensure the Host Environment (Console) is healthy before generating chips.
+
+1. **Run System Audit:** `python debugging_system/bridge_console.py`
+2. **Verify:** Import/Registry must be PASS.
 
 ### 🟣 PHASE 1: INGESTION & INTENT
 
@@ -39,21 +46,49 @@ import bpy
 import bmesh
 import math
 from mathutils import Vector, Matrix
+from ...operators.massa_base import Massa_OT_Base
 
-def generate_geometry():
-    # 1. SETUP
-    mesh = bpy.data.meshes.new('Created_Mesh')
-    obj = bpy.data.objects.new('Created_Object', mesh)
-    bpy.context.collection.objects.link(obj)
+# 1. METADATA & FLAGS
+CARTRIDGE_META = {
+    "name": "Cartridge Name",
+    "id": "cart_unique_id",
+    "icon": "MESH_CUBE",
+    "scale_class": "STANDARD", # MICRO, STANDARD, MACRO
+    "flags": {
+        "USE_WELD": False,
+        "ALLOW_FUSE": True,
+        "ALLOW_SOLIDIFY": False,
+        "FIX_DEGENERATE": True,
+    },
+}
+
+class MASSA_OT_cart_unique_id(Massa_OT_Base):
+    bl_idname = "massa.gen_cart_unique_id"
+    bl_label = "Cartridge Label"
+    bl_options = {"REGISTER", "UNDO", "PRESET"}
     
-    bm = bmesh.new()
-    
-    # ... GEOMETRY LOGIC GOES HERE ...
-    
-    # FINALIZATION
-    bm.to_mesh(mesh)
-    bm.free()
-    return obj
+    # PROPERTIES GO HERE...
+
+    # 2. THE HARD 10 SLOT MANDATE
+    def get_slot_meta(self):
+        return {
+            0: {"name": "Base", "uv": "BOX", "phys": "GENERIC"},
+            1: {"name": "Detail", "uv": "BOX", "phys": "GENERIC"},
+            2: {"name": "Trim", "uv": "BOX", "phys": "GENERIC"},
+            # ... Must handle 0-9 defined slots
+            9: {"name": "Socket", "uv": "SKIP", "sock": True},
+        }
+
+    def build_shape(self, bm):
+        # 3. SETUP LAYERS
+        tag_layer = bm.faces.layers.int.new("MAT_TAG")
+        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        
+        # ... GEOMETRY LOGIC GOES HERE ...
+        
+        # FINALIZATION
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 ```
 
 ### 🟣 PHASE 3: GEOMETRY CONSTRUCTION
@@ -69,33 +104,68 @@ bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 ```
 
-### 🟠 PHASE 4: THE EDGE SLOT SYSTEM (CRITICAL)
+### 🟠 PHASE 4: THE SLOT SYSTEM (DEEP LOGIC)
 
-**Goal:** Procedural selection management.
-**Constraint:** NEVER select edges by index number (e.g., `bm.edges[4]`) as indices shift. Use Slots.
+**Goal:** procedural selection & property assignment.
 
-1. **Initialize Slots:** Create lists to hold specific geometry for later operations.
+#### A. THE HARD 10 (MATERIAL SLOTS)
 
-    ```python
-    slots = {'bevel': [], 'seam': [], 'subd': [], 'connector_top': []}
-    ```
+**Mandate:** Every face must be assigned to a slot index (0-9) corresponding to `get_slot_meta`.
+**Method:** Use a BMesh Int Layer ("MAT_TAG").
 
-2. **Populate Slots (Geometric Logic):** Select based on properties (position, direction, length).
-    *Example: "Select all vertical edges for the 'bevel' slot."*
+```python
+# Create Layer
+tag_layer = bm.faces.layers.int.new("MAT_TAG")
 
-    ```python
-    for e in bm.edges:
-        # Check if edge is vertical (Z difference exists, X/Y diff is near 0)
-        is_vertical = abs(e.verts[0].co.z - e.verts[1].co.z) > 0.1
-        if is_vertical:
-            slots['bevel'].append(e)
-    ```
+# Assign Logic
+for f in new_faces:
+    f[tag_layer] = 0 # Assign to Slot 0 (Base)
+```
 
-3. **Execute Slots:** Apply operations only to the specific slots.
+#### B. EDGE SLOTS (THE NERVOUS SYSTEM)
 
-    ```python
-    bmesh.ops.bevel(bm, geom=slots['bevel'], offset=0.1)
-    ```
+**Mandate:** Edges must be tagged for their role in the "Polish Stack" (Bevels, subdivision, etc).
+**Method:** Use BMesh Int Layer ("MASSA_EDGE_SLOTS").
+
+| Value | Role | Meaning |
+| :--- | :--- | :--- |
+| **1** | **PERIMETER** | Outer boundary. Seam + Sharp. |
+| **2** | **CONTOUR** | Major form break. Sharp. |
+| **3** | **GUIDE** | Topological flow line. Seam. |
+| **4** | **DETAIL** | Minor surface detail. Bevel. |
+
+```python
+edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+for e in bm.edges:
+    if e.is_boundary:
+        e[edge_slots] = 1
+```
+
+#### C. SELECTION GROUPS (PROCEDURAL)
+
+**Goal:** Track geometry *internally* for operations (Bevel this, Extrude that).
+**Constraint:** Do not confuse this with "Slots". These are Python lists.
+
+1. **Initialize Groups:**
+
+   ```python
+   # Rename 'slots' to 'selection_groups' to avoid confusion
+   selection_groups = {'to_bevel': [], 'to_extrude': []}
+   ```
+
+2. **Populate Groups:**
+
+   ```python
+   for e in bm.edges:
+       if is_vertical(e):
+           selection_groups['to_bevel'].append(e)
+   ```
+
+3. **Execute:**
+
+   ```python
+   bmesh.ops.bevel(bm, geom=selection_groups['to_bevel'], offset=0.1)
+   ```
 
 ### 🟣 PHASE 5: UV & MATERIAL FINALIZATION
 
@@ -116,11 +186,9 @@ bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 1. **Staging:** Save the current code to: `geometry_cartridges/_temp_candidate.py`
     *Do not overwrite any final files yet.*
 
-2. **Execute Bridge:** Run the background auditor in the terminal:
-
-    ```bash
-    python debugging_system/bridge.py geometry_cartridges/_temp_candidate.py
-    ```
+2. **Execute Audit:** Trigger the specialized Audit Workflow.
+    * **Workflow:** `[.agent/workflows/audit_cartridge.md](.agent/workflows/audit_cartridge.md)`
+    * **Context:** Pass `geometry_cartridges/_temp_candidate.py` as the target path.
 
 3. **Ingest Telemetry (JSON):** Parse the JSON response from the bridge.
 
