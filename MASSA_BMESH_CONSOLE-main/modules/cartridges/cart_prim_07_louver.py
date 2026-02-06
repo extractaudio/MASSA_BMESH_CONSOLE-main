@@ -175,9 +175,18 @@ class MASSA_OT_PrimLouver(Massa_OT_Base):
         if self.add_screen:
             res_screen = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5)
             verts_s = res_screen["verts"]
+            faces_s = res_screen["faces"]
 
-            # Scale to fit back of frame
-            bmesh.ops.scale(bm, vec=(sx, sy, 1.0), verts=verts_s)
+            # [FIX] Scale to fit INSIDE frame (Inner Dimensions) + tiny overlap for welding if desired
+            # But cleanest is just fit exactly or slightly over. 
+            # Inner Loop was: sx - (fw * 2), sy - (fw * 2)
+            # We want it to sit on the back rim but NOT overlap the outer rim.
+            
+            # Use Inner Dimension + 10% of Frame Width (small overlap for visual solidity)
+            screen_w = inner_w + (fw * 0.1)
+            screen_h = inner_h + (fw * 0.1)
+
+            bmesh.ops.scale(bm, vec=(screen_w, screen_h, 1.0), verts=verts_s)
 
             # Move to very back
             bmesh.ops.translate(bm, vec=(0, 0, -fd), verts=verts_s)
@@ -244,3 +253,83 @@ class MASSA_OT_PrimLouver(Massa_OT_Base):
                         u *= s
                         v *= s
                     l[uv_layer].uv = (u, v)
+        
+        # ----------------------------------------------------------------------
+        # 6. EDGE SLOT ASSIGNMENT (Standardization)
+        # ----------------------------------------------------------------------
+        self.assign_edge_slots(bm)
+
+    def assign_edge_slots(self, bm):
+        """
+        Assigns standard edge slot IDs for styling.
+        Slot 1: Frame Outer Edges (Structural)
+        Slot 2: Blade Edges (Detail)
+        Slot 3: Screen/Inner (Sub-detail)
+        """
+        slot_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not slot_layer:
+            slot_layer = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        # Heuristic based on Material Index topology
+        for e in bm.edges:
+            # Check adjacent faces
+            mats = {f.material_index for f in e.link_faces}
+            
+            # Frame (0)
+            if 0 in mats:
+                e[slot_layer] = 1 # Structural
+            
+            # Blades (1)
+            elif 1 in mats:
+                e[slot_layer] = 2 # Detail
+                
+            # Screen (2)
+            elif 2 in mats:
+                e[slot_layer] = 3 # Sub-Detail
+
+    def add_sockets(self, bm):
+        """
+        Standard Socket Definitions.
+        """
+        sockets = []
+        sx, sy, sz = self.size
+        
+        # SOCKET_A (Male) on Top Face (Z-Max of local Frame)
+        # Frame goes from 0 to -FrameDepth. But pivot moved to World Origin (Z-Min).
+        # So top of frame is at Z = FrameDepth (since we grounded it).
+        
+        # Top Center
+        sockets.append({
+            "name": "Socket_Top",
+            "type": "SOCKET_A",
+            "shape": "RECT",
+            "loc": (0, sy/2, self.frame_depth/2), # Adjust logic based on pivot shift
+            "rot": (0, 0, 0),
+            "size": (sx, 0.1, self.frame_depth) 
+        })
+        
+        # Actually, let's trust the bounding box centers for generic placement
+        # Top (+Y in Local? - No, Vent is XY Plane usually)
+        # Assuming Vent stands Vertical (Wall mounted)?
+        # Cartridge builds flat on XY plane like a floor vent or wall panel lying down.
+        # User usually rotates via UI.
+        
+        # Let's put sockets on the +Y and -Y edges (Top/Bottom of the vent frame)
+        
+        # Top Edge (+Y)
+        sockets.append({
+            "name": "Link_Top",
+            "type": "SOCKET_A",
+            "loc": (0, sy/2, self.frame_depth/2),
+            "rot": (math.radians(-90), 0, 0), # Pointing Up
+        })
+        
+        # Bottom Edge (-Y)
+        sockets.append({
+            "name": "Link_Bottom",
+            "type": "SOCKET_B",
+            "loc": (0, -sy/2, self.frame_depth/2),
+            "rot": (math.radians(90), 0, 0), # Pointing Down
+        })
+
+        return sockets

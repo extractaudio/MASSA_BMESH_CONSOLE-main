@@ -5,6 +5,11 @@ import argparse
 import json
 import importlib
 import time
+import math
+import base64
+import io
+import contextlib
+import bmesh
 
 # 1. Setup Path to import your attached 'auditors' folder
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,7 +66,9 @@ def run_checks(obj):
     
     # [FALLBACK LOGIC]: If attached files aren't linked, we run a basic check
     # to ensure the system works out of the box.
-    import bmesh
+    if not obj or obj.type != 'MESH':
+       return ["Object not valid for mesh audit"]
+
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bm.faces.ensure_lookup_table()
@@ -138,6 +145,216 @@ def render_viewport(name):
     bpy.ops.render.opengl(write_still=True)
     return tmp_path
 
+def image_to_base64(path):
+    if os.path.exists(path):
+        with open(path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    return None
+
+# --- SKILL HANDLERS ---
+
+def skill_get_scene_info(params):
+    limit = params.get("limit", 20)
+    offset = params.get("offset", 0)
+    obj_type = params.get("object_type")
+    
+    all_objs = bpy.data.objects
+    if obj_type:
+        all_objs = [o for o in all_objs if o.type == obj_type]
+        
+    total_count = len(all_objs)
+    subset = all_objs[offset : offset + limit]
+    
+    obj_list = []
+    for o in subset:
+        obj_list.append({
+            "name": o.name,
+            "type": o.type,
+            "location": [round(v, 3) for v in o.location],
+            "collection": [c.name for c in o.users_collection]
+        })
+        
+    return {
+        "status": "SUCCESS",
+        "total_objects": total_count,
+        "returned": len(obj_list),
+        "objects": obj_list
+    }
+
+def skill_get_object_info(params):
+    name = params.get("object_name")
+    obj = bpy.data.objects.get(name)
+    if not obj:
+        return {"status": "FAIL", "msg": f"Object '{name}' not found"}
+        
+    # Gather Info
+    info = {
+        "name": obj.name,
+        "type": obj.type,
+        "location": [round(v, 4) for v in obj.location],
+        "rotation_euler": [round(v, 4) for v in obj.rotation_euler],
+        "scale": [round(v, 4) for v in obj.scale],
+        "dimensions": [round(v, 4) for v in obj.dimensions],
+        "parent": obj.parent.name if obj.parent else None,
+        "collections": [c.name for c in obj.users_collection],
+        "modifiers": [m.name for m in obj.modifiers],
+        "constraints": [c.name for c in obj.constraints],
+        "vertex_count": len(obj.data.vertices) if obj.type == 'MESH' else 0,
+        "poly_count": len(obj.data.polygons) if obj.type == 'MESH' else 0
+    }
+    
+    # Run Health Check
+    health = "PASS"
+    issues = []
+    if obj.type == 'MESH':
+        issues = run_checks(obj)
+        if issues: health = "FAIL"
+        
+    info["health"] = health
+    info["audit_issues"] = issues
+    
+    return {"status": "SUCCESS", "info": info}
+
+def skill_transform_object(params):
+    """
+    Handles Move, Rotate, Scale
+    """
+    name = params.get("name")
+    obj = bpy.data.objects.get(name)
+    if not obj:
+        return {"status": "FAIL", "msg": f"Object '{name}' not found"}
+        
+    mode = params.get("mode", "ABSOLUTE")
+    loc = params.get("location")
+    rot = params.get("rotation") # Degrees
+    scl = params.get("scale")
+    
+    # Location
+    if loc:
+        if mode == "RELATIVE":
+            obj.location.x += loc[0]
+            obj.location.y += loc[1]
+            obj.location.z += loc[2]
+        else:
+            obj.location = loc
+            
+    # Rotation
+    if rot:
+        # Convert degrees to radians
+        rot_rad = [math.radians(a) for a in rot]
+        if mode == "RELATIVE":
+            obj.rotation_euler.x += rot_rad[0]
+            obj.rotation_euler.y += rot_rad[1]
+            obj.rotation_euler.z += rot_rad[2]
+        else:
+            obj.rotation_euler = rot_rad
+            
+    # Scale
+    if scl:
+        if mode == "RELATIVE":
+            obj.scale.x *= scl[0]
+            obj.scale.y *= scl[1]
+            obj.scale.z *= scl[2]
+        else:
+            obj.scale = scl
+            
+    # Update dependency graph
+    bpy.context.view_layer.update()
+    
+    return {
+        "status": "SUCCESS",
+        "new_transforms": {
+            "location": [round(v, 3) for v in obj.location],
+            "rotation_deg": [round(math.degrees(v), 3) for v in obj.rotation_euler],
+            "scale": [round(v, 3) for v in obj.scale]
+        }
+    }
+
+def skill_execute_code(params):
+    code = params.get("code", "")
+    output_capture = io.StringIO()
+    
+    try:
+        with contextlib.redirect_stdout(output_capture):
+            exec(code, globals())
+        return {
+            "status": "SUCCESS",
+            "output": output_capture.getvalue()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "msg": str(e),
+            "output": output_capture.getvalue()
+        }
+
+def skill_create_bmesh(params):
+    name = params.get("name", "New_Object")
+    script = params.get("script_content", "")
+    
+    try:
+        bm = bmesh.new()
+        # Env for script
+        env = {
+            "bm": bm,
+            "bmesh": bmesh,
+            "bpy": bpy,
+            "mathutils": importlib.import_module("mathutils")
+        }
+        
+        exec(script, env)
+        
+        # Finish
+        mesh = bpy.data.meshes.new(name)
+        bm.to_mesh(mesh)
+        bm.free()
+        
+        obj = bpy.data.objects.new(name, mesh)
+        bpy.context.collection.objects.link(obj)
+        
+        # Ensure 10 slots (Hard 10)
+        while len(obj.data.materials) < 10:
+            obj.data.materials.append(None)
+            
+        return {"status": "SUCCESS", "object_name": obj.name}
+        
+    except Exception as e:
+        return {"status": "FAIL", "msg": str(e)}
+
+def skill_get_vision(params):
+    mode = params.get("mode", "SOLID")
+    # Set view mode if possible (requires view3d context, tricky in background)
+    # We'll just render whatever assume setup is okay.
+    
+    path = render_viewport("vision_dump")
+    b64 = image_to_base64(path)
+    
+    return {
+        "status": "SUCCESS",
+        "image": b64, # Base64 data
+        "path": path
+    }
+
+def handle_skill_execution(payload):
+    skill = payload.get("skill")
+    params = payload.get("params", {})
+    
+    if skill == "get_scene_info":
+        return skill_get_scene_info(params)
+    elif skill == "get_object_info":
+        return skill_get_object_info(params)
+    elif skill == "transform_object":
+        return skill_transform_object(params)
+    elif skill == "execute_code":
+        return skill_execute_code(params)
+    elif skill == "create_bmesh":
+        return skill_create_bmesh(params)
+    elif skill == "get_vision":
+        return skill_get_vision(params)
+    else:
+        return {"status": "FAIL", "msg": f"Unknown skill: {skill}"}
+
+
 def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     """
     Executes the audit logic.
@@ -150,6 +367,9 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
         bpy.ops.wm.read_factory_settings(use_empty=True)
 
     # --- MODE CHECK ---
+    
+    if mode == "SKILL_EXEC":
+        return handle_skill_execution(payload)
     
     if mode == "VISUAL_DIFF":
         # 1. Run First Cartridge (Target A)
@@ -198,8 +418,15 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     exec_time_ms = 0.0
     try:
         start_time = time.perf_counter()
-        with open(cartridge_path) as f:
-            exec(f.read(), globals())
+        if os.path.exists(cartridge_path) and cartridge_path != "global_skill_placeholder.py":
+            with open(cartridge_path) as f:
+                exec(f.read(), globals())
+        else:
+             # If cartridge doesn't exist (and we aren't in SKILL_EXEC), it's okay if we just want to audit existing?
+             # But usually audit runs the cartridge.
+             # If placeholder, we skip exec.
+             pass
+             
         end_time = time.perf_counter()
         exec_time_ms = (end_time - start_time) * 1000
     except Exception as e:
@@ -208,22 +435,14 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     # Find Mesh
     obj = find_generated_object()
     if not obj:
-        return {"status": "FAIL", "errors": ["No Mesh Created by Cartridge"]}
-
-    if mode == "VISUAL_DIFF":
-         # Fallthrough if logic above was different? Original code had pass.
-         pass
+        # If we didn't run a cartridge, and there's no object, fail.
+        # But if we are in a mode that expects one, we should error.
+        if mode in ["AUDIT", "PERFORMANCE", "UV_HEATMAP", "CSG_DEBUG"]:
+             return {"status": "FAIL", "errors": ["No Mesh Created by Cartridge or Found in Scene"]}
 
     if mode == "UV_HEATMAP":
-        # Logic was missing or incomplete in original file dump, but implied setup_uv_heatmap
-        # Assuming setup_uv_heatmap(obj) is intended.
-        # But setup_uv_heatmap is not fully defined in my context (missing from original dump or implicit)
-        # I'll try to execute it if defined.
-        # Original dump had setup_uv_heatmap defined at end.
         try:
              setup_uv_heatmap(obj)
-             # Render?
-             # setup_uv_heatmap sets up camera but doesn't render.
              output_path = render_viewport(f"heatmap_{obj.name}")
              return {"status": "SUCCESS", "image_path": output_path}
         except Exception as e:
@@ -262,6 +481,22 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
         setup_camera(payload.get("camera_angle", "ISO_CAM"))
         output_path = render_viewport(f"csg_debug_{obj.name}")
         return {"status": "SUCCESS", "image_path": output_path, "cutters_visualized": cutters_found}
+
+    if mode == "RENDER":
+        setup_camera(payload.get("camera_angle", "ISO_CAM"))
+        try:
+             # Basic View Settings for clear render
+             if obj:
+                 obj.show_wire = (payload.get("shading") == "WIREFRAME")
+                 if obj.show_wire:
+                     obj.display_type = 'WIRE'
+                 else:
+                     obj.display_type = 'SOLID'
+                     
+             output_path = render_viewport(f"render_{obj.name}")
+             return {"status": "SUCCESS", "image_path": output_path}
+        except Exception as e:
+             return {"status": "FAIL", "message": f"Render Error: {str(e)}"}
 
     # Default AUDIT execution
 

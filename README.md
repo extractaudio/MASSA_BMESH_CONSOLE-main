@@ -78,8 +78,6 @@ I have workflows to prompt, repair and optimize these scripts.. they are very ma
 just dont.. it fallows a rule of 5, which means many of the references are needed across 5 separate files.
 if you stuff it in Jules then you might have a chance.
 
-
-
 Based on my re-analysis of the MCP/skills directory, here are the MCP server tools currently defined in each file, including the newly added tools:
 
 1. cartridge_forge.py
@@ -96,7 +94,7 @@ list_geometry_cartridges
 duplicate_cartridge
  (NEW): Creates a copy/backup of a cartridge for versioning.
 
-2. inspector.py
+1. inspector.py
 Tools for auditing, verifying, and visualizing geometry data.
 
 audit_cartridge_geometry
@@ -120,7 +118,7 @@ visualize_edge_slots
 verify_material_logic
  (NEW): [Phase 4] Static analysis to ensure the cartridge correctly retrieves the MAT_TAG layer for material assignment dynamics.
 
-3. mechanic.py
+1. mechanic.py
 Tools for automated code injection and quick fixes.
 
 repair_topology_logic
@@ -136,8 +134,8 @@ check_scale_safety
 inject_boolean_jitter
 : [Phase 5] Injects random offsets to prevent co-planar boolean failures.
 inject_standard_slots
-: [Phase 5] Injects the mandatory 
+: [Phase 5] Injects the mandatory
 slots
  dictionary if missing.
 
-4. knowledge.py
+1. knowledge.py

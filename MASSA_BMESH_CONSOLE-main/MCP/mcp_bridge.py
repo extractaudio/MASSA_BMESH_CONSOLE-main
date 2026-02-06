@@ -8,6 +8,7 @@ import base64
 import tempfile
 import os
 from ..modules.debugging_system import runner, runner_console
+from ..modules import cartridges
 
 # CONFIGURATION
 HOST = '127.0.0.1'
@@ -17,6 +18,7 @@ PORT = 5555
 execution_queue = queue.Queue()
 _server_thread = None
 _server_running = False
+LAST_OP_OBJECT_NAME = None
 
 def stop_server():
     global _server_running
@@ -87,6 +89,37 @@ def capture_viewport(mode):
     except:
         return ""
 
+def get_context_for_space(space_type):
+    """Finds a window/area with the given space type for context overrides."""
+    for window in bpy.context.window_manager.windows:
+        screen = window.screen
+        for area in screen.areas:
+            if area.type == space_type:
+                for region in area.regions:
+                    if region.type == 'WINDOW':
+                        return {
+                            "window": window,
+                            "screen": screen,
+                            "area": area,
+                            "region": region,
+                            "scene": bpy.context.scene,
+                        }
+    return None
+
+def find_node_tree(object_name, tree_type):
+    obj = bpy.data.objects.get(object_name)
+    if not obj: return None
+    
+    if tree_type == 'GEOMETRY':
+        for mod in obj.modifiers:
+            if mod.type == 'NODES' and mod.node_group:
+                return mod.node_group
+    elif tree_type == 'SHADER':
+        if obj.active_material and obj.active_material.node_tree:
+            return obj.active_material.node_tree
+            
+    return None
+
 def socket_listener():
     """Runs in background thread. Waits for MCP commands."""
     global _server_running
@@ -137,10 +170,175 @@ def process_queue():
         try:
             skill = req.get('skill')
             params = req.get('params', {})
+            
+            # [ARCHITECT NEW] Track Selection Context
+            global LAST_OP_OBJECT_NAME
 
             # --- SKILL ROUTER ---
-            
-            if skill == 'get_server_config':
+
+            if skill == 'execute_contextual_op':
+                op_id = params.get('op_id')
+                space_type = params.get('space_type', 'VIEW_3D')
+                
+                ctx_override = get_context_for_space(space_type)
+                if ctx_override:
+                    try:
+                        # Parse op_id (e.g., "view3d.view_all")
+                        cat, name = op_id.split(".")
+                        op_func = getattr(getattr(bpy.ops, cat), name)
+                        
+                        # Execute with override
+                        with bpy.context.temp_override(**ctx_override):
+                            op_func('EXEC_DEFAULT')
+                            
+                        data["msg"] = f"Executed {op_id} in {space_type}"
+                    except Exception as e:
+                        data = {"status": "error", "msg": f"Op Error: {str(e)}"}
+                else:
+                    data = {"status": "error", "msg": f"Context {space_type} not found"}
+
+            elif skill == 'edit_node_graph':
+                obj_name = params.get('object_name')
+                tree_type = params.get('tree_type', 'GEOMETRY') # GEOMETRY or SHADER
+                operation = params.get('operation') # ADD_NODE, CONNECT, SET_VALUE
+                
+                node_tree = find_node_tree(obj_name, tree_type)
+                
+                if node_tree:
+                    try:
+                        if operation == 'ADD_NODE':
+                            node_type = params.get('node_type')
+                            node = node_tree.nodes.new(type=node_type)
+                            node.location = (0, 0) # Basic placement
+                            data["msg"] = f"Added {node.name}"
+                            
+                        elif operation == 'CONNECT':
+                            from_node = node_tree.nodes.get(params.get('from_node'))
+                            to_node = node_tree.nodes.get(params.get('to_node'))
+                            if from_node and to_node:
+                                node_tree.links.new(
+                                    from_node.outputs[params.get('from_socket', 0)],
+                                    to_node.inputs[params.get('to_socket', 0)]
+                                )
+                                data["msg"] = "Linked nodes"
+                            else:
+                                data = {"status": "error", "msg": "Nodes not found"}
+                                
+                        elif operation == 'SET_VALUE':
+                            node = node_tree.nodes.get(params.get('node_name'))
+                            if node:
+                                socket_idx = params.get('socket_index', 0)
+                                val = params.get('value')
+                                # Naively set default value
+                                if socket_idx < len(node.inputs):
+                                    node.inputs[socket_idx].default_value = val
+                                    data["msg"] = f"Set {node.name} socket {socket_idx} to {val}"
+                            else:
+                                data = {"status": "error", "msg": "Node not found"}
+                    except Exception as e:
+                         data = {"status": "error", "msg": f"Node Edit Error: {str(e)}"}
+                else:
+                    data = {"status": "error", "msg": f"Node Tree not found on {obj_name}"}
+
+            elif skill == 'inspect_evaluated_data':
+                obj_name = params.get('object_name')
+                obj = bpy.data.objects.get(obj_name)
+                
+                if obj:
+                    depsgraph = bpy.context.evaluated_depsgraph_get()
+                    eval_obj = obj.evaluated_get(depsgraph)
+                    
+                    # If mesh, get mesh data
+                    if eval_obj.type == 'MESH':
+                        data["evaluated_info"] = {
+                            "name": eval_obj.name,
+                            "vertices": len(eval_obj.data.vertices),
+                            "polygons": len(eval_obj.data.polygons),
+                            "bound_box": [list(v) for v in eval_obj.bound_box],
+                             # Check if it has instances (typical for GeomNodes)
+                            "is_instancer": eval_obj.is_instancer
+                        }
+                    else:
+                        data["evaluated_info"] = {"type": eval_obj.type}
+                else:
+                     data = {"status": "error", "msg": f"Object {obj_name} not found"}
+
+            elif skill == 'manage_action_slots':
+                obj_name = params.get('object_name')
+                obj = bpy.data.objects.get(obj_name)
+                operation = params.get('operation') # CREATE, ASSIGN
+                
+                if obj and obj.animation_data:
+                    try:
+                        # BLENDER 5.0 SLOTTED ACTIONS API ASSUMPTION
+                        # This API is speculative based on 5.0 roadmap (Animation Layers / Slots)
+                        if not hasattr(obj.animation_data, "action_slots"):
+                             # Fallback for 4.x or if API is different
+                             data = {"status": "error", "msg": "API: action_slots not found (Blender Version?)"}
+                        else:
+                            slots = obj.animation_data.action_slots
+                            
+                            if operation == 'CREATE':
+                                slot_name = params.get('slot_name', 'New_Slot')
+                                new_slot = slots.new(name=slot_name)
+                                data["msg"] = f"Created Slot: {new_slot.name}"
+                                
+                            elif operation == 'ASSIGN':
+                                slot_name = params.get('slot_name')
+                                action_name = params.get('action_name')
+                                action = bpy.data.actions.get(action_name)
+                                
+                                if action:
+                                    # Find slot
+                                    target_slot = slots.get(slot_name)
+                                    if target_slot:
+                                        target_slot.action = action
+                                        data["msg"] = f"Assigned {action_name} to {slot_name}"
+                                    else:
+                                         data = {"status": "error", "msg": f"Slot {slot_name} not found"}
+                                else:
+                                     data = {"status": "error", "msg": f"Action {action_name} not found"}
+                    except Exception as e:
+                        data = {"status": "error", "msg": f"Slot Error: {str(e)}"}
+                else:
+                    data = {"status": "error", "msg": "Object has no animation data"}
+
+            elif skill == 'query_asset_browser':
+                # Simple implementation: Lists local assets
+                # Full asset browser search via API is complex without UI context
+                assets = []
+                for obj in bpy.data.objects:
+                    if obj.asset_data:
+                        assets.append({"name": obj.name, "type": "OBJECT", "library": "LOCAL"})
+                for mat in bpy.data.materials:
+                     if mat.asset_data:
+                        assets.append({"name": mat.name, "type": "MATERIAL", "library": "LOCAL"})
+                
+                # Check attached libraries (simple listing)
+                for lib in bpy.data.libraries:
+                    assets.append({"name": lib.name, "type": "LIBRARY", "path": lib.filepath})
+                    
+                data["assets"] = assets
+
+            elif skill == 'configure_eevee_next':
+                settings = params.get('settings', {})
+                scene = bpy.context.scene
+                
+                if hasattr(scene, "eevee"):
+                    eevee = scene.eevee
+                    # Apply known logical mappings for 5.0 / EEVEE Next
+                    if "raytracing" in settings:
+                        if hasattr(eevee, "use_raytracing"): eevee.use_raytracing = settings["raytracing"]
+                    if "shadows" in settings:
+                        if hasattr(eevee, "use_shadows"): eevee.use_shadows = settings["shadows"]
+                    if "gtao" in settings:
+                        if hasattr(eevee, "use_gtao"): eevee.use_gtao = settings["gtao"]
+                        
+                    data["msg"] = "EEVEE Next Configured"
+                else:
+                    data = {"status": "error", "msg": "EEVEE settings not found"}
+
+            elif skill == 'get_server_config':
                 console = bpy.context.scene.massa_console
                 data["config"] = {
                     "use_direct_mode": console.mcp_use_direct_mode
@@ -159,6 +357,10 @@ def process_queue():
                 if hasattr(bpy.ops.massa, "console_parse"):
                     bpy.ops.massa.console_parse(text=params['command'])
                     data["msg"] = f"Executed: {params['command']}"
+                    
+                    # Track result
+                    if bpy.context.active_object:
+                        LAST_OP_OBJECT_NAME = bpy.context.active_object.name
                 else:
                     data = {"status": "error", "msg": "Massa Console Operator not found"}
 
@@ -174,6 +376,10 @@ def process_queue():
                     if hasattr(bpy.ops.massa, "resurrect_selected"):
                         bpy.ops.massa.resurrect_selected()
                     data["msg"] = "Properties updated & Mesh Resurrected"
+                    
+                    # Track result (even if lost, we might want to know what it WAS)
+                    # But ideally we track what we just operated on
+                    LAST_OP_OBJECT_NAME = obj.name
                 else:
                     data = {"status": "error", "msg": "No Active Object"}
 
@@ -318,6 +524,377 @@ def process_queue():
                     
                 except Exception as e:
                     data = {"status": "error", "msg": f"BMesh Script Error: {str(e)}"}
+
+            elif skill == 'test_generator_ui':
+                try:
+                    cart_id = params.get('cartridge_id')
+                    create_params = params.get('creation_params', {})
+                    mod_params = params.get('modification_params')
+                    
+                    # 1. Find Cartridge Module
+                    target_mod = None
+                    for mod in cartridges.MODULES:
+                        meta = getattr(mod, "CARTRIDGE_META", {})
+                        if meta.get("id") == cart_id:
+                            target_mod = mod
+                            break
+                    
+                    if not target_mod:
+                        raise Exception(f"Cartridge ID '{cart_id}' not found")
+                        
+                    # 2. Reslove Operator
+                    op_idname = None
+                    for name in dir(target_mod):
+                        obj = getattr(target_mod, name)
+                        if isinstance(obj, type) and issubclass(obj, bpy.types.Operator):
+                            if hasattr(obj, "bl_idname"):
+                                op_idname = obj.bl_idname
+                                break
+                    
+                    if not op_idname:
+                        raise Exception(f"No Operator found for {cart_id}")
+
+                    # 3. Get Operator Function
+                    cat, name = op_idname.split(".")
+                    op_func = getattr(getattr(bpy.ops, cat), name)
+                    
+                    # 4. Execute Creation
+                    # Convert args to correct types if needed (Assuming params are already correct types from JSON)
+                    print(f"[Bridge] Creating {cart_id} with {create_params}")
+                    op_func('EXEC_DEFAULT', **create_params)
+                    
+                    obj = bpy.context.active_object
+                    created_name = obj.name if obj else "Unknown"
+                    print(f"[Bridge] Created: {created_name}")
+                    
+                    # 5. Modification & Resurrection (Optional)
+                    if mod_params and obj:
+                        # [FIX] Update MASSA_PARAMS for Resurrection to see the changes
+                        if "MASSA_PARAMS" in obj:
+                            # We must read, modify, and write back to trigger update
+                            params_dict = dict(obj["MASSA_PARAMS"])
+                            for k, v in mod_params.items():
+                                params_dict[k] = v
+                            obj["MASSA_PARAMS"] = params_dict
+                        
+                        # Also try setattr for live props (if any)
+                        for k, v in mod_params.items():
+                            if hasattr(obj, k):
+                                try: setattr(obj, k, v)
+                                except: pass
+                        
+                        if hasattr(bpy.ops.massa, "resurrect_selected"):
+                            bpy.ops.massa.resurrect_selected()
+                            
+                        data["msg"] = f"Created {created_name} & Resurrected with mods"
+                    else:
+                        data["msg"] = f"Created {created_name}"
+                        
+                except Exception as e:
+                     data = {"status": "error", "msg": f"Generator Error: {str(e)}"}
+
+            elif skill == 'restore_last_selection':
+                target_name = params.get('name') or LAST_OP_OBJECT_NAME
+                
+                if target_name:
+                    obj = bpy.data.objects.get(target_name)
+                    if obj:
+                        bpy.ops.object.select_all(action='DESELECT')
+                        obj.select_set(True)
+                        bpy.context.view_layer.objects.active = obj
+                        data["msg"] = f"Selection Restored: {obj.name}"
+                        # Update Last Op to this for continuity
+                        LAST_OP_OBJECT_NAME = obj.name
+                    else:
+                        data = {"status": "error", "msg": f"Object '{target_name}' not found"}
+                else:
+                    data = {"status": "error", "msg": "No previous selection recorded and no name provided"}
+
+            elif skill == 'get_materials':
+                # [Discovery State] Return list of materials in the blend file
+                mats = [m.name for m in bpy.data.materials]
+                data["materials"] = mats
+
+
+            elif skill == 'organize_outliner':
+                method = params.get('method', 'BY_NAME')
+                rules = params.get('rules') or {}
+                ignore_hidden = params.get('ignore_hidden', True)
+                
+                moved_count = 0
+                created_collections = set()
+                
+                try:
+                    # 1. Collect Objects to Process
+                    # Use scene objects to ensure they are in the current context
+                    to_process = []
+                    for obj in bpy.context.scene.objects:
+                        if ignore_hidden and obj.hide_viewport:
+                            continue
+                        # Skip if object is already in a sub-collection (optional, but good for idempotency)
+                        # For now, we enforce the rule: Only move if it matches criteria and isn't already there?
+                        # Actually, better to just enforce the new home.
+                        to_process.append(obj)
+                        
+                    # 2. Iterate and Move
+                    for obj in to_process:
+                        target_col_name = None
+                        
+                        if method == 'BY_TYPE':
+                            # Simple Type Mapping
+                            target_col_name = obj.type.capitalize() + "s" # e.g. "Meshs" (sic) -> "Meshes" logic later if needed
+                            if obj.type == 'MESH': target_col_name = "Geometry"
+                            elif obj.type == 'LIGHT': target_col_name = "Lights"
+                            elif obj.type == 'CAMERA': target_col_name = "Cameras"
+                            elif obj.type == 'EMPTY': target_col_name = "Controllers"
+                            
+                        elif method == 'BY_NAME':
+                            # Split by underscore or just take first word
+                            # e.g. "Wall_001" -> "Wall"
+                            if "_" in obj.name:
+                                target_col_name = obj.name.split("_")[0]
+                            elif "." in obj.name:
+                                target_col_name = obj.name.split(".")[0]
+                            else:
+                                target_col_name = "Misc"
+                                
+                        elif method == 'BY_PREFIX':
+                            # Check rules
+                            for prefix, col_name in rules.items():
+                                if obj.name.startswith(prefix):
+                                    target_col_name = col_name
+                                    break
+                        
+                        if target_col_name:
+                            # 3. Create Collection if missing
+                            if target_col_name not in bpy.data.collections:
+                                new_col = bpy.data.collections.new(target_col_name)
+                                bpy.context.scene.collection.children.link(new_col)
+                                created_collections.add(target_col_name)
+                            
+                            target_col = bpy.data.collections[target_col_name]
+                            
+                            # 4. Link/Unlink
+                            # Check if already linked
+                            if target_col_name not in [c.name for c in obj.users_collection]:
+                                target_col.objects.link(obj)
+                                
+                                # Unlink from old collections (except the target)
+                                # Be careful not to unlink from everything if it results in orphan, 
+                                # but link() above saves it.
+                                for old_col in obj.users_collection:
+                                    if old_col.name != target_col_name:
+                                        # Only unlink if it's not a master collection we want to keep?
+                                        # Standard behavior: Object usually resides in ONE collection for simple hierarchy
+                                        old_col.objects.unlink(obj)
+                                        
+                                moved_count += 1
+                    
+                    data["msg"] = f"Organized {moved_count} objects into {len(created_collections)} collections."
+                    data["collections_created"] = list(created_collections)
+                    
+                except Exception as e:
+                    data = {"status": "error", "msg": f"Organization Failed: {str(e)}"}
+
+
+
+            elif skill == 'inspect_cartridge_live':
+                # Direct Visual Audit: Load -> Render -> Cleanup (Optional)
+                cart_id = params.get('cartridge_id')
+                cleanup = params.get('cleanup', True) # Default to true to keep scene clean
+                
+                # 1. Reuse Test Generator UI (Direct) to create it
+                # We need to construct params similar to test_generator_ui
+                create_req = {
+                    'cartridge_id': cart_id,
+                    'creation_params': params.get('creation_params', {})
+                }
+                
+                # Call internal handler logic (can't easily call other skill in same loop without recursion risk)
+                # So we copy the core logic or call a shared function. 
+                # Let's use the 'bridge' instance? No, we are inside the function.
+                # Just execute the creation logic manually.
+                
+                try:
+                    # -- CREATION BLOCK --
+                    target_mod = None
+                    for mod in cartridges.MODULES:
+                        meta = getattr(mod, "CARTRIDGE_META", {})
+                        if meta.get("id") == cart_id:
+                            target_mod = mod
+                            break
+                    if not target_mod: raise Exception(f"Cartridge {cart_id} not found")
+                    
+                    op_idname = None
+                    for name in dir(target_mod):
+                        obj = getattr(target_mod, name)
+                        if isinstance(obj, type) and issubclass(obj, bpy.types.Operator):
+                            if hasattr(obj, "bl_idname"):
+                                op_idname = obj.bl_idname
+                                break
+                    if not op_idname: raise Exception(f"No Operator for {cart_id}")
+                    
+                    cat, name = op_idname.split(".")
+                    op_func = getattr(getattr(bpy.ops, cat), name)
+                    op_func('EXEC_DEFAULT', **create_req['creation_params'])
+                    obj = bpy.context.active_object
+                    # -- END CREATION --
+                    
+                    if not obj: raise Exception("Creation failed")
+                    
+                    # 2. Focus & Capture
+                    # Frame Selected
+                    with bpy.context.temp_override(window=bpy.context.window_manager.windows[0], area=bpy.context.window_manager.windows[0].screen.areas[0]):
+                         # Try to find a 3D view
+                         for area in bpy.context.screen.areas:
+                             if area.type == 'VIEW_3D':
+                                 for region in area.regions:
+                                     if region.type == 'WINDOW':
+                                         with bpy.context.temp_override(area=area, region=region):
+                                            bpy.ops.view3d.view_selected()
+                                            break
+                    
+                    # Capture
+                    data["image"] = capture_viewport("SOLID")
+                    data["object_name"] = obj.name
+                    
+                    # 3. Cleanup
+                    if cleanup:
+                        bpy.ops.object.delete()
+                        data["msg"] = f" inspected {obj.name} and cleaned up."
+                    else:
+                        data["msg"] = f" inspected {obj.name} (kept in scene)."
+                        
+                except Exception as e:
+                    data = {"status": "error", "msg": f"Inspection Failed: {str(e)}"}
+
+            elif skill == 'create_scene':
+                # [ARCHITECT UPDATE] File-Based Workflow support
+                filepath = params.get('filepath')
+                if filepath and os.path.exists(filepath):
+                    try:
+                        with open(filepath, 'r') as f:
+                            file_data = json.load(f)
+                            # Layout might be at top level or under 'layout' key
+                            layout = file_data.get('layout', file_data) if isinstance(file_data, dict) else file_data
+                            print(f"[Bridge] Loaded layout from {filepath}")
+                    except Exception as e:
+                        print(f"[Bridge] Error loading file {filepath}: {e}")
+                        layout = []
+                else:
+                    # Legacy / Direct Payload
+                    layout = params.get('layout', [])
+                    
+                do_audit = params.get('audit', True)
+                avoid_duplicates = params.get('avoid_duplicates', True)
+                
+                report = {
+                    "created_objects": [],
+                    "errors": [],
+                    "audit_results": {}
+                }
+                
+                # 1. Capture Pre-Stats
+                pre_stats = {
+                    "object_count": len(bpy.data.objects),
+                    "selected": len(bpy.context.selected_objects)
+                }
+                report["pre_stats"] = pre_stats
+
+                # 2. Iterate Layout
+                for item in layout:
+                    try:
+                        obj_type = item.get('type', 'PRIMITIVE')
+                        item_id = item.get('id')
+                        name = item.get('name', f"New_{item_id}")
+                        
+                        # Intelligent Check: Avoid Duplicates
+                        if avoid_duplicates and name and bpy.data.objects.get(name):
+                            report["errors"].append(f"Skipped {name}: Object already exists (Duplicate Protection)")
+                            continue
+                            
+                        p_cre = item.get('parameters', {})
+                        trans = item.get('transforms', {})
+                        
+                        obj = None
+                        
+                        if obj_type == 'CARTRIDGE':
+                            # Reuse Generator Logic (simplified locally)
+                            # Find Cartridge
+                            target_mod = None
+                            for mod in cartridges.MODULES:
+                                meta = getattr(mod, "CARTRIDGE_META", {})
+                                if meta.get("id") == item_id:
+                                    target_mod = mod
+                                    break
+                            
+                            if target_mod:
+                                # Resolving Op
+                                op_idname = None
+                                for n in dir(target_mod):
+                                    o = getattr(target_mod, n)
+                                    if isinstance(o, type) and issubclass(o, bpy.types.Operator):
+                                        if hasattr(o, "bl_idname"):
+                                            op_idname = o.bl_idname
+                                            break
+                                if op_idname:
+                                    cat, op_name = op_idname.split(".")
+                                    op_func = getattr(getattr(bpy.ops, cat), op_name)
+                                    op_func('EXEC_DEFAULT', **p_cre)
+                                    obj = bpy.context.active_object
+                                else:
+                                    report["errors"].append(f"No Operator for {item_id}")
+                            else:
+                                report["errors"].append(f"Cartridge {item_id} not found")
+
+                        elif obj_type == 'PRIMITIVE':
+                            # Basic Shapes
+                            if item_id == 'cube':
+                                bpy.ops.mesh.primitive_cube_add(size=p_cre.get('size', 2.0))
+                            elif item_id == 'plane':
+                                bpy.ops.mesh.primitive_plane_add(size=p_cre.get('size', 2.0))
+                            elif item_id == 'sphere':
+                                bpy.ops.mesh.primitive_uv_sphere_add(radius=p_cre.get('radius', 1.0))
+                            else:
+                                bpy.ops.mesh.primitive_cube_add() # Fallback
+                            obj = bpy.context.active_object
+
+                        # 3. Apply Transform
+                        if obj:
+                            if name: obj.name = name
+                            
+                            if 'location' in trans:
+                                obj.location = trans['location']
+                            if 'rotation' in trans:
+                                # Assume degrees in JSON, convert to Radians for Blender
+                                import math
+                                rot_deg = trans['rotation']
+                                obj.rotation_euler = (math.radians(rot_deg[0]), math.radians(rot_deg[1]), math.radians(rot_deg[2]))
+                            if 'scale' in trans:
+                                obj.scale = trans['scale']
+                            
+                            # Track created
+                            report["created_objects"].append(obj.name)
+                            
+                            # 4. Per-Object Audit (if requested)
+                            if do_audit and obj.type == 'MESH':
+                                # Basic Bounds Check (Real World Scale Sanity)
+                                dims = obj.dimensions
+                                if max(dims) > 1000 or max(dims) < 0.001:
+                                     report["audit_results"][obj.name] = {"warning": f"Suspicious Scale: {list(dims)}"}
+                                else:
+                                     # Run full mesh analysis
+                                     report["audit_results"][obj.name] = analyze_mesh()
+
+                    except Exception as e:
+                        report["errors"].append(f"Failed item {item.get('id')}: {str(e)}")
+
+                # 5. Visual Capture
+                if do_audit:
+                    style = params.get('visual_style', 'SOLID')
+                    report["visual_capture"] = capture_viewport(style)
+                    
+                data["report"] = report
 
             else:
                 data = {"status": "error", "msg": f"Unknown Skill: {skill}"}

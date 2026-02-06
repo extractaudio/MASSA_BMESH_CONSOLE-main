@@ -1,5 +1,5 @@
 from core.server import create_mcp_server
-from skills import cartridge_forge, inspector, mechanic, knowledge, blender_ops, workflow_runner
+from skills import cartridge_forge, inspector, mechanic, knowledge, blender_ops, workflow_runner, scene_creator
 
 mcp = create_mcp_server()
 
@@ -24,8 +24,15 @@ mcp.tool()(mechanic.file_system_edit)
 mcp.tool()(blender_ops.get_scene_info)
 mcp.tool()(blender_ops.get_object_info)
 mcp.tool()(blender_ops.get_viewport_screenshot)
+mcp.tool()(scene_creator.create_scene)
 mcp.tool()(blender_ops.execute_blender_code)
 mcp.tool()(blender_ops.create_bmesh_object)
+mcp.tool()(blender_ops.execute_contextual_op)
+mcp.tool()(blender_ops.edit_node_graph)
+mcp.tool()(blender_ops.inspect_evaluated_data)
+mcp.tool()(blender_ops.manage_action_slots)
+mcp.tool()(blender_ops.query_asset_browser)
+mcp.tool()(blender_ops.configure_eevee_next)
 
 # Workflow Engine
 mcp.tool()(workflow_runner.start_workflow)

@@ -14,8 +14,13 @@ def package_addon():
 
     # Create export directory
     if export_dir.exists():
-        # Optional: Clean previous export? For now, we'll just overwrite the zip
-        pass
+        # [USER REQUEST] Delete old package if it exists
+        if zip_path.exists():
+            try:
+                os.remove(zip_path)
+                print(f"Removed old package: {zip_path}")
+            except Exception as e:
+                print(f"Warning: Could not remove old package: {e}")
     else:
         export_dir.mkdir(parents=True)
 
