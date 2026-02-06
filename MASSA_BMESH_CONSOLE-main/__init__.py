@@ -49,6 +49,8 @@ if "massa_console" in locals():
         importlib.reload(cartridges)
 
         # 5. MCP
+        if hasattr(mcp_bridge, "stop_server"):
+            mcp_bridge.stop_server()
         importlib.reload(mcp_bridge)
 
         # RELOAD INDIVIDUAL CARTRIDGES
@@ -124,7 +126,7 @@ def unregister():
     cartridges.unregister()
 
     # 3. Unregister Operators
-    bpy.utils.unregister_class(mcp_bridge.MASSA_OT_StartMCP)
+    mcp_bridge.unregister()
     bpy.utils.unregister_class(massa_console_op.MASSA_OT_ResurrectSelected)
     bpy.utils.unregister_class(massa_console_op.MASSA_OT_ConsoleParse)
 

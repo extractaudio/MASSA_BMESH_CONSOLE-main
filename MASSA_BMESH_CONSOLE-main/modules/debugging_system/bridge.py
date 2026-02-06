@@ -4,7 +4,7 @@ import sys
 import json
 import config
 
-def audit_cartridge(cartridge_path):
+def audit_cartridge(cartridge_path, mode="AUDIT", payload=None):
     """
     Spawns background Blender to execute the cartridge and run auditors.
     """
@@ -18,10 +18,14 @@ def audit_cartridge(cartridge_path):
         "--factory-startup", # Clean state (no user addons)
         "--python", runner_script,
         "--",                # Args passed to python script follow
-        "--cartridge", cartridge_abs_path
+        "--cartridge", cartridge_abs_path,
+        "--mode", mode
     ]
+    
+    if payload:
+        cmd.extend(["--payload", json.dumps(payload)])
 
-    print(f"[System] Auditing {os.path.basename(cartridge_path)} in background process...")
+    print(f"[System] Running {mode} on {os.path.basename(cartridge_path)}...")
     
     try:
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -54,10 +58,22 @@ def audit_cartridge(cartridge_path):
         return {"status": "SYSTEM_FAILURE", "message": str(e)}
 
 if __name__ == "__main__":
-    # Usage: python bridge.py <path_to_cartridge.py>
+    # Usage: python bridge.py <path_to_cartridge.py> [mode] [json_payload]
     if len(sys.argv) < 2:
-        print("Usage: python bridge.py <geometry_script.py>")
+        print("Usage: python bridge.py <geometry_script.py> [mode] [payload]")
         sys.exit(1)
 
-    report = audit_cartridge(sys.argv[1])
+    c_path = sys.argv[1]
+    mode = sys.argv[2] if len(sys.argv) > 2 else "AUDIT"
+    payload_str = sys.argv[3] if len(sys.argv) > 3 else None
+    
+    payload = None
+    if payload_str:
+        try:
+            payload = json.loads(payload_str)
+        except:
+            print(json.dumps({"status": "ERROR", "message": "Invalid JSON Payload"}))
+            sys.exit(1)
+
+    report = audit_cartridge(c_path, mode, payload)
     print(json.dumps(report, indent=4))

@@ -124,11 +124,6 @@ def scan_slots():
     return send_bridge("get_slots")
 
 @mcp.tool()
-def scan_geometry_data():
-    """[Engineer State] Returns Bounding Box, Dimensions, and Location of active object."""
-    return send_bridge("get_bounds")
-
-@mcp.tool()
 def scan_visuals(view_mode: str = "WIRE"):
     """[Polish State] Returns Base64 image of viewport."""
     return send_bridge("get_vision", {"mode": view_mode})
@@ -142,21 +137,6 @@ def file_system_edit(filename: str, mode: str, content: str = None):
     elif mode == 'WRITE':
         with open(path, 'w') as f: f.write(content)
         return "File updated."
-
-@mcp.tool()
-def list_cartridges():
-    """[Discovery State] Lists all available cartridge files in the library."""
-    if not os.path.exists(CARTRIDGE_DIR):
-        return "Error: Cartridge Directory not found."
-    files = [f for f in os.listdir(CARTRIDGE_DIR) if f.endswith(".py") and not f.startswith("_")]
-    return json.dumps(files)
-
-@mcp.tool()
-def read_library_source(filename: str):
-    """[Discovery State] Reads a reference cartridge from the library (Read-Only)."""
-    path = os.path.join(CARTRIDGE_DIR, filename)
-    if not os.path.exists(path): return "Error: File not found."
-    with open(path, 'r') as f: return f.read()
 
 @mcp.tool()
 def audit_cartridge(filename: str):
