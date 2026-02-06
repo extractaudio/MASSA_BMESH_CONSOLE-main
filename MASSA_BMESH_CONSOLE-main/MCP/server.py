@@ -3,6 +3,7 @@ import socket
 import json
 import subprocess
 import os
+import collections
 
 mcp = FastMCP("Massa_Modular_Architect")
 
@@ -30,6 +31,16 @@ def send_bridge(skill, params=None):
             return json.loads(b"".join(chunks).decode('utf-8'))
     except ConnectionRefusedError:
         return {"status": "error", "msg": "Bridge unreachable. Is Blender running?"}
+
+def get_execution_mode():
+    """
+    Helper to check if we should run in Direct Mode (Active Viewport) or Background Mode.
+    Returns: True for Direct Mode, False for Background Mode.
+    """
+    config_resp = send_bridge("get_server_config")
+    if "config" in config_resp:
+        return config_resp["config"].get("use_direct_mode", False)
+    return False
 
 # --- RESOURCES ---
 
@@ -119,6 +130,60 @@ def session_launch(headless: bool = False):
 def generate_cartridge(command_str: str):
     """[Generate State] Sends a creation string to the console."""
     return send_bridge("console_command", {"command": command_str})
+
+@mcp.tool()
+def generate_scene(layout: list, filename: str = None):
+    """
+    [Integration State] Creates a scene in the Active Viewport based on the provided layout.
+
+    Args:
+        layout: List of objects/cartridges to create.
+                Example: [{"type": "CARTRIDGE", "id": "cart_prim_cube", "transforms": {"location": [0,0,0]}}]
+        filename: Optional filename to save the build profile/layout JSON.
+
+    Returns:
+        JSON string containing the Overview (Build Profile) and the Execution Report.
+    """
+    # 1. Enforce Direct Mode
+    is_direct = get_execution_mode()
+    if not is_direct:
+        return "Action Aborted: 'Generate Scene' requires Direct Mode (Active Viewport). Please enable 'Direct Execution' in the N-Panel."
+
+    # 2. Generate Overview (Build Profile)
+    overview = {
+        "total_objects": len(layout),
+        "cartridges": collections.Counter(),
+        "primitives": collections.Counter()
+    }
+
+    for item in layout:
+        obj_type = item.get("type", "PRIMITIVE")
+        obj_id = item.get("id", "unknown")
+        if obj_type == "CARTRIDGE":
+            overview["cartridges"][obj_id] += 1
+        else:
+            overview["primitives"][obj_id] += 1
+
+    # Convert counters to dicts for JSON serialization
+    overview["cartridges"] = dict(overview["cartridges"])
+    overview["primitives"] = dict(overview["primitives"])
+
+    # 3. Execute Creation
+    # We pass 'audit=True' implicitly to get the full report
+    params = {"layout": layout, "audit": True}
+    if filename:
+        params["filepath"] = filename
+
+    # Send to Bridge
+    bridge_response = send_bridge("create_scene", params)
+
+    # 4. Combine and Return
+    result = {
+        "overview": overview,
+        "execution_report": bridge_response.get("report", bridge_response)
+    }
+
+    return json.dumps(result, indent=4)
 
 @mcp.tool()
 def iterate_parameters(properties: dict):
@@ -223,11 +288,7 @@ def audit_cartridge(filename: str):
     if not os.path.exists(cartridge_path):
         return f"Error: Cartridge {filename} not found."
 
-    # Check Execution Mode
-    config_resp = send_bridge("get_server_config")
-    use_direct = False
-    if "config" in config_resp:
-         use_direct = config_resp["config"].get("use_direct_mode", False)
+    use_direct = get_execution_mode()
 
     if use_direct:
         # Run Direct
@@ -249,11 +310,7 @@ def audit_cartridge(filename: str):
 @mcp.tool()
 def audit_console():
     """[Audit State] Runs the background auditor on the Massa Console architecture."""
-    # Check Execution Mode
-    config_resp = send_bridge("get_server_config")
-    use_direct = False
-    if "config" in config_resp:
-         use_direct = config_resp["config"].get("use_direct_mode", False)
+    use_direct = get_execution_mode()
 
     if use_direct:
         # Run Direct
