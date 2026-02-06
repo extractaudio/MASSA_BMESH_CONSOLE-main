@@ -348,10 +348,24 @@ def process_queue():
                 path = params.get('path')
                 mode = params.get('mode', 'AUDIT')
                 payload = params.get('payload', {})
-                data["report"] = runner.execute_audit(path, mode, payload, is_direct=True)
+
+                # [ARCHITECT UPDATE] Ensure Active Viewport Context for Direct Mode
+                ctx_override = get_context_for_space('VIEW_3D')
+                if ctx_override:
+                    with bpy.context.temp_override(**ctx_override):
+                        data["report"] = runner.execute_audit(path, mode, payload, is_direct=True)
+                else:
+                    # Fallback if no 3D View found (unlikely in active session but possible)
+                    data["report"] = runner.execute_audit(path, mode, payload, is_direct=True)
 
             elif skill == 'audit_console_direct':
-                data["report"] = runner_console.execute_console_audit(is_direct=True)
+                # [ARCHITECT UPDATE] Ensure Active Viewport Context for Direct Mode
+                ctx_override = get_context_for_space('VIEW_3D')
+                if ctx_override:
+                    with bpy.context.temp_override(**ctx_override):
+                        data["report"] = runner_console.execute_console_audit(is_direct=True)
+                else:
+                    data["report"] = runner_console.execute_console_audit(is_direct=True)
 
             elif skill == 'console_command':
                 if hasattr(bpy.ops.massa, "console_parse"):
