@@ -185,6 +185,12 @@ class MASSA_PT_Main(bpy.types.Panel):
         elif console.ui_tab == "SLOTS":
             ui_shared.draw_slots_tab(col, console, slot_names={}, stats=None)
 
+        # --- 6. MCP BRIDGE ---
+        layout.separator()
+        box = layout.box()
+        box.label(text="System", icon="PREFERENCES")
+        box.operator("massa.start_mcp_server", text="Start MCP Bridge", icon="URL")
+
         layout.separator()
         row = layout.row()
         row.alignment = "CENTER"
