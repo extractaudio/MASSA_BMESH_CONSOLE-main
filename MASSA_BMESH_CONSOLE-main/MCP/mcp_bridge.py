@@ -7,6 +7,7 @@ import json
 import base64
 import tempfile
 import os
+from ..modules.debugging_system import runner, runner_console
 
 # CONFIGURATION
 HOST = '127.0.0.1'
@@ -139,7 +140,22 @@ def process_queue():
 
             # --- SKILL ROUTER ---
             
-            if skill == 'console_command':
+            if skill == 'get_server_config':
+                console = bpy.context.scene.massa_console
+                data["config"] = {
+                    "use_direct_mode": console.mcp_use_direct_mode
+                }
+
+            elif skill == 'audit_cartridge_direct':
+                path = params.get('path')
+                mode = params.get('mode', 'AUDIT')
+                payload = params.get('payload', {})
+                data["report"] = runner.execute_audit(path, mode, payload, is_direct=True)
+
+            elif skill == 'audit_console_direct':
+                data["report"] = runner_console.execute_console_audit(is_direct=True)
+
+            elif skill == 'console_command':
                 if hasattr(bpy.ops.massa, "console_parse"):
                     bpy.ops.massa.console_parse(text=params['command'])
                     data["msg"] = f"Executed: {params['command']}"

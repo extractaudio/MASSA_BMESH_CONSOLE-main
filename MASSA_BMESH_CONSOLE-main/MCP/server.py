@@ -173,31 +173,59 @@ def read_library_source(filename: str):
 @mcp.tool()
 def audit_cartridge(filename: str):
     """[Audit State] Runs the background auditor on a specific cartridge."""
-    bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge.py")
     filename = os.path.basename(filename)
     cartridge_path = os.path.join(CARTRIDGE_DIR, filename)
 
     if not os.path.exists(cartridge_path):
         return f"Error: Cartridge {filename} not found."
 
-    cmd = ["python", bridge_script, cartridge_path]
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        return result.stdout
-    except Exception as e:
-        return f"Audit execution failed: {str(e)}"
+    # Check Execution Mode
+    config_resp = send_bridge("get_server_config")
+    use_direct = False
+    if "config" in config_resp:
+         use_direct = config_resp["config"].get("use_direct_mode", False)
+
+    if use_direct:
+        # Run Direct
+        resp = send_bridge("audit_cartridge_direct", {"path": cartridge_path})
+        if "report" in resp:
+            return json.dumps(resp["report"], indent=4)
+        else:
+            return json.dumps(resp, indent=4)
+    else:
+        # Run Background
+        bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge.py")
+        cmd = ["python", bridge_script, cartridge_path]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.stdout
+        except Exception as e:
+            return f"Audit execution failed: {str(e)}"
 
 @mcp.tool()
 def audit_console():
     """[Audit State] Runs the background auditor on the Massa Console architecture."""
-    bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge_console.py")
+    # Check Execution Mode
+    config_resp = send_bridge("get_server_config")
+    use_direct = False
+    if "config" in config_resp:
+         use_direct = config_resp["config"].get("use_direct_mode", False)
 
-    cmd = ["python", bridge_script]
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        return result.stdout
-    except Exception as e:
-        return f"Audit execution failed: {str(e)}"
+    if use_direct:
+        # Run Direct
+        resp = send_bridge("audit_console_direct")
+        if "report" in resp:
+            return json.dumps(resp["report"], indent=4)
+        else:
+            return json.dumps(resp, indent=4)
+    else:
+        bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge_console.py")
+        cmd = ["python", bridge_script]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.stdout
+        except Exception as e:
+            return f"Audit execution failed: {str(e)}"
 
 if __name__ == "__main__":
     mcp.run()
