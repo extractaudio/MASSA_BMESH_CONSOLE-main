@@ -9,6 +9,7 @@ import tempfile
 import base64
 import blf
 import bpy_extras
+import textwrap
 
 # --- HOLO-PROJECTOR (Visual Feedback) ---
 
@@ -103,6 +104,8 @@ def parse_panel_ast(panel_idname):
 
     try:
         source = inspect.getsource(panel_cls.draw)
+        # Use dedent to fix indentation issues with nested classes
+        source = textwrap.dedent(source)
     except OSError:
         return {"error": "Compiled source unavailable"}
 
