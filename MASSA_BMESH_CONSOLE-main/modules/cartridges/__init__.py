@@ -51,6 +51,7 @@ from . import cart_prim_23_cable_tray
 from . import cart_prim_24_gutter
 from . import cart_crate
 from . import cart_scaffolding
+from . import cart_prim_landscape
 
 # --- ARCHITECTURE SUITE (cart_arch_*) ---
 from . import cart_arch_01_stairs_linear
@@ -118,6 +119,7 @@ MODULES = [
     cart_prim_24_gutter,
     cart_crate,
     cart_scaffolding,
+    cart_prim_landscape,
     # Arch
     cart_arch_01_stairs_linear,
     cart_arch_02_stairs_spiral,
@@ -179,6 +181,7 @@ CLASSES = [
     cart_prim_24_gutter.MASSA_OT_PrimGutter,
     cart_crate.MASSA_OT_Crate,
     cart_scaffolding.MASSA_OT_Scaffolding,
+    cart_prim_landscape.MASSA_OT_PrimLandscape,
     # Arch
     cart_arch_01_stairs_linear.MASSA_OT_ArchStairsLinear,
     cart_arch_02_stairs_spiral.MASSA_OT_ArchStairsSpiral,

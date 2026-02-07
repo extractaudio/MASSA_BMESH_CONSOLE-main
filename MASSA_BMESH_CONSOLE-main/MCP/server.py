@@ -15,22 +15,38 @@ CARTRIDGE_DIR = os.path.abspath(os.path.join(BASE_DIR, "../modules/cartridges"))
 DEBUG_SYSTEM_DIR = os.path.abspath(os.path.join(BASE_DIR, "../modules/debugging_system"))
 AGENT_WORKFLOWS_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../.agent/workflows"))
 
+import struct
+
 def send_bridge(skill, params=None):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect(('127.0.0.1', BRIDGE_PORT))
-            payload = json.dumps({"skill": skill, "params": params or {}})
-            s.sendall(payload.encode('utf-8'))
             
-            # Read response
-            chunks = []
-            while True:
-                chunk = s.recv(4096)
-                if not chunk: break
-                chunks.append(chunk)
-            return json.loads(b"".join(chunks).decode('utf-8'))
+            # Send Request
+            payload_bytes = json.dumps({"skill": skill, "params": params or {}}).encode('utf-8')
+            s.sendall(struct.pack('>I', len(payload_bytes)) + payload_bytes)
+            
+            # Read Response Length
+            raw_len = recv_all(s, 4)
+            if not raw_len: return {"status": "error", "msg": "Empty response from bridge"}
+            msg_len = struct.unpack('>I', raw_len)[0]
+            
+            # Read Response Payload
+            data = recv_all(s, msg_len)
+            return json.loads(data.decode('utf-8'))
+            
     except ConnectionRefusedError:
         return {"status": "error", "msg": "Bridge unreachable. Is Blender running?"}
+    except Exception as e:
+        return {"status": "error", "msg": f"Bridge Error: {str(e)}"}
+
+def recv_all(conn, n):
+    data = b''
+    while len(data) < n:
+        packet = conn.recv(n - len(data))
+        if not packet: return None
+        data += packet
+    return data
 
 def get_execution_mode():
     """
@@ -298,9 +314,10 @@ def audit_cartridge(filename: str):
         else:
             return json.dumps(resp, indent=4)
     else:
-        # Run Background
-        bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge.py")
-        cmd = ["python", bridge_script, cartridge_path]
+        # Run Background (Headless Safety Check)
+        # Uses modules/debugging_system/bridge.py to spawn a fresh process
+        headless_launcher = os.path.join(DEBUG_SYSTEM_DIR, "bridge.py")
+        cmd = ["python", headless_launcher, cartridge_path]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True)
             return result.stdout
@@ -320,8 +337,8 @@ def audit_console():
         else:
             return json.dumps(resp, indent=4)
     else:
-        bridge_script = os.path.join(DEBUG_SYSTEM_DIR, "bridge_console.py")
-        cmd = ["python", bridge_script]
+        headless_launcher = os.path.join(DEBUG_SYSTEM_DIR, "bridge_console.py")
+        cmd = ["python", headless_launcher]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True)
             return result.stdout
@@ -396,6 +413,30 @@ def organize_outliner(method: str = "BY_NAME", rules: dict = None, ignore_hidden
         ignore_hidden: If True, skips objects hidden in the viewport.
     """
     return send_bridge("organize_outliner", {"method": method, "rules": rules, "ignore_hidden": ignore_hidden})
+
+@mcp.tool()
+def verify_material_logic(filename: str) -> str:
+    """
+    [Phase 4] Static Analysis of Material Slot Logic.
+    Checks if the cartridge code attempts to assign material indices (MAT_TAG).
+    """
+    path = os.path.join(CARTRIDGE_DIR, filename)
+    if not os.path.exists(path): return f"Error: {filename} not found."
+    
+    with open(path, 'r') as f: content = f.read()
+    
+    report = []
+    if 'bm.faces.layers.int.get("MAT_TAG")' in content or 'bm.faces.layers.int.new("MAT_TAG")' in content:
+        report.append("PASS: MAT_TAG layer detected.")
+    else:
+        report.append("FAIL: MAT_TAG layer missing.")
+
+    if 'bm.edges.layers.int.get("MASSA_EDGE_SLOTS")' in content or 'bm.edges.layers.int.new("MASSA_EDGE_SLOTS")' in content:
+        report.append("PASS: MASSA_EDGE_SLOTS layer detected.")
+    else:
+        report.append("FAIL: MASSA_EDGE_SLOTS layer missing.")
+        
+    return "\n".join(report)
 
 if __name__ == "__main__":
     mcp.run()

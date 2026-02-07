@@ -6,13 +6,13 @@ description: Definitive guide for Material and Edge Slot IDs in Massa Cartridges
 
 ## 1. OBJECTIVE
 
-*The "Rosetta Stone" of the Massa Console.*
+*Topology foundation of the Massa Console.*
 
-To ensure all cartridges interact seamlessly with the Console's Polish, Surface, and Physics systems, agents must adhere to strict Integer ID standards for Faces (Materials) and Edges (Features).
+To ensure all cartridges generate slots for all faces and edges. The faces generate their own 'Visual' material and 'Physics' ID. The Edges generate an edge slot that is defined by: Perimeter (endcaps/important edge loops), Contour (90 degree forum break), Seams (manually placed Guide to ensuring a proper uv unwrap), Detail (Edges whos neibors have very minor surface detail), and Fold (Used for subdivision weighting cloth.) Attempt to create professional grade UV map by visually auditing the veiwport. Agents must adhere to strict Integer ID standards for Faces (Materials) and Edges (Features).
 
 ---
 
-## 2. THE HARD 10 (MATERIAL SLOTS)
+## 2. SLOTS (FACE MATERIAL IDs)
 
 **Context:** `bm.faces.layers.int.get("MAT_TAG")`
 **Constraint:** You must assign every face to one of these IDs.
@@ -40,17 +40,17 @@ for f in my_faces:
 
 ---
 
-## 3. THE NERVOUS SYSTEM (EDGE SLOTS)
+## 3. EDGE SLOTS
 
 **Context:** `bm.edges.layers.int.get("MASSA_EDGE_SLOTS")`
 **Constraint:** Used by the Polish Stack (Bevel, Subd, Cloth).
 
 | ID | Name | Visual Color | Logical Role | Polish Effect |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | **PERIMETER** | 🔴 RED | Outer Boundary / Silhouette | **Seam + Sharp + Bevel.** The defining outline. |
-| **2** | **CONTOUR** | 🟠 ORANGE | Major Form Break (90°) | **Sharp + Bevel.** Hard surface edges. |
-| **3** | **GUIDE** | 🔵 BLUE | Topological Seam / Flow | **Seam Only.** Used for UV unwrapping cylinders/organic shapes. |
-| **4** | **DETAIL** | 🟢 GREEN | Minor Surface Detail | **Bevel Only.** Small chamfers, no sharp shading. |
+| **1** | **PERIMETER** | 🔵 BLUE | Outer Boundary / Silhouette | **Seam + Sharp + Bevel.** The defining outline. |
+| **2** | **CONTOUR** | 🟢 GREEN | Major Form Break (90°) | **Sharp + Bevel.** Hard surface edges. |
+| **3** | **GUIDE** | 🔴 RED  | Topological Seam / Flow | **Seam Only.** Used for UV unwrapping cylinders/organic shapes. |
+| **4** | **DETAIL** | 🟠 ORANGE | Minor Surface Detail | **Bevel Only.** Small chamfers, no sharp shading. |
 | **5** | **FOLD** | 🟣 PURPLE | Cloth/Soft Crease | **Crease.** Used for subdivision weighting. |
 
 ### 📝 Implementation Snippet

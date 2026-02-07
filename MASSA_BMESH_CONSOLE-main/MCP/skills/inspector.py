@@ -12,8 +12,8 @@ from core.bridge_client import send_bridge
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 CARTRIDGE_DIR = os.path.join(BASE_DIR, "geometry_cartridges")
 OUTPUT_DIR = os.path.join(BASE_DIR, "audit_output")
-BRIDGE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "runner.py")
-BRIDGE_CONSOLE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "bridge_console.py")
+HEADLESS_BRIDGE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "bridge.py")
+HEADLESS_CONSOLE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "bridge_console.py")
 
 # Ensure output directory exists for visual dumps
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -22,20 +22,21 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def _invoke_bridge(target_file: str, mode: str, payload: Dict[str, Any] = None) -> Dict[str, Any]:
     """
-    Internal helper to communicate with the Blender Bridge.
-    Executes the bridge.py script which runs inside/controls Blender.
+    Internal helper to communicate with the HEADLESS Blender Bridge.
+    Executes the debugging_system/bridge.py script which spawns a background Blender process.
     """
-    if not os.path.exists(BRIDGE_SCRIPT):
+    if not os.path.exists(HEADLESS_BRIDGE_SCRIPT):
         return {
             "status": "SYSTEM_FAILURE",
-            "message": f"Bridge script not found at {BRIDGE_SCRIPT}. Check configuration."
+            "message": f"Headless Bridge script not found at {HEADLESS_BRIDGE_SCRIPT}. Check configuration."
         }
 
-    # Construct command: python runner.py --cartridge [target] --mode [mode] [--payload [json]]
-    cmd = ["python", BRIDGE_SCRIPT, "--cartridge", target_file, "--mode", mode]
+    # Construct command: python bridge.py [target] [mode] [payload]
+    # Note: bridge.py wraps the call to blender --python runner.py
+    cmd = ["python", HEADLESS_BRIDGE_SCRIPT, target_file, mode]
     
     if payload:
-        cmd.extend(["--payload", json.dumps(payload)])
+        cmd.append(json.dumps(payload))
 
     try:
         # Run the bridge process
@@ -48,10 +49,25 @@ def _invoke_bridge(target_file: str, mode: str, payload: Dict[str, Any] = None) 
             }
             
         # Attempt to parse the JSON output from the bridge
+        # Attempt to parse the JSON output from the bridge
         try:
-            # Assuming the bridge prints the JSON result to stdout last
-            output_lines = result.stdout.strip().split('\n')
-            json_str = output_lines[-1] if output_lines else "{}"
+            output = result.stdout.strip()
+            json_str = "{}"
+            
+            # Robust Parsing: Look for markers
+            if "---AUDIT_START---" in output and "---AUDIT_END---" in output:
+                try:
+                    parts = output.split("---AUDIT_START---")[1].split("---AUDIT_END---")[0]
+                    json_str = parts.strip()
+                except IndexError:
+                    # Fallback
+                    output_lines = output.split('\n')
+                    json_str = output_lines[-1] if output_lines else "{}"
+            else:
+                # Fallback to last line (Legacy behavior)
+                output_lines = output.split('\n')
+                json_str = output_lines[-1] if output_lines else "{}"
+
             return json.loads(json_str)
         except json.JSONDecodeError:
             return {
@@ -75,13 +91,13 @@ def audit_console() -> str:
     Returns:
         str: Console Audit Report (PASS/FAIL).
     """
-    if not os.path.exists(BRIDGE_CONSOLE_SCRIPT):
-        return f"Error: Bridge Console script not found at {BRIDGE_CONSOLE_SCRIPT}"
+    if not os.path.exists(HEADLESS_CONSOLE_SCRIPT):
+        return f"Error: Bridge Console script not found at {HEADLESS_CONSOLE_SCRIPT}"
 
     try:
         # Run the console bridge
         result = subprocess.run(
-            ["python", BRIDGE_CONSOLE_SCRIPT], 
+            ["python", HEADLESS_CONSOLE_SCRIPT], 
             capture_output=True, 
             text=True, 
             timeout=30
@@ -385,12 +401,12 @@ def debug_csg_tree(filename: str, angle: str = "ISO_CAM") -> str:
 def visualize_edge_slots(filename: str, slot_name: str = "seam") -> str:
     """
     [Phase 4] Edge Slot Visualization.
-    Visualizes specific edge slots (e.g., 'seam', 'bevel', 'crease') by highlighting them.
+    Visualizes specific edge slots (1=Perimeter, 2=Contour, 3=Guide, 4=Detail, 5=Fold).
     Crucial for verifying that procedural selection logic is working correctly.
     
     Args:
         filename: The cartridge to inspect.
-        slot_name: The key in the 'slots' dictionary to highlight (default: 'seam').
+        slot_name: The Slot ID to highlight (passed as string "1", "2" etc or "seam" alias).
         
     Returns:
         str: Path to the visualization image.
@@ -423,9 +439,14 @@ def verify_material_logic(filename: str) -> str:
     report = []
     
     # Check for Layer retrieval
-    if 'bm.faces.layers.int.get("MAT_TAG")' in content:
-        report.append("PASS: MAT_TAG layer retrieved.")
+    if 'bm.faces.layers.int.get("MAT_TAG")' in content or 'bm.faces.layers.int.new("MAT_TAG")' in content:
+        report.append("PASS: MAT_TAG layer detected.")
     else:
-        report.append("FAIL: MAT_TAG layer not retrieved. Faces cannot be assigned materials.")
+        report.append("FAIL: MAT_TAG layer missing.")
+
+    if 'bm.edges.layers.int.get("MASSA_EDGE_SLOTS")' in content or 'bm.edges.layers.int.new("MASSA_EDGE_SLOTS")' in content:
+        report.append("PASS: MASSA_EDGE_SLOTS layer detected.")
+    else:
+        report.append("FAIL: MASSA_EDGE_SLOTS layer missing.")
         
     return "\n".join(report)

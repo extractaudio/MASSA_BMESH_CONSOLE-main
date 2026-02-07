@@ -7,8 +7,11 @@ from unittest.mock import patch, MagicMock
 
 # --- SETUP ENVIRONMENT ---
 # Add MCP root to path to allow imports
+# Add MCP root to path to allow imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
-mcp_root = os.path.abspath(os.path.join(current_dir, "../MCP"))
+# current_dir is MCP/tests
+# mcp_root is MCP
+mcp_root = os.path.abspath(os.path.join(current_dir, ".."))
 if mcp_root not in sys.path:
     sys.path.append(mcp_root)
 
@@ -41,7 +44,7 @@ class TestMechanicLogic(unittest.TestCase):
         return filename
 
     def test_inject_slots_success(self):
-        """Test that slots are injected correctly when missing."""
+        """Test that BMesh Layers are injected correctly when missing."""
         content = """
 import bmesh
 def generate_geometry():
@@ -56,22 +59,22 @@ def generate_geometry():
         with patch("skills.mechanic.CARTRIDGE_DIR", self.test_dir):
             result = inject_standard_slots(filename)
             
-        self.assertIn("Injected Standard Slots dictionary", result)
+        self.assertIn("Injected Standard Slot Layers", result)
         
         # Verify file content
         with open(os.path.join(self.test_dir, filename), 'r') as f:
             new_content = f.read()
             
-        self.assertIn("slots = {", new_content)
-        self.assertIn("'bevel': []", new_content)
+        self.assertIn('tag_layer = bm.faces.layers.int.new("MAT_TAG")', new_content)
+        self.assertIn('edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")', new_content)
 
     def test_slots_already_present(self):
-        """Test that the tool does nothing if slots exist."""
+        """Test that the tool does nothing if layers exist."""
         content = """
 import bmesh
 def generate_geometry():
     bm = bmesh.new()
-    slots = {'bevel': []}
+    tag_layer = bm.faces.layers.int.new("MAT_TAG")
     bm.free()
 """
         filename = self.create_dummy_cartridge("has_slots.py", content)
@@ -79,7 +82,7 @@ def generate_geometry():
         with patch("skills.mechanic.CARTRIDGE_DIR", self.test_dir):
             result = inject_standard_slots(filename)
             
-        self.assertIn("Slots dictionary already present", result)
+        self.assertIn("Slot Layers already present", result)
 
     def test_no_anchor_point(self):
         """Test failure when bmesh.new() cannot be found."""

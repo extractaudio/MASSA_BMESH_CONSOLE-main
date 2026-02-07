@@ -21,7 +21,10 @@ description: DEBUG & REPAIR PROTOCOLS
     1. Check loop indices. Ensure the last face connects to the first `(i+1)%total`.
     2. **FIX:** Add `bmesh.ops.recalc_face_normals`.
 
-## 3. Missing Slots
+## 3. Missing Slots (Layers)
 
-* **Trigger:** `scan_slots` missing expected keys.
-* **Fix:** Edit script to assign `face.material_index = X` correctly.
+* **Trigger:** `verify_material_logic` returns FAIL.
+* **Diagnosis:** BMesh Int Layers (`MAT_TAG` or `MASSA_EDGE_SLOTS`) not initialized.
+* **Fix:**
+    1. Initialize layers: `tag_layer = bm.faces.layers.int.new("MAT_TAG")`.
+    2. Assign IDs: `f[tag_layer] = 0`.

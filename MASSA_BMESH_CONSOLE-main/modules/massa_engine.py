@@ -33,6 +33,7 @@ def process_edge_slots(bm, op):
         2: getattr(op, "edge_slot_2_action", "IGNORE"),
         3: getattr(op, "edge_slot_3_action", "IGNORE"),
         4: getattr(op, "edge_slot_4_action", "IGNORE"),
+        5: getattr(op, "edge_slot_5_action", "IGNORE"),
     }
 
     crease_layer = None
@@ -117,6 +118,7 @@ def run_pipeline(op, context):
                     getattr(op, "seam_use_cont", True),
                     getattr(op, "seam_use_guide", False),
                     getattr(op, "seam_use_detail", False),
+                    getattr(op, "seam_use_fold", False),
                 )
                 seam_solvers.apply_base_drivers(
                     bm,

@@ -77,6 +77,9 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
     edge_slot_4_action: EnumProperty(
         name="S4", items=edge_action_items, default="IGNORE"
     )
+    edge_slot_5_action: EnumProperty(
+        name="S5", items=edge_action_items, default="IGNORE"
+    )
 
     # [ARCHITECT NEW] Internal flag for Resurrection Mode
     rerun_mode: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
@@ -124,6 +127,10 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                 # 1. Get Physics ID Key (e.g. 'METAL_STEEL')
                 phys_id = data.get("phys", "GENERIC")
 
+                # [ARCHITECT FIX] Skip Generic to allow Surface Map Fallbacks (Debug Colors)
+                if phys_id == "GENERIC":
+                    continue
+
                 # 2. Look up the Human-Readable Name from DB
                 vis_name = mat_utils.get_visual_name_from_id(phys_id)
 
@@ -160,6 +167,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                 "edge_slot_2_action",
                 "edge_slot_3_action",
                 "edge_slot_4_action",
+                "edge_slot_5_action",
                 "viz_edge_mode",
                 "debug_view",
                 "seam_from_edges",
@@ -167,6 +175,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                 "seam_use_cont",
                 "seam_use_guide",
                 "seam_use_detail",
+                "seam_use_fold",
             ]
         )
 
@@ -262,8 +271,15 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             old_obj = context.scene.objects.get(self.target_delete_name)
             if old_obj:
                 try:
+                    # [ARCHITECT FIX] Recursive Deletion for Detached Parts
+                    # If we detached rail guards, they are children of old_obj.
+                    # We must delete them too, or they will duplicate.
+                    objects_to_delete = [old_obj] + [c for c in old_obj.children]
+                    
                     bpy.ops.object.select_all(action='DESELECT')
-                    old_obj.select_set(True)
+                    for o in objects_to_delete:
+                        o.select_set(True)
+                        
                     bpy.ops.object.delete()
                 except Exception as e:
                     print(f"Massa Deletion Error: {e}")

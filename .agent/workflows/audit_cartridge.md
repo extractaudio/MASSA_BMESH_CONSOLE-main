@@ -11,6 +11,12 @@ description: Audit a geometry cartridge using the headless Blender system
    python MASSA_BMESH_CONSOLE-main/modules/debugging_system/bridge.py <cartridge_path>
    ```
 
+## Agent Protocol
+
+To perform this audit via the MCP interface:
+
+* **Tool:** `audit_cartridge(filename="cartridge_name.py")`
+
 ## System Protocol: Geometry Auditing
 
 You have access to a background "Fake Blender" debugging system.
@@ -31,9 +37,9 @@ python debugging_system/bridge.py geometry_cartridges/candidate.py
 
 If status: **FAIL**: Read the `errors` list, which now includes Fuzzer output.
 
-- **FUZZ_CRASH**: The cartridge crashed when randomized parameters were applied. Check the `PARAMS` log to see what values caused the break.
-- **CRITICAL_LOOSE_VERTS**: You have vertices floating in space (not part of an edge).
-- **CRITICAL_WIRE_EDGES**: You have edges that don't make a face.
+* **FUZZ_CRASH**: The cartridge crashed when randomized parameters were applied. Check the `PARAMS` log to see what values caused the break.
+* **CRITICAL_LOOSE_VERTS**: You have vertices floating in space (not part of an edge).
+* **CRITICAL_WIRE_EDGES**: You have edges that don't make a face.
 
 ### Iterate
 

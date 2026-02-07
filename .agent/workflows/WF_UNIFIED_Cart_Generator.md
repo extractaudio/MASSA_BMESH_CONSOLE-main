@@ -81,7 +81,7 @@ class MASSA_OT_cart_unique_id(Massa_OT_Base):
         }
 
     def build_shape(self, bm):
-        # 3. SETUP LAYERS
+        # 3. SETUP LAYERS (Phase 4)
         tag_layer = bm.faces.layers.int.new("MAT_TAG")
         edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
         
@@ -107,12 +107,24 @@ bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
 ### 🟠 PHASE 4: THE SLOT SYSTEM (DEEP LOGIC)
 
-**Goal:** procedural selection & property assignment.
+**Goal:** procedural selection & property assignment using BMesh Layers.
 
-#### A. THE HARD 10 (MATERIAL SLOTS)
+#### A. THE HARD 10 (MATERIAL SLOTS - FACE)
 
-**Mandate:** Every face must be assigned to a slot index (0-9) corresponding to `get_slot_meta`.
-**Method:** Use a BMesh Int Layer ("MAT_TAG").
+**Mandate:** Every face must be assigned to a slot index (0-9).
+**Method:** BMesh Int Layer `"MAT_TAG"`.
+**Legend:**
+
+* **0=Base**: Main Hull
+* **1=Detail**: Vents/Grilles
+* **2=Trim**: Borders
+* **3=Glass**: Windows
+* **4=Emission**: Lights
+* **5=Dark**: Inner/Shadows
+* **6=Accent**: Decals/Paint
+* **7=Utility**: Bolts/Handles
+* **8=Transparent**: Forcefields
+* **9=Socket**: Internal Snapping
 
 ```python
 # Create Layer
@@ -123,23 +135,23 @@ for f in new_faces:
     f[tag_layer] = 0 # Assign to Slot 0 (Base)
 ```
 
-#### B. EDGE SLOTS (THE NERVOUS SYSTEM)
+#### B. EDGE SLOTS (THE NERVOUS SYSTEM - EDGE)
 
 **Mandate:** Edges must be tagged for their role in the "Polish Stack" (Bevels, subdivision, etc).
-**Method:** Use BMesh Int Layer ("MASSA_EDGE_SLOTS").
+**Method:** BMesh Int Layer `"MASSA_EDGE_SLOTS"`.
+**Legend:**
 
-| Value | Role | Meaning |
-| :--- | :--- | :--- |
-| **1** | **PERIMETER** | Outer boundary. Seam + Sharp. |
-| **2** | **CONTOUR** | Major form break. Sharp. |
-| **3** | **GUIDE** | Topological flow line. Seam. |
-| **4** | **DETAIL** | Minor surface detail. Bevel. |
+* **1=PERIMETER** (Blue): Outer boundary. Seam + Sharp + Bevel.
+* **2=CONTOUR** (Green): 90° Form Break. Sharp + Bevel.
+* **3=GUIDE** (Red): Topological Seam. Seam Only.
+* **4=DETAIL** (Orange): Minor Surface Detail. Bevel Only.
+* **5=FOLD** (Purple): Cloth/Soft Crease. Subdivision Weighting.
 
 ```python
 edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 for e in bm.edges:
     if e.is_boundary:
-        e[edge_slots] = 1
+        e[edge_slots] = 1 # PERIMETER
 ```
 
 #### C. SELECTION GROUPS (PROCEDURAL)

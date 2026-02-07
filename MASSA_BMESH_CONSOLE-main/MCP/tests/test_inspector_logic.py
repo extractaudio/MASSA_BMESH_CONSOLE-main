@@ -7,8 +7,11 @@ from unittest.mock import patch, MagicMock
 
 # --- SETUP ENVIRONMENT ---
 # Add MCP root to path to allow imports
+# Add MCP root to path to allow imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
-mcp_root = os.path.abspath(os.path.join(current_dir, "../MCP"))
+# current_dir is MCP/tests
+# mcp_root is MCP
+mcp_root = os.path.abspath(os.path.join(current_dir, ".."))
 if mcp_root not in sys.path:
     sys.path.append(mcp_root)
 
@@ -46,7 +49,8 @@ class TestVerifyMaterialLogic(unittest.TestCase):
 import bmesh
 def generate(bm):
     # This line is required for Phase 4 compliance
-    mat_layer = bm.faces.layers.int.get("MAT_TAG")
+    tag_layer = bm.faces.layers.int.new("MAT_TAG")
+    edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
     pass
 """
         filename = self.create_dummy_cartridge("valid_cart.py", content)
@@ -55,8 +59,8 @@ def generate(bm):
         with patch("skills.inspector.CARTRIDGE_DIR", self.test_dir):
             result = verify_material_logic(filename)
             
-        self.assertIn("PASS", result)
-        self.assertIn("MAT_TAG layer retrieved", result)
+        self.assertIn("PASS: MAT_TAG layer detected", result)
+        self.assertIn("PASS: MASSA_EDGE_SLOTS layer detected", result)
 
     def test_non_compliant_cartridge(self):
         """Test that a cartridge missing the MAT_TAG logic fails."""
@@ -71,8 +75,8 @@ def generate(bm):
         with patch("skills.inspector.CARTRIDGE_DIR", self.test_dir):
             result = verify_material_logic(filename)
             
-        self.assertIn("FAIL", result)
-        self.assertIn("MAT_TAG layer not retrieved", result)
+        self.assertIn("FAIL: MAT_TAG layer missing", result)
+        self.assertIn("FAIL: MASSA_EDGE_SLOTS layer missing", result)
 
 if __name__ == "__main__":
     unittest.main()

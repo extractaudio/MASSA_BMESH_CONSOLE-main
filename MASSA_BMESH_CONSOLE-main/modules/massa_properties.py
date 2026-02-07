@@ -83,6 +83,9 @@ class MassaPropertiesMixin:
     seam_use_detail: BoolProperty(
         name="Detail (4)", default=False, description="Cut Panel Lines"
     )
+    seam_use_fold: BoolProperty(
+        name="Fold (5)", default=False, description="Cut Fold Lines"
+    )
 
     # 2. CLEANUP
     seam_cleanup_flat: BoolProperty(name="Remove Flat Seams", default=False)

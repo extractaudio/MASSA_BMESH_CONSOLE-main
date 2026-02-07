@@ -8,7 +8,7 @@ This workflow details the process of refining a cartridge's parameters and visua
 
 ## 1. Redo Panel Tuning (Parameter Stress Testing)
 
-*   **Goal:** Ensure the script is robust and produces desired variations when parameters change.
+*   **Goal:** Ensure the script produces the intended variations when parameters change and make sure the geometry cartridge (ui: shape tab) parameters are within a visually desireable range.
 *   **Tool:** `inspector.stress_test_ui_parameters()`
 *   **Usage:**
     1.  Define a set of new parameters as a JSON string.
