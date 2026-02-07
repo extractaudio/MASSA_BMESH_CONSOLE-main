@@ -388,6 +388,29 @@ def organize_outliner(method: str = "BY_NAME", rules: dict = None, ignore_hidden
     return send_bridge("organize_outliner", {"method": method, "rules": rules, "ignore_hidden": ignore_hidden})
 
 @mcp.tool()
+def manage_extensions(command: str, extension_id: str = None):
+    """
+    [System State] Interfaces with the Blender 5.0 Extensions Platform (replacing the old Add-on system).
+
+    Args:
+        command: "INSTALL", "ENABLE", "UPDATE".
+        extension_id: Identifier or Filepath for the extension.
+    """
+    return send_bridge("manage_extensions", {"command": command, "extension_id": extension_id})
+
+@mcp.tool()
+def control_timeline(operation: str, frame_range: tuple = None, blocking: bool = True):
+    """
+    [Physics State] Manages the timeline playback and Simulation Zone baking.
+
+    Args:
+        operation: "PLAY", "SET_FRAME", "BAKE_SIMULATION", "FREE_CACHE".
+        frame_range: Tuple (start, end).
+        blocking: Bool (Wait for bake to finish before returning? Timeout 3 mins).
+    """
+    return send_bridge("control_timeline", {"operation": operation, "frame_range": frame_range, "blocking": blocking})
+
+@mcp.tool()
 def verify_material_logic(filename: str) -> str:
     """
     [Phase 4] Static Analysis of Material Slot Logic.

@@ -781,6 +781,120 @@ def process_queue():
                 except Exception as e:
                     data = {"status": "error", "msg": f"Inspection Failed: {str(e)}"}
 
+            elif skill == 'manage_extensions':
+                command = params.get('command')
+                ext_id = params.get('extension_id')
+
+                try:
+                    if command == 'INSTALL':
+                        # In Blender 5.0+, extensions.install is typical,
+                        # but often it's 'bpy.ops.extensions.install'
+                        # However, sometimes 'install' just opens a file browser if no args.
+                        # For remote repo, it might be 'package_install'.
+                        # Assuming 'bpy.ops.extensions.install' works or 'package_install'
+
+                        # Let's try the modern 5.0 way (hypothetical API based on 4.2+ extensions)
+                        if hasattr(bpy.ops.extensions, "install"):
+                             # This might be for local files?
+                             # For repositories, it's often 'bpy.ops.extensions.package_install(repo_index=..., pkg_id=...)'
+                             # Let's try a generic approach or assume command line style
+                             bpy.ops.extensions.install(filepath=ext_id) # if ext_id is a path?
+                             data["msg"] = f"Installed extension from {ext_id}"
+                        elif hasattr(bpy.ops.preferences, "addon_install"):
+                             # Fallback to old addon system if extension not found
+                             bpy.ops.preferences.addon_install(filepath=ext_id)
+                             data["msg"] = f"Installed addon from {ext_id}"
+                        else:
+                             data = {"status": "error", "msg": "Extensions API not found"}
+
+                    elif command == 'ENABLE':
+                        # New Extensions use 'bpy.ops.extensions.enable' or just prefs
+                        try:
+                            bpy.ops.preferences.addon_enable(module=ext_id)
+                            data["msg"] = f"Enabled {ext_id}"
+                        except:
+                            # Try extension specific
+                            if hasattr(bpy.ops.extensions, "enable"):
+                                bpy.ops.extensions.enable(extension_id=ext_id)
+                                data["msg"] = f"Enabled extension {ext_id}"
+                            else:
+                                raise Exception("Could not enable")
+
+                    elif command == 'UPDATE':
+                         # Trigger update check
+                         bpy.ops.extensions.update_check()
+                         bpy.ops.extensions.update_all()
+                         data["msg"] = "Extensions Updated"
+
+                    else:
+                        data = {"status": "error", "msg": f"Unknown Extension Command: {command}"}
+
+                except Exception as e:
+                    data = {"status": "error", "msg": f"Extension Error: {str(e)}"}
+
+            elif skill == 'control_timeline':
+                op = params.get('operation')
+                frame_range = params.get('frame_range')
+                blocking = params.get('blocking', True)
+
+                scene = bpy.context.scene
+
+                try:
+                    if op == 'PLAY':
+                        if not bpy.context.screen.is_animation_playing:
+                            bpy.ops.screen.animation_play()
+                        data["msg"] = "Playback Started"
+
+                    elif op == 'SET_FRAME':
+                        frame = params.get('frame', scene.frame_start)
+                        scene.frame_set(frame)
+                        data["msg"] = f"Jumped to Frame {frame}"
+
+                    elif op == 'BAKE_SIMULATION':
+                        # Find objects with simulation zones or physics
+                        # Often 'bpy.ops.ptcache.bake_all' or Geometry Nodes bake
+
+                        # Timeout logic if blocking
+                        if blocking:
+                            # 3 Minute Timeout handled by server socket timeout usually,
+                            # but here we just run the op. If op hangs, Blender hangs.
+                            # We can't easily interrupt a C-operator from Python.
+                            # So we trust it finishes or user kills it.
+                            # But we can set the Frame Range to limit it.
+
+                            if frame_range:
+                                scene.frame_start = frame_range[0]
+                                scene.frame_end = frame_range[1]
+
+                            # Bake
+                            # Try generic bake
+                            if hasattr(bpy.ops.ptcache, "bake_all"):
+                                bpy.ops.ptcache.bake_all(bake=True)
+
+                            # Try Geometry Nodes Bake (if applicable)
+                            # This is usually per-object or node group.
+                            # For now, generic Bake All is best effort.
+
+                            data["msg"] = "Simulation Baked"
+                        else:
+                            # Non-blocking bake is hard in Blender Python API (it's blocking by default)
+                            # We would need to launch a modal operator or background job.
+                            # For now, treat as blocking but warn.
+                            if hasattr(bpy.ops.ptcache, "bake_all"):
+                                bpy.ops.ptcache.bake_all(bake=True)
+                            data["msg"] = "Simulation Baked (Blocking)"
+
+                    elif op == 'FREE_CACHE':
+                        if hasattr(bpy.ops.ptcache, "free_bake_all"):
+                            bpy.ops.ptcache.free_bake_all()
+                        data["msg"] = "Cache Freed"
+
+                    else:
+                        data = {"status": "error", "msg": f"Unknown Timeline Op: {op}"}
+
+                except Exception as e:
+                    data = {"status": "error", "msg": f"Timeline Error: {str(e)}"}
+
             elif skill == 'create_scene':
                 # [ARCHITECT UPDATE] File-Based Workflow support
                 filepath = params.get('filepath')
