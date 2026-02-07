@@ -17,6 +17,7 @@ from .modules import massa_console  # 1. BRAIN
 from .modules import massa_engine  # 2. CORE
 from .operators import massa_base, massa_tools, massa_console_op  # 3. LOGIC
 from .modules import cartridges  # 4. CONTENT
+from .modules import advanced_analytics # 4.5 ANALYTICS
 from .ui import ui_massa_panel, ui_massa_pie, gizmo_massa  # 5. INTERFACE
 from .MCP import mcp_bridge  # 6. MCP BRIDGE
 
@@ -31,12 +32,13 @@ if "massa_console" in locals():
         importlib.reload(massa_properties)  # <--- CRITICAL: Reload the Mixin Base
 
         # 2. ENGINE SUB-SYSTEMS (Leaf nodes of the Engine)
-        from .modules import massa_polish, massa_surface, massa_sockets, seam_solvers
+        from .modules import massa_polish, massa_surface, massa_sockets, seam_solvers, advanced_analytics
 
         importlib.reload(massa_polish)
         importlib.reload(massa_surface)
         importlib.reload(massa_sockets)
         importlib.reload(seam_solvers)
+        importlib.reload(advanced_analytics)
 
         # 3. CORE SYSTEMS
         importlib.reload(massa_console)  # The Brain
