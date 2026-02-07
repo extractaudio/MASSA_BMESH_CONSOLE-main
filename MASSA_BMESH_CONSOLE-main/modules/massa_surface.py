@@ -358,7 +358,9 @@ def tag_structure_edges(bm, op):
             
             # 2. Check Seam (Override)
             # This ensures we see seams even if they aren't standard slots
-            if e.seam:
+            # 2. Check Seam (Backend Override)
+            # Only apply if no slot is defined, to prevent overwriting Perimeter/Guide colors.
+            if e.seam and e[viz_layer] == 0:
                 e[viz_layer] = 5
 
     return cvx, cnv

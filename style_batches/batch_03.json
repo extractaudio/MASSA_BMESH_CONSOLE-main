@@ -1,0 +1,137 @@
+[
+    {
+        "style": "Noir",
+        "shape_language": [
+            "Shadowy",
+            "Sharp",
+            "Silhouetted",
+            "Skewed",
+            "Urban",
+            "Claustrophobic",
+            "Angled",
+            "Vertical",
+            "Fragmented",
+            "Oppressive",
+            "Cinematic"
+        ],
+        "materials": [
+            "Wet Pavement",
+            "Venetian Blinds",
+            "Smoke",
+            "Dark Suit Fabric",
+            "Brick",
+            "Asphalt",
+            "Rain",
+            "Glass reflection",
+            "Cobwebs",
+            "Steel"
+        ],
+        "lighting": [
+            "Chiaroscuro",
+            "High Contrast",
+            "Dramatic Shadows",
+            "Rim Lighting",
+            "Streetlight",
+            "Silhouette",
+            "Hard light",
+            "Low key",
+            "Single source",
+            "Volumetric smoke"
+        ],
+        "palette": [
+            "#000000",
+            "#333333",
+            "#F5F5F5"
+        ]
+    },
+    {
+        "style": "Vaporwave",
+        "shape_language": [
+            "Surreal",
+            "Digital",
+            "Glitchy",
+            "Classical-Remix",
+            "Floating",
+            "Grid-based",
+            "Geometric primitives",
+            "Retro-futuristic",
+            "Nostalgic",
+            "Collage",
+            "Infinite"
+        ],
+        "materials": [
+            "Marble Busts",
+            "Grid Floors",
+            "Palm Leaves",
+            "VHS Static",
+            "Water",
+            "Chrome",
+            "Glossy plastic",
+            "Checkerboard",
+            "Gradient sky",
+            "Computer windows"
+        ],
+        "lighting": [
+            "Purple/Pink Gradient",
+            "Soft Glow",
+            "Artificial Sunset",
+            "Neon outlines",
+            "Pastel bloom",
+            "Flat lighting",
+            "Dreamy",
+            "Ultraviolet",
+            "Screen glow",
+            "Diffuse"
+        ],
+        "palette": [
+            "#FF71CE",
+            "#01CDFE",
+            "#B967FF"
+        ]
+    },
+    {
+        "style": "Steampunk",
+        "shape_language": [
+            "Mechanical",
+            "Intricate",
+            "Victorian",
+            "Gears/Cogs",
+            "Clockwork",
+            "Piped",
+            "Bolted",
+            "Structural",
+            "Ornate utility",
+            "Steam-powered",
+            "Heavy-duty"
+        ],
+        "materials": [
+            "Brass",
+            "Copper",
+            "Leather",
+            "Mahogany",
+            "Riveted steel",
+            "Glass tubes",
+            "Velvet",
+            "Cast iron",
+            "Parchment",
+            "Bronze"
+        ],
+        "lighting": [
+            "Warm",
+            "Dim",
+            "Gaslight",
+            "Sepia Tone",
+            "Filament glow",
+            "Furnace light",
+            "Amber glass",
+            "Flickering",
+            "Lanterns",
+            "Hazy"
+        ],
+        "palette": [
+            "#CD7F32",
+            "#8B4513",
+            "#2F4F4F"
+        ]
+    }
+]

@@ -10,8 +10,8 @@ from core.bridge_client import send_bridge
 # --- CONFIGURATION ---
 # --- CONFIGURATION ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-CARTRIDGE_DIR = os.path.join(BASE_DIR, "geometry_cartridges")
-OUTPUT_DIR = os.path.join(BASE_DIR, "audit_output")
+CARTRIDGE_DIR = os.path.join(BASE_DIR, "modules", "cartridges")
+OUTPUT_DIR = os.path.join(BASE_DIR, "tests", "audit_output")
 HEADLESS_BRIDGE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "bridge.py")
 HEADLESS_CONSOLE_SCRIPT = os.path.join(BASE_DIR, "modules", "debugging_system", "bridge_console.py")
 

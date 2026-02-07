@@ -41,23 +41,48 @@ description: Workflow for correcting UV seams and packing logic
     * *Organic/Complex:* Manual Seam Marking via Edge Slots.
     * *View Projection:* If the user requests "Project from View", you **must** use a context override or a mathematical fallback (assigning `uv_layer.data` directly), as the background auditor has no active viewport window.
 
-### 🟠 PHASE 2: SEAM DEFINITION (VIA EDGE SLOTS)
+### 🟠 PHASE 2: SEAM DEFINITION (PART-BASED LOGIC)
 
-**Constraint:** Do not blindly unwrap. Mark seams procedurally using the Edge Slot System.
+**Constraint:** Do not blindly unwrap. Analyze the geometry and apply a specific strategy.
 
-1. **Define Seam Slots:**
+#### 🪵 STRATEGY A: THE PLANKS (Strips/Beams)
+
+* **Logic:** Isolate the "Ends" and cut them off. Then slice the "Length" once to unroll it.
+* **Pattern:**
+    1. **Caps:** Select edges at the extreme ends of the major axis. Mark Seams.
+    2. **Rail:** Select ONE edge running the full length of the plank. Mark Seam.
+    3. **Result:** The main body unrolls as a single consistent strip; caps are separate islands.
+
+    ```python
+    # Pseudo-code for Plank Logic
+    major_axis = get_major_axis(bm) # e.g. 'X'
+    sorted_faces = sort_faces_along_axis(bm, major_axis)
+    # Mark seams on the first and last face loops
+    mark_face_perimeter(sorted_faces[0], seam=True)
+    mark_face_perimeter(sorted_faces[-1], seam=True)
+    # Mark ONE longitudinal edge
+    mark_edge_along_axis(bm, major_axis, count=1)
+    ```
+
+#### 🛢️ STRATEGY B: THE CYLINDER (Pipes/Poles)
+
+* **Logic:** "Decap and Zipper".
+* **Pattern:**
+    1. **Caps:** Select Top and Bottom loops. Mark Seams.
+    2. **Zipper:** Select ONE vertical edge connecting Top and Bottom. Mark Seam.
+    3. **Result:** Cylinder unrolls into a perfect rectangle.
+
+#### 📦 STRATEGY C: HARD SURFACE (Generic)
+
+* **Logic:** Angle-Based detection for complex non-primitive shapes.
+* **Pattern:**
 
     ```python
     seam_edges = []
     for e in bm.edges:
-        # Example: Mark sharp edges as seams
+        # Mark sharp edges (>60 deg) as seams
         if e.calc_face_angle(0) > math.radians(60):
             seam_edges.append(e)
-    ```
-
-2. **Apply Seams:**
-
-    ```python
     for e in seam_edges:
         e.seam = True
     ```

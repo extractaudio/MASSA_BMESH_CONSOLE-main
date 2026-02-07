@@ -1,0 +1,137 @@
+[
+    {
+        "style": "Atompunk",
+        "shape_language": [
+            "Space Age",
+            "Googie",
+            "Curves",
+            "Fins",
+            "Parabolic",
+            "Boomerang",
+            "Starburst",
+            "Optimistic future",
+            "Satellite",
+            "Rocket-inspired",
+            "Cantilevered"
+        ],
+        "materials": [
+            "Chrome",
+            "Plastic",
+            "Formica",
+            "Neon",
+            "Vinyl",
+            "Aluminum",
+            "Glass",
+            "Terrazzo",
+            "Patterned laminate",
+            "Fiberglass"
+        ],
+        "lighting": [
+            "Bright",
+            "Optimistic",
+            "Neon",
+            "Starbursts",
+            "Sputnik fixtures",
+            "Floodlights",
+            "Technicolor",
+            "Vibrant",
+            "Glow",
+            "Spacey"
+        ],
+        "palette": [
+            "#FF0000",
+            "#00BFFF",
+            "#FFD700"
+        ]
+    },
+    {
+        "style": "Solarpunk",
+        "shape_language": [
+            "Art Nouveau futuristic",
+            "Organic",
+            "Sustainable",
+            "Leafy",
+            "Glassy",
+            "Vertical",
+            "Spiraling",
+            "Biomimetic",
+            "Lightweight",
+            "Green",
+            "Flowing"
+        ],
+        "materials": [
+            "Glass",
+            "Photovoltaics",
+            "Plants",
+            "Ceramic",
+            "Algae",
+            "Smart materials",
+            "Wood",
+            "Recycled composite",
+            "Water",
+            "Living tissue"
+        ],
+        "lighting": [
+            "Bright Sunlight",
+            "Bioluminescence",
+            "Warm",
+            "Natural",
+            "Golden hour",
+            "Firefly glow",
+            "Photosynethetic",
+            "Clean",
+            "Radiant",
+            "Life-giving"
+        ],
+        "palette": [
+            "#228B22",
+            "#FFD700",
+            "#87CEEB"
+        ]
+    },
+    {
+        "style": "Lunarpunk",
+        "shape_language": [
+            "Bioluminescent",
+            "Dome-like",
+            "Cave-like",
+            "Ethereal",
+            "Nocturnal",
+            "Mystical",
+            "Selenic",
+            "Curved",
+            "Protective",
+            "Subterranean",
+            "Glowing"
+        ],
+        "materials": [
+            "Moonstone",
+            "Silver",
+            "Dark Water",
+            "Fluorescent Plants",
+            "Obsidian",
+            "Crystal",
+            "Silk",
+            "Velvet",
+            "Pearl",
+            "Ice"
+        ],
+        "lighting": [
+            "Cool",
+            "Blue",
+            "Purple",
+            "Glowing",
+            "Moonlight",
+            "Starlight",
+            "Bioluminescent",
+            "Mysterious",
+            "Soft",
+            "Reflective"
+        ],
+        "palette": [
+            "#483D8B",
+            "#C0C0C0",
+            "#000080"
+        ]
+    }
+]

@@ -1,0 +1,137 @@
+[
+    {
+        "style": "Art Nouveau",
+        "shape_language": [
+            "Whiplash Curves",
+            "Nature-input",
+            "Flowery",
+            "Asymmetrical",
+            "Sinuous",
+            "Organic lines",
+            "Vegetal",
+            "Fluid",
+            "Undulating",
+            "Stylized nature",
+            "Feminine"
+        ],
+        "materials": [
+            "Stained Glass",
+            "Iron",
+            "Ceramic",
+            "Exotic Wood",
+            "Bronze",
+            "Enamel",
+            "Mosaic",
+            "Glass block",
+            "Semi-precious stone",
+            "Bentwood"
+        ],
+        "lighting": [
+            "Tiffany Lamps",
+            "Soft",
+            "Organic glow",
+            "Diffused",
+            "Warm amber",
+            "Filtered",
+            "Stained glass projection",
+            "Intimate",
+            "Decorative",
+            "Muted"
+        ],
+        "palette": [
+            "#DAA520",
+            "#556B2F",
+            "#CD853F"
+        ]
+    },
+    {
+        "style": "Craftsman",
+        "shape_language": [
+            "Handcrafted",
+            "Sturdy",
+            "Low-pitched",
+            "Exposed beams",
+            "Rectilinear",
+            "Solid",
+            "Tapered columns",
+            "Built-in",
+            "Horizontal",
+            "Functional art",
+            "Balanced"
+        ],
+        "materials": [
+            "Oak",
+            "Stone",
+            "Brick",
+            "Canvas",
+            "Copper",
+            "Slag glass",
+            "Leather",
+            "Wrought iron",
+            "Tile",
+            "Burlap"
+        ],
+        "lighting": [
+            "Warm",
+            "Mica Shades",
+            "Hearth Glow",
+            "Lanterns",
+            "Amber",
+            "Low intensity",
+            "Cozy",
+            "Task lighting",
+            "Subdued",
+            "Natural overlay"
+        ],
+        "palette": [
+            "#654321",
+            "#556B2F",
+            "#CD5C5C"
+        ]
+    },
+    {
+        "style": "Farmhouse",
+        "shape_language": [
+            "Practical",
+            "Gabled",
+            "Porch-focused",
+            "Simple",
+            "A-frame",
+            "Symmetrical",
+            "Utilitarian",
+            "Clean lines",
+            "Robust",
+            "Open plan",
+            "Vertical siding"
+        ],
+        "materials": [
+            "Shiplap",
+            "Galvanized Steel",
+            "Wood",
+            "Cotton",
+            "Subway tile",
+            "Soapstone",
+            "Wide plank floors",
+            "Chicken wire",
+            "Enamel",
+            "Rough-hewn beams"
+        ],
+        "lighting": [
+            "Barn lights",
+            "Open airy",
+            "Natural",
+            "Gooseneck fixtures",
+            "Bright",
+            "Clear glass",
+            "Edison bulbs",
+            "Simple pendants",
+            "Daylight",
+            "Warm white"
+        ],
+        "palette": [
+            "#FFFFFF",
+            "#000000",
+            "#D2B48C"
+        ]
+    }
+]

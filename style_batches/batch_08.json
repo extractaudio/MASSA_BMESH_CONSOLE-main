@@ -1,0 +1,137 @@
+[
+    {
+        "style": "Parametric",
+        "shape_language": [
+            "Voronoi",
+            "Algorithmic",
+            "Fluid",
+            "Complex Curves",
+            "Cellular",
+            "Undulating",
+            "Mathematical",
+            "Generated",
+            "Seamless",
+            "Web-like",
+            "Dynamic"
+        ],
+        "materials": [
+            "White Corian",
+            "Glass",
+            "Perforated Metal",
+            "3D Printed Plastic",
+            "Carbon fiber",
+            "Resin",
+            "Seamless concrete",
+            "Tensile fabric",
+            "Lightweight composite",
+            "Aluminum"
+        ],
+        "lighting": [
+            "Integrated LED strips",
+            "Futuristic",
+            "Soft Glow",
+            "Programmable",
+            "Backlit panels",
+            "Linear",
+            "Clean",
+            "Shadowless",
+            "Embedded",
+            "Cool white"
+        ],
+        "palette": [
+            "#FFFFFF",
+            "#E0E0E0",
+            "#A9A9A9"
+        ]
+    },
+    {
+        "style": "Deconstructivism",
+        "shape_language": [
+            "Fragmented",
+            "Chaotic",
+            "Non-rectilinear",
+            "Exploded",
+            "Skewed",
+            "Displaced",
+            "Angular",
+            "Aggressive",
+            "Broken",
+            "Slanted",
+            "Distorted"
+        ],
+        "materials": [
+            "Titanium",
+            "Steel",
+            "Glass",
+            "Concrete",
+            "Zinc cladding",
+            "Corrugated metal",
+            "Wire mesh",
+            "Exposed structure",
+            "Raw materials",
+            "Reflective"
+        ],
+        "lighting": [
+            "Sharp Shadows",
+            "Disorienting",
+            "Dramatic",
+            "Contrast-heavy",
+            "Spotlights",
+            "Stark",
+            "Uneven",
+            "Oblique",
+            "Cold",
+            "Intense"
+        ],
+        "palette": [
+            "#C0C0C0",
+            "#FF4500",
+            "#000000"
+        ]
+    },
+    {
+        "style": "High-Tech",
+        "shape_language": [
+            "Structural",
+            "Exposed Services",
+            "Prefabricated",
+            "Machine-like",
+            "Modular",
+            "Industrial-luxe",
+            "Grid-frame",
+            "Plug-in",
+            "Tensile",
+            "Engineered",
+            "Transparent"
+        ],
+        "materials": [
+            "Steel",
+            "Glass",
+            "Aluminum",
+            "Rubber",
+            "Chrome",
+            "Plastic",
+            "Neoprene",
+            "Grating",
+            "Cables",
+            "Bolts"
+        ],
+        "lighting": [
+            "Industrial",
+            "Functional",
+            "Bright",
+            "Technical",
+            "Stadium-style",
+            "Halogen",
+            "Focused",
+            "Clinical",
+            "Exposed fixture",
+            "Daylight simulation"
+        ],
+        "palette": [
+            "#B0C4DE",
+            "#FFD700",
+            "#DC143C"
+        ]
+    }
+]
