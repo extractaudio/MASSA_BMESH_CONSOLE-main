@@ -1,0 +1,134 @@
+[
+    {
+        "style": "Victorian",
+        "shape_language": [
+            "Ornate",
+            "Steep Roofs",
+            "Bay Windows",
+            "Intricate",
+            "Asymmetrical",
+            "Vertical",
+            "Decorated",
+            "Gingerbread trim",
+            "Turrets",
+            "Porches"
+        ],
+        "materials": [
+            "Brick",
+            "Velvet",
+            "Dark Wood",
+            "Wallpaper",
+            "Stained Glass",
+            "Iron crested",
+            "Slate",
+            "Lace",
+            "Silk",
+            "Mahogany"
+        ],
+        "lighting": [
+            "Gaslight",
+            "Chandeliers",
+            "Dim",
+            "Cluttered",
+            "Warm",
+            "Flickering",
+            "Sconces",
+            "Fireplace",
+            "Shadowy",
+            "Amber"
+        ],
+        "palette": [
+            "#556B2F",
+            "#800000",
+            "#191970"
+        ]
+    },
+    {
+        "style": "Edwardian",
+        "shape_language": [
+            "Softer Victorian",
+            "Spacious",
+            "Less Cluttered",
+            "Elegant",
+            "Lighter",
+            "Wider",
+            "Classical influence",
+            "Refined",
+            "Simple lines",
+            "Balanced"
+        ],
+        "materials": [
+            "Lighter Woods",
+            "Floral patterns",
+            "Tiles",
+            "Plaster",
+            "Chintz",
+            "Oak",
+            "Brick",
+            "Stucco",
+            "Wicker",
+            "Glass"
+        ],
+        "lighting": [
+            "Electric (Early)",
+            "Airy",
+            "Sconces",
+            "Softer gaslight",
+            "Bright",
+            "Crystal",
+            "Table lamps",
+            "Gentle",
+            "Daylight",
+            "Pastel glow"
+        ],
+        "palette": [
+            "#F0F8FF",
+            "#E6E6FA",
+            "#D2B48C"
+        ]
+    },
+    {
+        "style": "Colonial",
+        "shape_language": [
+            "Symmetrical",
+            "Rectangular",
+            "Pillared",
+            "Formal",
+            "Balanced",
+            "Ordered",
+            "Gable roof",
+            "Dormers",
+            "Multi-pane windows",
+            "Classic"
+        ],
+        "materials": [
+            "White Clapboard",
+            "Brick",
+            "Wood Shingles",
+            "Brass",
+            "Shutters",
+            "Pine",
+            "Oak floors",
+            "Plaster",
+            "Iron",
+            "Glass"
+        ],
+        "lighting": [
+            "Candlelight",
+            "Lanterns",
+            "Natural",
+            "Chandelier (metal)",
+            "Warm",
+            "Hearth",
+            "Symmetrical layout",
+            "Inviting",
+            "Traditional",
+            "Soft"
+        ],
+        "palette": [
+            "#8B4513",
+            "#FFFFF0",
+            "#2F4F4F"
+        ]
+    }
+]

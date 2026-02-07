@@ -139,7 +139,7 @@ CHECKLIST:
 
 [ ] Did I tag the Zipper as GUIDE (Slot 3) in MASSA_EDGE_SLOTS?
 
-[ ] Did I seam the Caps of the planks?
+[ ] Did I seam the Caps of the planks, beams, and pipes?
 
 [ ] Did I respect the -Y Bias for cylinders?
 

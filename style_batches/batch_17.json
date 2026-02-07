@@ -1,0 +1,137 @@
+[
+    {
+        "style": "Glitch Art",
+        "shape_language": [
+            "Broken",
+            "Pixelated",
+            "Distorted",
+            "Datamoshed",
+            "Fragmented",
+            "Jagged",
+            "Tearing",
+            "Artifacted",
+            "Misaligned",
+            "Stretched",
+            "Noisy"
+        ],
+        "materials": [
+            "Digital Screen",
+            "RGB Noise",
+            "Scanlines",
+            "Missing texture",
+            "Static",
+            "Corrupted data",
+            "Pixels",
+            "Chromatic aberration",
+            "Void",
+            "Raw code"
+        ],
+        "lighting": [
+            "Flickering",
+            "Strobe",
+            "Neon",
+            "Harsh",
+            "Unnatural colors",
+            "Intermittent",
+            "Blinding",
+            "Laser",
+            "Error glow",
+            "High contrast"
+        ],
+        "palette": [
+            "#FF00FF",
+            "#00FF00",
+            "#000000"
+        ]
+    },
+    {
+        "style": "Pixel Art",
+        "shape_language": [
+            "Blocky",
+            "Grid-aligned",
+            "Retro",
+            "2D/3D Hybrid",
+            "Orthographic",
+            "Stair-stepped",
+            "Limited resolution",
+            "Sprite",
+            "Voxel-like",
+            "Hard edge",
+            "Simplistic"
+        ],
+        "materials": [
+            "Flat Color",
+            "Dithering",
+            "No interpolation",
+            "Sprite",
+            "Limited palette",
+            "Emissive pixels",
+            "Scanlines (optional)",
+            "Solid fill",
+            "Patterned shader",
+            "Outline"
+        ],
+        "lighting": [
+            "Flat",
+            "Baked-in",
+            "High saturation",
+            "No dynamic light",
+            "Stylized",
+            "Day/Night distinct",
+            "Simple shading",
+            "Rim highlight",
+            "Cartoon",
+            "Vibrant"
+        ],
+        "palette": [
+            "#FF0000",
+            "#00FF00",
+            "#0000FF"
+        ]
+    },
+    {
+        "style": "Voxel",
+        "shape_language": [
+            "Cubic",
+            "Modular",
+            "Destructible",
+            "Orthogonal",
+            "Grid-locked",
+            "Block-based",
+            "Stacked",
+            "Simplistic physics",
+            "Minecraft-esque",
+            "Discrete",
+            "Volume-based"
+        ],
+        "materials": [
+            "Voxels",
+            "Plastic-y",
+            "Simple diffuse",
+            "Emissive blocks",
+            "Translucent glass blocks",
+            "Water blocks",
+            "Sand",
+            "Grass top",
+            "Stone pattern",
+            "Wood grain"
+        ],
+        "lighting": [
+            "Global Illumination",
+            "Soft shadows",
+            "Ambient",
+            "Block light",
+            "Torchlight",
+            "Sunlight shafts",
+            "Day/Night cycle",
+            "Moonlight",
+            "Warm interior",
+            "Cool exterior"
+        ],
+        "palette": [
+            "#FFA500",
+            "#1E90FF",
+            "#32CD32"
+        ]
+    }
+]

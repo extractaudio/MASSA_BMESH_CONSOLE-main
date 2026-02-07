@@ -21,7 +21,46 @@ description: DEBUG & REPAIR PROTOCOLS
     1. Check loop indices. Ensure the last face connects to the first `(i+1)%total`.
     2. **FIX:** Add `bmesh.ops.recalc_face_normals`.
 
-## 3. Missing Slots
+## 3. Missing Slots (Layers)
 
-* **Trigger:** `scan_slots` missing expected keys.
-* **Fix:** Edit script to assign `face.material_index = X` correctly.
+* **Trigger:** `verify_material_logic` returns FAIL.
+* **Diagnosis:** BMesh Int Layers (`MAT_TAG` or `MASSA_EDGE_SLOTS`) not initialized.
+* **Reference:** See `[.agent/workflows/WF_Slot_Standardization.md](file:///d:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.agent/workflows/WF_Slot_Standardization.md)` for ID definitions.
+* **Fix:**
+    1. Initialize layers:
+        * `tag_layer = bm.faces.layers.int.new("MAT_TAG")`
+        * `edge_layer = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")`
+    2. Assign IDs:
+        * Faces: `f[tag_layer] = 0` (BASE)
+        * Edges: `e[edge_layer] = 1` (PERIMETER) or as needed (1-5).
+
+## 4. Normal Faces (Orientation)
+
+* **Trigger:** `telemetry['face_orientation']` or Visual Red Faces in Overlay.
+* **Diagnosis:** Normals are flipped or inconsistent.
+* **Action:**
+    1. **FIX:** Inject `bmesh.ops.recalc_face_normals(bm, faces=bm.faces)`.
+
+## 5. Topology-Aware Unwrapping (Part-Based)
+
+* **Trigger:** `len([e for e in bm.edges if e.seam]) == 0` OR Visual Check reveals distortion.
+* **Diagnosis:** Model uses "One-Size-Fits-All" unwrapping (Smart Project) instead of Part-Based Logic.
+* **Reference:** See `[.agent/workflows/WF_UVSeam.md](file:///d:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.agent/workflows/WF_UVSeam.md)` for Part-Based Strategies.
+* **Fix (Mandatory):**
+    1. **Identify the Part Type:** Is it a Plank? A Cylinder? A Box?
+    2. **Apply Specific Strategy:**
+        * **PLANKS/STRIPS:** Cut the Ends (Caps). Mark 1 Longitudinal Edge (The "Zipper" or "Rail"). Unwrap.
+        * **CYLINDERS:** Cut the Caps (Top/Bottom). Mark 1 Vertical Edge (The "Seam"). Unwrap.
+        * **BOXES:** Cut 3 Vertical Edges + Top/Bottom Perimeter (Open Box) OR Mark all sharp edges (Hard Surface).
+    3. **Code Example (Plank):**
+
+        ```python
+        # Select End Loops
+        end_loops = [e for e in bm.edges if is_end_cap(e)]
+        for e in end_loops: e.seam = True
+        # Select 1 Long Edge
+        long_edge = get_longest_edge(bm)
+        long_edge.seam = True
+        ```
+
+    4. **Unwrap:** `bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.02)`

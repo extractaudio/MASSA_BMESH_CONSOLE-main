@@ -1,0 +1,137 @@
+[
+    {
+        "style": "Japandi",
+        "shape_language": [
+            "Hybrid",
+            "Clean",
+            "Low",
+            "Functional",
+            "Warm minimalism",
+            "Slat accents",
+            "Round edges",
+            "Grounded",
+            "Simple geometry",
+            "Unobtrusive",
+            "Balanced"
+        ],
+        "materials": [
+            "Light Wood",
+            "Stone",
+            "Paper",
+            "Clay",
+            "Oak",
+            "Concrete",
+            "Linen",
+            "Hemp",
+            "Matte glaze",
+            "Rattan"
+        ],
+        "lighting": [
+            "Soft",
+            "Diffused",
+            "Natural",
+            "Paper shades",
+            "Floor lamps",
+            "Cozy",
+            "Warm white",
+            "Shadowless",
+            "Calm",
+            "Integrated"
+        ],
+        "palette": [
+            "#D2B48C",
+            "#708090",
+            "#FFFFFF"
+        ]
+    },
+    {
+        "style": "Wabi-Sabi",
+        "shape_language": [
+            "Imperfect",
+            "Asymmetrical",
+            "Rough",
+            "Simple",
+            "Aged",
+            "Deformed",
+            "Natural decay",
+            "Unpretentious",
+            "Modest",
+            "Organic",
+            "Weathered"
+        ],
+        "materials": [
+            "Aged Wood",
+            "Cracked Pottery",
+            "Stone",
+            "Linen",
+            "Rust",
+            "Dry leaves",
+            "Rough plaster",
+            "Concrete",
+            "Iron",
+            "Tattered fabric"
+        ],
+        "lighting": [
+            "Dim",
+            "Shadowy",
+            "Natural",
+            "Moonlight",
+            "Candle",
+            "Low contrast",
+            "Subtle",
+            "Quiet",
+            "Filtered",
+            "Moody"
+        ],
+        "palette": [
+            "#8B5A2B",
+            "#A9A9A9",
+            "#6B4226"
+        ]
+    },
+    {
+        "style": "Organic Modern",
+        "shape_language": [
+            "Clean lines",
+            "Natural forms",
+            "Soft",
+            "Harmonious",
+            "Flowing",
+            "Ergonomic",
+            "Sculptural",
+            "Biomorphic",
+            "Minimal",
+            "Smooth",
+            "Integrated"
+        ],
+        "materials": [
+            "Wood",
+            "Stone",
+            "Wool",
+            "Plants",
+            "Limestone",
+            "Cotton",
+            "Leather",
+            "Glass",
+            "Ceramic",
+            "Jute"
+        ],
+        "lighting": [
+            "Natural",
+            "Warm",
+            "Soft",
+            "Skylights",
+            "Hidden sources",
+            "Large windows",
+            "Glow",
+            "Ambient",
+            "Inviting",
+            "Sun-filled"
+        ],
+        "palette": [
+            "#F5F5DC",
+            "#8B4513",
+            "#556B2F"
+        ]
+    }
+]

@@ -111,7 +111,7 @@ def draw_edge_slots_tab(layout, owner):
     row.prop(owner, "edge_slot_4_action", text="")
 
     row = box.row()
-    row.label(text="5: Fold", icon="CLOTH")
+    row.label(text="5: Fold", icon="MOD_CLOTH")
     row.prop(owner, "edge_slot_5_action", text="")
 
     # Legend

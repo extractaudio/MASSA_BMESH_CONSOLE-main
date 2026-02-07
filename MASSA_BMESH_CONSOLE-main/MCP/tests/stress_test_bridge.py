@@ -56,10 +56,10 @@ def print_header(title):
 def test_connection():
     print_header("TEST 1: Basic Connection")
     start = time.time()
-    res = send_request({"skill": "get_server_config", "params": {}})
+    res = send_request({"skill": "get_materials", "params": {}})
     duration = time.time() - start
     
-    if "config" in res or "status" in res:
+    if "materials" in res or "status" in res:
         print(f"[PASS] Connected in {duration:.4f}s")
         print(f"Response: {res}")
         return True
@@ -73,9 +73,9 @@ def test_sequential_flood():
     errors = 0
     
     for i in range(TOTAL_SEQUENTIAL):
-        # Using get_server_config as a lightweight 'ping'
-        res = send_request({"skill": "get_server_config"})
-        if "config" not in res and res.get("status") != "success":
+        # Using get_materials as a lightweight 'ping'
+        res = send_request({"skill": "get_materials"})
+        if "materials" not in res and res.get("status") != "success":
             errors += 1
             print(f"Request {i} failed: {res}")
             
@@ -86,8 +86,8 @@ def test_sequential_flood():
 
 def worker(thread_id, errors_list):
     for i in range(REQUESTS_PER_THREAD):
-        res = send_request({"skill": "get_server_config"})
-        if "config" not in res and res.get("status") != "success":
+        res = send_request({"skill": "get_materials"})
+        if "materials" not in res and res.get("status") != "success":
             errors_list.append(f"T{thread_id}-R{i}")
 
 def test_concurrent_flood():
@@ -120,12 +120,12 @@ def test_large_payload():
     start = time.time()
     # Sending a valid skill but with a massive ignored param
     res = send_request({
-        "skill": "get_server_config", 
+        "skill": "get_materials", 
         "params": {"junk": large_str}
     })
     duration = time.time() - start
     
-    if "config" in res:
+    if "materials" in res:
         print(f"[PASS] Handled 1MB payload in {duration:.4f}s")
     else:
         print(f"[FAIL] Failed to handle large payload: {res.get('msg')}")

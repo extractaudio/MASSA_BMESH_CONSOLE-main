@@ -1,0 +1,136 @@
+[
+    {
+        "style": "Surrealist",
+        "shape_language": [
+            "Distorted",
+            "Impossible",
+            "Fluid",
+            "Disjointed",
+            "Melting",
+            "Dream-logic",
+            "Floating",
+            "Hybrid",
+            "Elongated",
+            "Morphing",
+            "Levitating"
+        ],
+        "materials": [
+            "Melting Objects",
+            "Clouds",
+            "Mirrors",
+            "Sand",
+            "Fur-covered objects",
+            "Clock faces",
+            "Chessboard tiles",
+            "Stone skin",
+            "Lace wings",
+            "Water walls"
+        ],
+        "lighting": [
+            "Dreamlike",
+            "Unnatural",
+            "Long Shadows",
+            "Ethereal",
+            "Twilight",
+            "Eclipse",
+            "Impossible source",
+            "High contrast",
+            "Hazy",
+            "Mystical"
+        ],
+        "palette": [
+            "#87CEEB",
+            "#FFB6C1",
+            "#F4F4F9"
+        ]
+    },
+    {
+        "style": "Sci-Fi",
+        "shape_language": [
+            "Sleek",
+            "Aerodynamic",
+            "Modular",
+            "Panelized",
+            "Hexagonal",
+            "Capsule",
+            "Streamlined",
+            "Utilitarian-future",
+            "Greebled",
+            "Hardsurface",
+            "Interlocking"
+        ],
+        "materials": [
+            "White Plastic",
+            "Glass Displays",
+            "Glowing Elements",
+            "Gunmetal",
+            "Carbon nanontubes",
+            "Ceramic plating",
+            "Solar panels",
+            "Holograms",
+            "Composite",
+            "Titanium"
+        ],
+        "lighting": [
+            "Cool Blue/White",
+            "Clinical",
+            "Lens Flares",
+            "Holographic",
+            "Strip lighting",
+            "Warning strobes",
+            "Space-ambient",
+            "Stark shadows",
+            "Biolab",
+            "Laser"
+        ],
+        "palette": [
+            "#E0FFFF",
+            "#00BFFF",
+            "#2F4F4F"
+        ]
+    },
+    {
+        "style": "Rustic",
+        "shape_language": [
+            "Rough-hewn",
+            "Sturdy",
+            "Imperfect",
+            "Traditional",
+            "Bulky",
+            "Solid",
+            "Hand-carved",
+            "Asymmetrical",
+            "Weathered",
+            "Natural edges"
+        ],
+        "materials": [
+            "Reclaimed Wood",
+            "Fieldstone",
+            "Wrought Iron",
+            "Wool",
+            "Burlap",
+            "Antler",
+            "Slate",
+            "Patina copper",
+            "Rawhide",
+            "Log"
+        ],
+        "lighting": [
+            "Warm",
+            "Firelight",
+            "Lanterns",
+            "Cozy",
+            "Amber glow",
+            "Hearth",
+            "Candle",
+            "Dim",
+            "Filtered daylight",
+            "Oil lamp"
+        ],
+        "palette": [
+            "#5D4037",
+            "#8D6E63",
+            "#3E2723"
+        ]
+    }
+]

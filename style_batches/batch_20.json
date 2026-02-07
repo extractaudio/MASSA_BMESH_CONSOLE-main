@@ -1,0 +1,137 @@
+[
+    {
+        "style": "Raygun Gothic",
+        "shape_language": [
+            "Retro-futurist",
+            "Rocket-shaped",
+            "Fins",
+            "Portholes",
+            "Raygun",
+            "Dish",
+            "Antenna",
+            "Streamlined",
+            "Metallic",
+            "Pointy",
+            "Bulbous"
+        ],
+        "materials": [
+            "Polished Aluminum",
+            "Red Paint",
+            "Glass",
+            "Rivets",
+            "Chrome",
+            "Bakelite",
+            "Steel",
+            "Vacuum tubes",
+            "Rubber hoses",
+            "Gold trim"
+        ],
+        "lighting": [
+            "Flash Gordonish",
+            "Bright",
+            "Technical",
+            "Zap",
+            "Electric arc",
+            "Beacon",
+            "Control panel",
+            "Spotlight",
+            "Dramatic",
+            "Heroic"
+        ],
+        "palette": [
+            "#DC143C",
+            "#FFD700",
+            "#C0C0C0"
+        ]
+    },
+    {
+        "style": "Cassette Futurism",
+        "shape_language": [
+            "Technological (80s)",
+            "Angular",
+            "CRT-monitors",
+            "Keyboards",
+            "Boxy",
+            "Slotted",
+            "Ventilated",
+            "Mechanical",
+            "Chunky",
+            "Tactile",
+            "Analog"
+        ],
+        "materials": [
+            "Beige Plastic",
+            "Black Plastic",
+            "LEDs",
+            "Sintwave grids",
+            "Rubber buttons",
+            "Matte screen",
+            "Ribbon cable",
+            "Floppy disk",
+            "Metal casing",
+            "Label"
+        ],
+        "lighting": [
+            "Green phosphor glow",
+            "Red LEDs",
+            "Dim",
+            "Screen flicker",
+            "Data processing",
+            "Amber monochrome",
+            "Grid glow",
+            "Low tech",
+            "Warm device",
+            "Electronic"
+        ],
+        "palette": [
+            "#F5F5DC",
+            "#FF4500",
+            "#000000"
+        ]
+    },
+    {
+        "style": "Grimdark",
+        "shape_language": [
+            "Gothic Sci-Fi",
+            "Massive",
+            "Skull-adorned",
+            "War-torn",
+            "Fortified",
+            "Imperial",
+            "Spiked",
+            "Industrial-medieval",
+            "Cathedral-ship",
+            "Broken",
+            "Overwhelming"
+        ],
+        "materials": [
+            "Rusted Iron",
+            "Bone",
+            "Gold trim",
+            "Gore",
+            "Oil",
+            "Concrete",
+            "Chains",
+            "Parchment seals",
+            "Blackened steel",
+            "Smoke"
+        ],
+        "lighting": [
+            "Dark",
+            "Flickering fire",
+            "Smoky",
+            "Oppressive",
+            "Red emergency",
+            "Muzzle flash",
+            "Gloom",
+            "Candlelight",
+            "Shadows",
+            "Warzone"
+        ],
+        "palette": [
+            "#000000",
+            "#8B0000",
+            "#B8860B"
+        ]
+    }
+]

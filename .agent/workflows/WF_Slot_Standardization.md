@@ -14,8 +14,8 @@ To ensure all cartridges generate slots for all faces and edges. The faces gener
 
 ## 2. SLOTS (FACE MATERIAL IDs)
 
-**Context:** `bm.faces.layers.int.get("MAT_TAG")`
-**Constraint:** You must assign every face to one of these IDs.
+**Context:** `bm.faces.layers.int` (Material Index)
+**Constraint:** You must assign `face.material_index` to one of these IDs.
 
 | ID | Name | Role | Physics Tag | UV Strategy |
 | :--- | :--- | :--- | :--- | :--- |
@@ -33,9 +33,9 @@ To ensure all cartridges generate slots for all faces and edges. The faces gener
 ### 📝 Implementation Snippet
 
 ```python
-tag_layer = bm.faces.layers.int.new("MAT_TAG")
+# No custom layer needed. Use native BMesh attribute.
 for f in my_faces:
-    f[tag_layer] = 0 # Assign to Base
+    f.material_index = 0 # Assign to Base
 ```
 
 ---

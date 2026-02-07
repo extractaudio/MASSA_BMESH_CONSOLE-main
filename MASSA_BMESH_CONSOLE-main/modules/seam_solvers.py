@@ -26,6 +26,9 @@ def _get_orientation_vector(mode):
 def _get_islands(edges):
     visited = set()
     islands = []
+    # [OPTIMIZATION] Convert to set for O(1) lookup
+    edge_set = set(edges)
+    
     for e in edges:
         if e in visited:
             continue
@@ -39,7 +42,8 @@ def _get_islands(edges):
             island.append(cur)
             for v in cur.verts:
                 for next_e in v.link_edges:
-                    if next_e in edges and next_e not in visited:
+                    # [OPTIMIZATION] Use set lookup
+                    if next_e in edge_set and next_e not in visited:
                         stack.append(next_e)
         if island:
             islands.append(island)
@@ -494,6 +498,9 @@ def apply_seams_smart_tube(bm, hide_vector_enum="BACK", strict_slots=True):
 
         scored_edges.sort(key=lambda x: x[1], reverse=True)
 
+        # [OPTIMIZATION] strict set for O(1) lookup in flood fill
+        island_set = set(island_edges)
+
         if scored_edges:
             best_start = scored_edges[0][0]
             stack = [best_start]
@@ -508,7 +515,8 @@ def apply_seams_smart_tube(bm, hide_vector_enum="BACK", strict_slots=True):
                 # Flood fill to find the vertical strip
                 for v in e.verts:
                     for next_e in v.link_edges:
-                        if next_e in island_edges and next_e not in visited:
+                        # [OPTIMIZATION] Use set lookup
+                        if next_e in island_set and next_e not in visited:
                             stack.append(next_e)
 
 
