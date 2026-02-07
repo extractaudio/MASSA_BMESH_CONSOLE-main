@@ -85,8 +85,15 @@ class MASSA_OT_Resurrect_Wrapper(bpy.types.Operator):
             op_func = getattr(op_module, name)
 
             # Call with rerun_mode=True to trigger the resurrection logic in Massa_OT_Base
+            # [ARCHITECT FIX] Use 'INVOKE_DEFAULT' to ensure properties are initialized
+            # and potential UI panels are respected.
+            if hasattr(op_func, "poll") and not op_func.poll():
+                 self.report({'WARNING'}, f"Operator {name} poll failed. Context may be invalid.")
+                 return {'CANCELLED'}
+            
+            # Force execution
             op_func('INVOKE_DEFAULT', rerun_mode=True)
-
+            
             return {'FINISHED'}
 
         except Exception as e:

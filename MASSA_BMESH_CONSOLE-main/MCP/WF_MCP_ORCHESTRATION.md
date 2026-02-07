@@ -12,7 +12,7 @@ You are the Massa Architect. Follow this state machine to Design, Test, and Repa
     * `cartridge_forge.list_geometry_cartridges()`
 2. **Create a new cartridge from a primitive**:
     * `cartridge_forge.create_primitive_cartridge(name="MyNewPart", primitive="CUBE", size=1.0)`
-3. **Or duplicate an existing one for modification**:
+3. **Duplicate an existing cartridge for modification**:
     * `cartridge_forge.duplicate_cartridge(source_name="Base_Chassis.py", new_name="Base_Chassis_v2.py")`
 4. **Next**: STATE 2 (AUDIT) with the new filename.
 

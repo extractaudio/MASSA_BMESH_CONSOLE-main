@@ -59,7 +59,7 @@ def apply_base_drivers(
     bias="BALANCED",
     # [ARCHITECT NEW]
     use_edges=False,
-    edge_mask=(True, True, False, False),  # (Peri, Cont, Guide, Detail)
+    edge_mask=(True, True, False, False, False),  # (Peri, Cont, Guide, Detail, Fold)
 ):
     """
     LAYER 1: The 'Obvious' Seams.
@@ -104,9 +104,9 @@ def apply_base_drivers(
         # 2. EDGE ROLE DRIVER (The New Logic)
         if use_edges and edge_slots_layer:
             slot_id = e[edge_slots_layer]
-            # Slot IDs are 1-based (1,2,3,4)
-            # Mask tuple is 0-based (0,1,2,3)
-            if 1 <= slot_id <= 4:
+            # Slot IDs are 1-based (1,2,3,4,5)
+            # Mask tuple is 0-based (0,1,2,3,4)
+            if 1 <= slot_id <= 5:
                 if edge_mask[slot_id - 1]:
                     is_seam = True
                     # CRITICAL: Edge Roles are manual decisions.

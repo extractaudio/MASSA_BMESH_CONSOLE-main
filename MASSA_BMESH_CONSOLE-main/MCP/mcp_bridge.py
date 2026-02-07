@@ -120,6 +120,8 @@ def find_node_tree(object_name, tree_type):
             
     return None
 
+import struct
+
 def socket_listener():
     """Runs in background thread. Waits for MCP commands."""
     global _server_running
@@ -138,28 +140,45 @@ def socket_listener():
                     continue
                     
                 with conn:
-                    # Receive (Buffer for large scripts)
-                    data = b""
-                    while True:
-                        chunk = conn.recv(4096)
-                        if not chunk: break
-                        data += chunk
-                        if len(chunk) < 4096: break
-                    
-                    if data:
+                    try:
+                        # 1. Read Length Header (4 bytes)
+                        raw_len = recv_all(conn, 4)
+                        if not raw_len: continue
+                        
+                        msg_len = struct.unpack('>I', raw_len)[0]
+                        
+                        # 2. Read Payload
+                        data = recv_all(conn, msg_len)
+                        if not data: continue
+                        
+                        request = json.loads(data.decode('utf-8'))
+                        result_holder = queue.Queue()
+                        execution_queue.put((request, result_holder))
+                        
+                        # Block until Main Thread processes request
+                        response = result_holder.get()
+                        
+                        # 3. Send Response (Length Prefixed)
+                        resp_bytes = json.dumps(response).encode('utf-8')
+                        conn.sendall(struct.pack('>I', len(resp_bytes)) + resp_bytes)
+                        
+                    except Exception as e:
+                        err = {"status": "error", "msg": str(e)}
                         try:
-                            request = json.loads(data.decode('utf-8'))
-                            result_holder = queue.Queue()
-                            execution_queue.put((request, result_holder))
-                            
-                            # Block until Main Thread processes request
-                            response = result_holder.get()
-                            conn.sendall(json.dumps(response).encode('utf-8'))
-                        except Exception as e:
-                            err = {"status": "error", "msg": str(e)}
-                            conn.sendall(json.dumps(err).encode('utf-8'))
+                            err_bytes = json.dumps(err).encode('utf-8')
+                            conn.sendall(struct.pack('>I', len(err_bytes)) + err_bytes)
+                        except: pass
         except Exception as e:
             print(f"[Bridge] Critical Error: {e}")
+
+def recv_all(conn, n):
+    """Helper to ensure exactly n bytes are read."""
+    data = b''
+    while len(data) < n:
+        packet = conn.recv(n - len(data))
+        if not packet: return None
+        data += packet
+    return data
 
 def process_queue():
     """Runs on Main Thread. Executes API calls safely."""

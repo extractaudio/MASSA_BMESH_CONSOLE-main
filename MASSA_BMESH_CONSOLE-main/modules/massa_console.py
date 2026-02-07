@@ -79,6 +79,9 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
     edge_slot_4_action: EnumProperty(
         name="Slot 4 (Detail)", items=edge_action_items, default="IGNORE"
     )
+    edge_slot_5_action: EnumProperty(
+        name="Slot 5 (Fold)", items=edge_action_items, default="IGNORE"
+    )
 
     # --- VISUALIZATION ---
     viz_edge_mode: EnumProperty(

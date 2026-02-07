@@ -221,7 +221,7 @@ def inject_boolean_jitter(filename: str) -> str:
 def inject_standard_slots(filename: str) -> str:
     """
     [Phase 5] Slot Logic Restoration.
-    Injects the mandatory 'slots' dictionary if missing.
+    Injects the mandatory BMesh Layers (MAT_TAG and MASSA_EDGE_SLOTS) if missing.
     """
     if not filename.endswith(".py"): filename += ".py"
     filepath = os.path.join(CARTRIDGE_DIR, filename)
@@ -229,27 +229,17 @@ def inject_standard_slots(filename: str) -> str:
     
     with open(filepath, 'r') as f: content = f.read()
     
-    if "slots =" in content or "slots=" in content:
-        return "Slots dictionary already present."
+    if 'bm.faces.layers.int.new("MAT_TAG")' in content:
+        return "Slot Layers already present."
     
-    # Insert after imports or first function definition?
-    # Safer to insert after "def main" or inside the main execution block? 
-    # Usually slots is defined near the top of the logic function.
-    
-    # Let's look for "bm = bmesh.new()"
-    pattern = r"(bm = bmesh\.new\(\))"
+    # Insert after bm = bmesh.new()
     pattern = r"(bm\s*=\s*bmesh\.new\(\))"
     
     slots_code = (
         "\\1\n"
-        "    # MECHANIC FIX: Standard Slots\n"
-        "    slots = {\n"
-        "        'bevel': [],\n"
-        "        'seam': [],\n"
-        "        'sharp': [],\n"
-        "        'crease': [],\n"
-        "        'bweight': []\n"
-        "    }\n"
+        "    # MECHANIC FIX: Standard Slots (Phase 4)\n"
+        "    tag_layer = bm.faces.layers.int.new(\"MAT_TAG\")\n"
+        "    edge_slots = bm.edges.layers.int.new(\"MASSA_EDGE_SLOTS\")\n"
     )
     
     new_content = re.sub(pattern, slots_code, content, count=1)
@@ -259,4 +249,4 @@ def inject_standard_slots(filename: str) -> str:
         
     with open(filepath, 'w') as f: f.write(new_content)
     
-    return "Injected Standard Slots dictionary."
+    return "Injected Standard Slot Layers."

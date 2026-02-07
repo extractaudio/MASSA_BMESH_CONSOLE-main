@@ -28,8 +28,12 @@ def generate_geometry():
     bm = bmesh.new()
     
     # 2. SLOT INITIALIZATION (Phase 4)
-    # Critical: Initialize slots for procedural selection (Materials/Seams/Bevels)
-    slots = {{'bevel': [], 'seam': [], 'subd': [], 'connector_top': []}}
+    # Critical: Initialize BMesh Layers for Material IDs (Face) and Feature IDs (Edge)
+    # FACE SLOTS (MAT_TAG): 0=Base, 1=Detail, 2=Trim, 3=Glass, 4=Emission, 5=Dark, 6=Accent, 7=Utility, 8=Transparent, 9=Socket
+    tag_layer = bm.faces.layers.int.new("MAT_TAG")
+    
+    # EDGE SLOTS (MASSA_EDGE_SLOTS): 1=Perimeter, 2=Contour, 3=Guide, 4=Detail, 5=Fold
+    edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
     # 3. GEOMETRY CONSTRUCTION
     {construction_logic}

@@ -110,6 +110,10 @@ def draw_edge_slots_tab(layout, owner):
     row.label(text="4: Detail", icon="EDITMODE_HLT")
     row.prop(owner, "edge_slot_4_action", text="")
 
+    row = box.row()
+    row.label(text="5: Fold", icon="CLOTH")
+    row.prop(owner, "edge_slot_5_action", text="")
+
     # Legend
     if owner.viz_edge_mode == "SLOTS":
         layout.separator()
@@ -122,6 +126,7 @@ def draw_edge_slots_tab(layout, owner):
         r.label(text="2:Blu", icon="COLOR_BLUE")  # Blue
         r.label(text="3:Red", icon="COLOR_RED")  # Red
         r.label(text="4:Grn", icon="COLOR_GREEN")  # Green
+        r.label(text="5:Pur", icon="COLOR_MAGENTA")  # Purple
 
 
 def draw_polish_tab(layout, owner):
@@ -345,6 +350,7 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
                 grid.prop(owner, "seam_use_cont", text="Contour")
                 grid.prop(owner, "seam_use_guide", text="Guide")
                 grid.prop(owner, "seam_use_detail", text="Detail")
+                grid.prop(owner, "seam_use_fold", text="Fold")
 
     layout.separator()
 

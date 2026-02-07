@@ -32,8 +32,7 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
         gz_res.alpha = 0.8
         gz_res.scale_basis = 0.15 # Small size
 
-        # Tooltip text
-        gz_res.message = "Resurrection"
+
 
         gz_res.target_set_operator("massa.resurrect_wrapper")
         self.gizmo_resurrect = gz_res
@@ -48,49 +47,53 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
         gz_con.alpha = 0.8
         gz_con.scale_basis = 0.15
 
-        # Tooltip text
-        gz_con.message = "Condemnation"
+
 
         gz_con.target_set_operator("massa.condemn")
         self.gizmo_condemn = gz_con
 
     def draw_prepare(self, context):
-        # Validate Gizmos exist (prevent AttributeError during Redo/Undo cycles)
-        if not hasattr(self, "gizmo_condemn") or not hasattr(self, "gizmo_resurrect"):
-            return
-
-        obj = context.active_object
-        if not obj: 
-            return
-
-        # Calculate positioning above the object
-        # We use bounding box to find the highest point relative to world space
+        """
+        Updates the matrix of the gizmos so they track the object.
+        Called every redraw.
+        """
         try:
-            # Safely calculate world-space bounding box
+            # Validate Gizmos exist
+            if not hasattr(self, "gizmo_condemn") or not hasattr(self, "gizmo_resurrect"):
+                return
+    
+            obj = context.active_object
+            if not obj: 
+                return
+    
+            # [ARCHITECT FIX] Robust World Space Calculation
+            # This ensures even if bound_box is weird, we have a fallback
+            pos_x, pos_y, top_z = 0.0, 0.0, 0.0
+            
+            # Use Matrix World Translation as base
+            base_loc = obj.matrix_world.translation
+            pos_x, pos_y = base_loc.x, base_loc.y
+            top_z = base_loc.z
+    
+            # Attempt to add Bounding Box height
             if obj.type == 'MESH' and obj.bound_box:
-                bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-                center_x = sum(v.x for v in bbox) / 8.0
-                center_y = sum(v.y for v in bbox) / 8.0
-                max_z = max(v.z for v in bbox)
-            else:
-                # Fallback for empty or non-mesh
-                center_x = obj.matrix_world.translation.x
-                center_y = obj.matrix_world.translation.y
-                max_z = obj.matrix_world.translation.z
+                # Transform all 8 corners to world space to find true max Z
+                # This handles rotation correctly
+                world_corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+                top_z = max(v.z for v in world_corners)
+                
+                # Approximate center (optional, but nicer)
+                pos_x = sum(v.x for v in world_corners) / 8.0
+                pos_y = sum(v.y for v in world_corners) / 8.0
+    
+            # Set Positions
+            # Condemn (Red) -> Lower
+            self.gizmo_condemn.matrix_basis = Matrix.Translation((pos_x, pos_y, top_z + 0.5))
+            
+            # Resurrect (Yellow) -> Upper
+            self.gizmo_resurrect.matrix_basis = Matrix.Translation((pos_x, pos_y, top_z + 1.0))
+            
         except Exception as e:
-            # Fallback if calculation fails
-            # print(f"Massa Gizmo Error: {e}")
-            center_x = obj.matrix_world.translation.x
-            center_y = obj.matrix_world.translation.y
-            max_z = obj.matrix_world.translation.z
-
-        # Position 1 (Condemnation - Red - Lower)
-        # 0.4m above the top
-        pos_con = Vector((center_x, center_y, max_z + 0.4))
-
-        # Position 2 (Resurrection - Yellow - Upper)
-        # 0.4m above Condemnation (0.8m total)
-        pos_res = Vector((center_x, center_y, max_z + 0.8))
-
-        self.gizmo_condemn.matrix_basis = Matrix.Translation(pos_con)
-        self.gizmo_resurrect.matrix_basis = Matrix.Translation(pos_res)
+            # Fail silently to avoid spamming console during interaction
+            # print(f"Gizmo Draw Error: {e}")
+            pass

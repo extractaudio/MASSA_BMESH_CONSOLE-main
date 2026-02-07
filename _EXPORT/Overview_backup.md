@@ -290,6 +290,15 @@ def build_shape(self, bm):
 def get_slot_meta(self):
     """Return cartridge metadata dict."""
     return CARTRIDGE_META
+
+### Edge Slot Legend (Edge Role Interpreter)
+| ID | Color | Role | Description |
+|----|-------|------|-------------|
+| **1** | Yellow | Perimeter | Outer boundary, Seam, Sharp |
+| **2** | Blue | Contour | Major form break, Sharp |
+| **3** | Red | Guide | Topological flow line, Seam |
+| **4** | Green | Detail | Minor surface detail, Bevel |
+| **5** | Purple | Fold | Cloth/Soft Crease, Subdivision Weighting |
 ```
 
 ---

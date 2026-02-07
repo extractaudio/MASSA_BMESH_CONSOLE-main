@@ -360,6 +360,11 @@ def handle_separation(obj, op, manifest, context):
                     c for c in manifest[i]["name"] if c.isalnum() or c in (" ", "_")
                 ).strip()
                 p.name = f"{op.bl_label}_{safe}"
+                
+                # [ARCHITECT FIX] Parent to Main Object for Cleaner Outliner & Redo Support
+                p.parent = obj
+                p.matrix_parent_inverse = obj.matrix_world.inverted()
+                
                 final_sel.append(p)
         else:
             bpy.ops.object.mode_set(mode="OBJECT")

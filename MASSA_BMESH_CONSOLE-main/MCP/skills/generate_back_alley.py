@@ -31,6 +31,10 @@ sys.meta_path.insert(0, AddonFinder({"massa_console": root_dir}))
 def build_layout():
     # 3. Import and Register Addon via alias
     try:
+        # Ensure root_dir is in sys.path for standard import fallback
+        if root_dir not in sys.path:
+            sys.path.append(root_dir)
+            
         if "massa_console" in sys.modules:
              # Reload if needed or just use
              pass
