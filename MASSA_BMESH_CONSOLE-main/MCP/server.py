@@ -3,17 +3,21 @@ import socket
 import json
 import subprocess
 import os
+import sys
 import collections
 
 mcp = FastMCP("Massa_Modular_Architect")
 
 # CONSTANTS
-BLENDER_EXE = r"C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
 BRIDGE_PORT = 5555
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CARTRIDGE_DIR = os.path.abspath(os.path.join(BASE_DIR, "../modules/cartridges"))
 DEBUG_SYSTEM_DIR = os.path.abspath(os.path.join(BASE_DIR, "../modules/debugging_system"))
 AGENT_WORKFLOWS_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../.agent/workflows"))
+
+# Import Debugging System Launcher
+sys.path.append(os.path.abspath(os.path.join(BASE_DIR, "..")))
+from modules.debugging_system import launcher
 
 import struct
 
@@ -47,16 +51,6 @@ def recv_all(conn, n):
         if not packet: return None
         data += packet
     return data
-
-def get_execution_mode():
-    """
-    Helper to check if we should run in Direct Mode (Active Viewport) or Background Mode.
-    Returns: True for Direct Mode, False for Background Mode.
-    """
-    config_resp = send_bridge("get_server_config")
-    if "config" in config_resp:
-        return config_resp["config"].get("use_direct_mode", False)
-    return False
 
 # --- RESOURCES ---
 
@@ -135,12 +129,8 @@ def session_launch(headless: bool = False):
     headless=True: Launches background tester (Option B).
     headless=False: Launches GUI (Option A).
     """
-    cmd = [BLENDER_EXE]
-    if headless:
-        # Use the helper script to auto-enable addon and start listener
-        cmd.extend(["--background", "--python", "headless_launcher.py"])
-    subprocess.Popen(cmd)
-    return "Blender Launch Initiated."
+    result = launcher.launch_session(headless=headless)
+    return json.dumps(result)
 
 @mcp.tool()
 def generate_cartridge(command_str: str):
@@ -160,10 +150,7 @@ def generate_scene(layout: list, filename: str = None):
     Returns:
         JSON string containing the Overview (Build Profile) and the Execution Report.
     """
-    # 1. Enforce Direct Mode
-    is_direct = get_execution_mode()
-    if not is_direct:
-        return "Action Aborted: 'Generate Scene' requires Direct Mode (Active Viewport). Please enable 'Direct Execution' in the N-Panel."
+    # Generate Scene always uses Direct Mode (Bridge)
 
     # 2. Generate Overview (Build Profile)
     overview = {
@@ -296,54 +283,40 @@ def list_materials():
     return send_bridge("get_materials")
 
 @mcp.tool()
-def audit_cartridge(filename: str):
-    """[Audit State] Runs the background auditor on a specific cartridge."""
+def audit_cartridge(filename: str, background: bool = False):
+    """[Audit State] Runs the auditor on a specific cartridge."""
     filename = os.path.basename(filename)
     cartridge_path = os.path.join(CARTRIDGE_DIR, filename)
 
     if not os.path.exists(cartridge_path):
         return f"Error: Cartridge {filename} not found."
 
-    use_direct = get_execution_mode()
-
-    if use_direct:
-        # Run Direct
+    if background:
+        # Run Background (Headless)
+        result = launcher.launch_cartridge_audit(cartridge_path)
+        return json.dumps(result, indent=4)
+    else:
+        # Run Direct (Active Bridge)
         resp = send_bridge("audit_cartridge_direct", {"path": cartridge_path})
         if "report" in resp:
             return json.dumps(resp["report"], indent=4)
         else:
             return json.dumps(resp, indent=4)
-    else:
-        # Run Background (Headless Safety Check)
-        # Uses modules/debugging_system/bridge.py to spawn a fresh process
-        headless_launcher = os.path.join(DEBUG_SYSTEM_DIR, "bridge.py")
-        cmd = ["python", headless_launcher, cartridge_path]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            return result.stdout
-        except Exception as e:
-            return f"Audit execution failed: {str(e)}"
 
 @mcp.tool()
-def audit_console():
-    """[Audit State] Runs the background auditor on the Massa Console architecture."""
-    use_direct = get_execution_mode()
-
-    if use_direct:
+def audit_console(background: bool = False):
+    """[Audit State] Runs the auditor on the Massa Console architecture."""
+    if background:
+        # Run Background
+        result = launcher.launch_console_audit()
+        return json.dumps(result, indent=4)
+    else:
         # Run Direct
         resp = send_bridge("audit_console_direct")
         if "report" in resp:
             return json.dumps(resp["report"], indent=4)
         else:
             return json.dumps(resp, indent=4)
-    else:
-        headless_launcher = os.path.join(DEBUG_SYSTEM_DIR, "bridge_console.py")
-        cmd = ["python", headless_launcher]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            return result.stdout
-        except Exception as e:
-            return f"Audit execution failed: {str(e)}"
 
 @mcp.tool()
 def execute_contextual_op(op_id: str, space_type: str = "VIEW_3D"):

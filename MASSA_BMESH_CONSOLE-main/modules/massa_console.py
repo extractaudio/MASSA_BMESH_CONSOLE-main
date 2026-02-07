@@ -31,12 +31,6 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
         description="Port for MCP Bridge Communication"
     )
 
-    mcp_use_direct_mode: BoolProperty(
-        name="Direct Execution",
-        default=False,
-        description="If True, MCP audits run in this Blender Instance (Modifies Active Scene)"
-    )
-
     # --- 2. GLOBAL VISUALIZATION (Redefined with ICONS) ---
     # The "Preview" Menu
     debug_view: EnumProperty(
