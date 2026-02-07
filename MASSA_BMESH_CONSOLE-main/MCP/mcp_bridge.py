@@ -357,12 +357,6 @@ def process_queue():
                 else:
                     data = {"status": "error", "msg": "EEVEE settings not found"}
 
-            elif skill == 'get_server_config':
-                console = bpy.context.scene.massa_console
-                data["config"] = {
-                    "use_direct_mode": console.mcp_use_direct_mode
-                }
-
             elif skill == 'audit_cartridge_direct':
                 path = params.get('path')
                 mode = params.get('mode', 'AUDIT')
