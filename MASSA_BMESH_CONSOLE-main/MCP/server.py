@@ -387,6 +387,74 @@ def organize_outliner(method: str = "BY_NAME", rules: dict = None, ignore_hidden
     """
     return send_bridge("organize_outliner", {"method": method, "rules": rules, "ignore_hidden": ignore_hidden})
 
+# --- ADVANCED ANALYZER TOOLS ---
+
+@mcp.tool()
+def capture_analytical_viewport(mode: str):
+    """
+    [Visual Cortex] Renders the viewport with analytical overlays.
+    Args:
+        mode: "SEGMENTATION" (Color ID), "DEPTH_NORMALIZED" (Grayscale Z), "HEATMAP_DENSITY" (Poly Count Heatmap).
+    """
+    return send_bridge("get_analytical_vision", {"mode": mode})
+
+@mcp.tool()
+def parse_active_panel_ast(panel_idname: str):
+    """
+    [UI Interceptor] Reads the Python source (AST) of a UI panel to map Labels to API properties.
+    Args:
+        panel_idname: The ID of the panel (e.g., 'OBJECT_PT_transform').
+    """
+    return send_bridge("parse_ui_ast", {"panel_idname": panel_idname})
+
+@mcp.tool()
+def inspect_redo_panel():
+    """
+    [UI Interceptor] Inspects the last executed operator to understand the context of the 'Redo Panel'.
+    """
+    return send_bridge("inspect_last_op")
+
+@mcp.tool()
+def audit_evaluated_mesh(object_name: str = None):
+    """
+    [Deep Analyst] Analyzes the 'Evaluated' mesh (after modifiers) for topology defects (N-Gons, Poles, Holes).
+    Args:
+        object_name: Target object (defaults to active).
+    """
+    return send_bridge("audit_evaluated_deep", {"object_name": object_name})
+
+@mcp.tool()
+def trace_dependency_chain(object_name: str = None):
+    """
+    [Deep Analyst] Traces parents, constraints, and drivers to find cyclic dependencies.
+    Args:
+        object_name: Target object (defaults to active).
+    """
+    return send_bridge("trace_deps", {"object_name": object_name})
+
+@mcp.tool()
+def draw_viewport_overlay(action: str, coords: list = None, lines: list = None, texts: list = None):
+    """
+    [Holo-Projector] Draws 3D visualizations in the viewport.
+    Args:
+        action: "HIGHLIGHT" (Points), "LINES", "ANNOTATE", "CLEAR".
+        coords: List of [x, y, z] tuples for highlights.
+        lines: List of [[x1,y1,z1], [x2,y2,z2]] pairs for lines.
+        texts: List of [[x,y,z], "label"] for annotations.
+    """
+    return send_bridge("set_viewport_overlay", {"action": action, "coords": coords, "lines": lines, "texts": texts})
+
+@mcp.tool()
+def simulate_modifier_stack(object_name: str, modifier_setup: list):
+    """
+    [Ghost Simulation] Predicts the result of a modifier stack without applying it to the real object.
+    Args:
+        object_name: Target object.
+        modifier_setup: List of modifiers to simulate.
+                        Example: [{"type": "REMESH", "props": {"voxel_size": 0.1}}]
+    """
+    return send_bridge("simulate_mod_stack", {"object_name": object_name, "modifiers": modifier_setup})
+
 @mcp.tool()
 def verify_material_logic(filename: str) -> str:
     """

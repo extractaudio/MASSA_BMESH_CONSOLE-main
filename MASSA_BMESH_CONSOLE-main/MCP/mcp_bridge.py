@@ -9,6 +9,7 @@ import tempfile
 import os
 from ..modules.debugging_system import runner, runner_console
 from ..modules import cartridges
+from ..modules import advanced_analytics
 
 # CONFIGURATION
 HOST = '127.0.0.1'
@@ -780,6 +781,60 @@ def process_queue():
                         
                 except Exception as e:
                     data = {"status": "error", "msg": f"Inspection Failed: {str(e)}"}
+
+            # --- ADVANCED ANALYZER SKILLS ---
+
+            elif skill == 'get_analytical_vision':
+                mode = params.get('mode', 'SEGMENTATION')
+                data["image"] = advanced_analytics.capture_analytical(mode)
+
+            elif skill == 'parse_ui_ast':
+                panel_id = params.get('panel_idname')
+                data["ui_map"] = advanced_analytics.parse_panel_ast(panel_id)
+
+            elif skill == 'inspect_last_op':
+                data["op_history"] = advanced_analytics.inspect_last_operator()
+
+            elif skill == 'audit_evaluated_deep':
+                obj_name = params.get('object_name') or (bpy.context.active_object.name if bpy.context.active_object else None)
+                if obj_name:
+                    data["audit"] = advanced_analytics.audit_evaluated(obj_name)
+                else:
+                    data = {"status": "error", "msg": "No Object Specified"}
+
+            elif skill == 'trace_deps':
+                obj_name = params.get('object_name') or (bpy.context.active_object.name if bpy.context.active_object else None)
+                if obj_name:
+                    data["dependencies"] = advanced_analytics.trace_dependencies(obj_name)
+                else:
+                    data = {"status": "error", "msg": "No Object Specified"}
+
+            elif skill == 'set_viewport_overlay':
+                action = params.get('action')
+                overlay = advanced_analytics.get_overlay()
+
+                if action == 'HIGHLIGHT':
+                    coords = params.get('coords', [])
+                    overlay.set_highlights(coords)
+                    data["msg"] = f"Highlighted {len(coords)} points"
+                elif action == 'LINES':
+                    lines = params.get('lines', [])
+                    overlay.set_lines(lines)
+                    data["msg"] = f" drew {len(lines)} lines"
+                elif action == 'ANNOTATE':
+                    texts = params.get('texts', [])
+                    overlay.set_annotations(texts)
+                    data["msg"] = f"Annotated {len(texts)} labels"
+                elif action == 'CLEAR':
+                    overlay.clear()
+                    data["msg"] = "Overlay Cleared"
+                else:
+                    data = {"status": "error", "msg": f"Unknown action: {action}"}
+
+            elif skill == 'simulate_mod_stack':
+                obj_name = params.get('object_name')
+                modifiers = params.get('modifiers', [])
+                data["simulation"] = advanced_analytics.simulate_stack(obj_name, modifiers)
 
             elif skill == 'create_scene':
                 # [ARCHITECT UPDATE] File-Based Workflow support
