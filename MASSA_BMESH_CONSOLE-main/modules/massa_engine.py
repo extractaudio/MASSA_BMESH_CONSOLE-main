@@ -77,7 +77,9 @@ def run_pipeline(op, context):
         if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
             bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
             
-        massa_surface.auto_detect_edge_slots(bm)
+        if getattr(op, "edge_auto_detect", True):
+            massa_surface.auto_detect_edge_slots(bm)
+
         process_edge_slots(bm, op)
         if abs(op.global_scale - 1.0) > 0.001:
             bmesh.ops.scale(bm, vec=(op.global_scale,) * 3, verts=bm.verts)
@@ -405,28 +407,6 @@ def _generate_output(op, context, bm, socket_data, manifest):
     # [ARCHITECT FIX] MATERIAL ASSIGNMENT
     massa_surface.assign_materials(obj, op)
 
-    # [ARCHITECT VIZ OVERLAY]
-    if viz_mode == "SLOTS":
-        try:
-            # Ensure Viz Materials exist
-            mat_utils.ensure_gn_viz_materials()
-            
-            # 1. Get the GN Tree
-            viz_tree = massa_nodes.get_or_create_viz_overlay_tree()
-
-            # 2. Add Modifier
-            mod_viz = obj.modifiers.new("Massa_Edge_Viz", "NODES")
-            mod_viz.node_group = viz_tree
-
-            # 3. Assign the 'Neutral/Clay' material to the GN 'Material' input
-            viz_mat = mat_utils.get_or_create_viz_vertex_material()
-            if viz_mat:
-                if "Material" in mod_viz.keys():
-                    mod_viz["Material"] = viz_mat
-
-        except Exception as e:
-            print(f"Massa Viz Error: {e}")
-
     if viz_mode == "SLOTS":
         obj.show_wire = False
         obj.show_all_edges = False
@@ -447,6 +427,29 @@ def _generate_output(op, context, bm, socket_data, manifest):
             bpy.ops.object.modifier_apply(modifier="Massa_Fuse")
         except:
             pass
+
+    # [ARCHITECT VIZ OVERLAY]
+    # Moved to END of stack to prevent baking tubes into Fuse or Mesh
+    if viz_mode == "SLOTS":
+        try:
+            # Ensure Viz Materials exist
+            mat_utils.ensure_gn_viz_materials()
+
+            # 1. Get the GN Tree
+            viz_tree = massa_nodes.get_or_create_viz_overlay_tree()
+
+            # 2. Add Modifier (Always Last)
+            mod_viz = obj.modifiers.new("Massa_Edge_Viz", "NODES")
+            mod_viz.node_group = viz_tree
+
+            # 3. Assign the 'Neutral/Clay' material to the GN 'Material' input
+            viz_mat = mat_utils.get_or_create_viz_vertex_material()
+            if viz_mat:
+                if "Material" in mod_viz.keys():
+                    mod_viz["Material"] = viz_mat
+
+        except Exception as e:
+            print(f"Massa Viz Error: {e}")
 
     massa_polish.handle_separation(obj, op, manifest, context)
 
