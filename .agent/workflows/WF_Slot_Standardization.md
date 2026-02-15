@@ -8,9 +8,10 @@ description: Definitive guide for Material and Edge Slot IDs in Massa Cartridges
 
 *Topology foundation of the Massa Console.*
 
-To ensure all cartridges generate slots for all faces ('slots' redo panel tab) and edges ('Edges' redo panel tab). The faces generate their own 'Visual' material and 'Physics' ID. The Edges generate an edge slot that is defined by: Perimeter (endcaps/important edge loops), Contour (90 degree forum break), Seams (manually placed Guide to ensuring a proper uv unwrap), Detail (Edges whos neibors have very minor surface detail), and Fold (Used for subdivision weighting cloth.) Attempt to create professional grade UV map by visually auditing the veiwport. Agents must adhere to strict Integer ID standards for Faces (Materials) and Edges (Features).
+To ensure all cartridges generate slots for all faces ('slots' redo panel tab) and edges ('Edges slot IDs redo panel tab). The faces generate their own 'Visual' material and 'Physics' ID. The Edges generate an edge slot that is defined by: Perimeter (endcaps/important edge loops), Contour (90 degree forum break), Seams (manually placed Guide to ensuring a proper uv unwrap), Detail (Edges whos neibors have very minor surface detail), and Fold (Used for subdivision weighting cloth.) Attempt to create professional grade UV map by visually auditing the veiwport. Agents must adhere to strict Integer ID standards for Faces (Materials) and Edges (Features).
 
 ensure that these slots are NOT creating new mesh edges, faces, or vert. The slots and edges purpose it to MARK the proper placement of faces (slots) and edges (edge slots).
+ 
 
 ---
 

@@ -92,7 +92,7 @@ class MassaPropertiesMixin:
         name="Contour (2)", default=True, description="Cut Major Form Changes"
     )
     seam_use_guide: BoolProperty(
-        name="Guide (3)", default=False, description="Cut Flow Lines"
+        name="Guide (3)", default=True, description="Cut Flow Lines"
     )
     seam_use_detail: BoolProperty(
         name="Detail (4)", default=False, description="Cut Panel Lines"

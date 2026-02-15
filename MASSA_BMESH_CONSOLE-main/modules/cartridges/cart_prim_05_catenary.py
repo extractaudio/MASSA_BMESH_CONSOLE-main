@@ -50,8 +50,7 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                 "phys": "SYNTH_RUBBER",
             },  # UVs calc'd in script
             1: {"name": "Caps", "uv": "BOX", "phys": "METAL_GOLD"},
-            2: {"name": "Rings", "uv": "SKIP", "phys": "GENERIC"},
-            3: {"name": "Edges", "uv": "SKIP", "phys": "GENERIC"},
+            2: {"name": "Guide Edge", "uv": "SKIP", "phys": "GENERIC"},
         }
 
     def invoke(self, context, event):
@@ -153,13 +152,25 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                 bm, edges=edges_long, cuts=(self.segments_len - 1), use_grid_fill=True
             )
 
-        # 4. MARK SEAMS
+        # 3. ASSIGN MATERIALS (Before Seam Logic)
+        for f in bm.faces:
+            n = f.normal
+            if abs(n.z) > 0.9:
+                f.material_index = 1  # Caps
+            else:
+                f.material_index = 0  # Insulation
+                f.smooth = True
+
+        # 4. MARK SEAMS & EDGE SLOTS
+        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
         for e in bm.edges:
             # 1. Material Boundary (Caps vs Insulation)
             if len(e.link_faces) >= 2:
                 mats = {f.material_index for f in e.link_faces}
                 if len(mats) > 1:
                     e.seam = True
+                    e[edge_slots] = 1 # Perimeter
 
         # 3. SLOT 3: GUIDE EDGE (Zipper at -X)
         # Mark edges that are longitudinal and at angle roughly Pi (x < 0, y ~ 0)
@@ -194,9 +205,10 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
             for dist, e in scored_edges:
                 if dist < (min_dist + 0.001):
                     e.seam = True
+                    e[edge_slots] = 3 # Guide Edge
 
 
-        # 2. SLOT 2: RINGS (Every 8 segments)
+        # 2. TRANSVERSE RINGS (Every 8 segments)
         # Fixes UV warping on long wires by breaking strips
         if self.segments_len >= 16:
             seg_step = length_linear / self.segments_len
@@ -227,7 +239,6 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
         for f in bm.faces:
             n = f.normal
             if abs(n.z) > 0.9:
-                f.material_index = 1  # Caps
                 # Box Map Caps
                 for l in f.loops:
                     l[uv_layer].uv = (
@@ -235,9 +246,6 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                         l.vert.co.y * self.uv_scale,
                     )
             else:
-                f.material_index = 0  # Insulation
-                f.smooth = True
-
                 # --- ROBUST SEAM LOGIC (Fixes Smashed UVs) ---
                 loop_uvs = []
                 for l in f.loops:

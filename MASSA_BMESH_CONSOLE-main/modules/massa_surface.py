@@ -269,11 +269,13 @@ def auto_detect_edge_slots(bm):
     Populates MASSA_EDGE_SLOTS based on Material Boundaries.
     Slot ID = max(mat_index_A, mat_index_B)
     """
+    print("MASSA DEBUG: auto_detect_edge_slots START")
     try:
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
     except:
+        print("MASSA DEBUG: Failed to get/create MASSA_EDGE_SLOTS")
         return
 
     bm.edges.ensure_lookup_table()
@@ -307,6 +309,9 @@ def auto_detect_edge_slots(bm):
                 target = 4
 
             e[edge_slots] = target
+            print(f"MASSA DEBUG: Boundary Edge {e.index}: Mat {m1} vs {m2} -> Slot {target}")
+
+    print("MASSA DEBUG: auto_detect_edge_slots END")
 
 
 def tag_structure_edges(bm, op):

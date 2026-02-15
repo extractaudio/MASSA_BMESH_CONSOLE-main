@@ -171,6 +171,7 @@ Follow this checklist when creating a new cartridge:
 ### C. Adding a Global Parameter
 
 1. **Edit** `modules/massa_properties.py`:
+
    ```python
    my_new_param: BoolProperty(
        name="My New Parameter",
@@ -180,6 +181,7 @@ Follow this checklist when creating a new cartridge:
    ```
 
 2. **Add UI** in `ui/ui_shared.py`:
+
    ```python
    layout.prop(props, "my_new_param")
    ```
@@ -232,6 +234,7 @@ The root `__init__.py` handles hot reloading for development.
 ### Running Audits
 
 Use the audit workflow to verify cartridge integrity:
+
 ```
 .agent/workflows/audit_cartridge
 ```
@@ -310,16 +313,17 @@ def get_slot_meta(self):
 
 **Trigger**: When adding a NEW parameter (e.g., "Taper Amount") to a Cartridge.
 **Action**: You must generate/update code in 5 locations to prevent "Ghost Controls":
-   - **DEFINE (Brain)**: `bpy.types.Scene` props.
-   - **DEFINE (Muscle)**: `bpy.types.Operator` props.
-   - **REGISTER (Bridge)**: Add to `_sync()` keys list.
-   - **DRAW (Sidebar)**: `ui_massa_panel.py`.
-   - **DRAW (Redo)**: `Massa_OT_Base.draw`.
+
+- **DEFINE (Brain)**: `bpy.types.Scene` props.
+- **DEFINE (Muscle)**: `bpy.types.Operator` props.
+- **REGISTER (Bridge)**: Add to `_sync()` keys list.
+- **DRAW (Sidebar)**: `ui_massa_panel.py`.
+- **DRAW (Redo)**: `Massa_OT_Base.draw`.
 
 ### 3. The All-Cartridges Mandate (6 Laws)
 
 - **Segmentation**: Long faces must be subdivided for the Polish Stack (Twist/Bend).
-- **Edge Roles**: Edges must be assigned to the `MASSA_EDGE_SLOTS` layer (1=Perimeter, 2=Contour, 3=Guide, 4=Detail).
+- **Edge Roles**: Edges must be assigned to the `MASSA_EDGE_SLOTS` layer (1=Perimeter, 2=Contour, 3=Guide, 4=Detail). **VISUALIZATION ONLY:** These edges must NOT create structural faces.
 - **Identity**: `get_slot_meta()` must return valid dicts.
 - **Defaults**: Respect `CARTRIDGE_META` flags (e.g., `ALLOW_SOLIDIFY`).
 - **Surface**: Valid normals for UVs.
@@ -330,6 +334,7 @@ def get_slot_meta(self):
 ## 🏗️ Execution Pipeline (Phases 1-6)
 
 ### 🟢 Phase 1: The Architect (Analysis & Strategy)
+
 **Goal**: Define the DNA of the cartridge.
 **MOUNT TARGET**: `Massa_Genesis_Codex.md`
 **Action**: Select the best `PRIM_XX` ID to Mutate. Do not invent new topology logic; Fork and Mutate.
@@ -341,6 +346,7 @@ def get_slot_meta(self):
 - **Flags**: `USE_WELD`, `ALLOW_FUSE`, `ALLOW_SOLIDIFY`, `FIX_DEGENERATE`.
 
 ### 🟡 Phase 2: The Builder (Scaffolding)
+
 **Goal**: Generate the Python Class structure.
 **🛑 IMMUTABLE LAWS**:
 
@@ -365,6 +371,7 @@ class MASSA_OT_NewCartridge(Massa_OT_Base):
 ```
 
 ### 🟠 Phase 3: The Craftsman (Geometry Logic)
+
 **Goal**: Write `build_shape(self, bm)`.
 **MOUNT TARGET**: `Massa_Geometry_Atlas.md`. Use Golden Snippets.
 **CONSTRUCTION RULES**:
@@ -374,16 +381,19 @@ class MASSA_OT_NewCartridge(Massa_OT_Base):
 - **Tagging**: If you create a boundary loop, tag it `MASSA_EDGE_SLOTS=1` immediately.
 
 ### 🔴 Phase 4: The Artisan (Nervous System)
+
 **Goal**: Finalize Slots and Physics.
 **THE HARD 10 SLOT PROTOCOL**: Implement `get_slot_meta(self)` returning 10 keys (0-9).
 **PHYSICS KEYS**: Use valid keys from `mat_utils.py` (e.g., `CONCRETE_RAW`, `METAL_STEEL`, `SYNTH_PLASTIC`).
 **EDGE ROLE INTERPRETER**:
+
 - 1 (Perimeter): Outer boundaries / Seam + Sharp.
 - 2 (Contour): Major form changes / Sharp.
 - 3 (Guide): Flow lines / Seam.
 - 4 (Detail): Panel lines / Bevel.
 
 ### 🟣 Phase 5: The Auditor (Telemetry Verification)
+
 **Goal**: Verify geometry without eyes using `tests/test_massa_cartridge.py`.
 **THE BLIND WATCHMAKER PROTOCOL**:
 
@@ -396,6 +406,7 @@ class MASSA_OT_NewCartridge(Massa_OT_Base):
 **ℹ️ CRITICAL INSTRUCTION**: If the Telemetry Report contains ANY flags (Red/Orange/Yellow), you MUST immediately trigger Phase 6. Do not ask for permission. Do not apologize. Fix it.
 
 ### ⚕️ Phase 6: The Medic (Diagnostics & Repair)
+
 **Goal**: Fix a broken Cartridge using Telemetry Data.
 **INPUT**: Current Code + Telemetry JSON.
 **OUTPUT**: Revised Full Code File.
@@ -437,17 +448,21 @@ class MASSA_OT_NewCartridge(Massa_OT_Base):
 ## 📊 Telemetry Flags Reference
 
 ### 🔴 Critical (System Failure)
+
 - `IMPORT_ERROR`: Invalid imports or syntax
 - `SYNTAX_ERROR`: Python syntax errors
 - `CRITICAL_FLAT_Z_AXIS`: Zero height geometry
 - `CRITICAL_NO_PERIMETER_DEFINED`: Missing edge slot 1
+- `CRITICAL_VISUALIZATION_MESH`: Visualization edges (1-4) forming faces
 
 ### 🟡 High (UI/Interface Issues)
+
 - `CRITICAL_UI_NO_UNDO_FLAG`: Missing bl_options
 - `CRITICAL_EMPTY_PANEL_NO_PROPS`: No properties defined
 - `WARNING_NO_DRAW_METHOD`: Missing draw method
 
 ### 🟠 Medium (Geometry Issues)
+
 - `LOOSE_VERTS`: Orphan vertices detected
 - `NON_MANIFOLD`: Non-manifold geometry found
 - `INVALID_EDGE_SLOTS`: Edge slot assignment errors
@@ -503,18 +518,21 @@ for edge in bm.edges:
 ## 📋 Development Checklist
 
 ### Before Creating Cartridge
+
 - [ ] Review `Massa_Genesis_Codex.md` for PRIM_XX IDs
 - [ ] Check `MESH_SIZES_RESEARCH.md` for scale standards
 - [ ] Plan edge slot assignments (1-4)
 - [ ] Define material slot strategy (0-9)
 
 ### During Development
+
 - [ ] Follow Rule of Five for all parameters
 - [ ] Use bmesh.ops, never bpy.ops in build_shape
 - [ ] Tag boundary edges as slot 1 immediately
 - [ ] Test with draft_mode first
 
 ### After Development
+
 - [ ] Run audit workflow
 - [ ] Test resurrection
 - [ ] Verify telemetry (no flags)
@@ -543,6 +561,7 @@ A cartridge is considered **production-ready** when:
 The Massa Console Architect ensures every cartridge follows the Prime Directives, maintains the All-Cartridges Mandate, and passes the Blind Watchmaker Protocol. Success is measured by zero telemetry flags and perfect resurrection capability.
 </parameter>
 <task_progress>
+
 - [x] Review and analyze current OVERVIEW_PROMPT.md
 - [x] Fix formatting issues (stray characters, LaTeX arrows)
 - [x] Add Table of Contents

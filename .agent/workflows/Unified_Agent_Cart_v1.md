@@ -13,7 +13,7 @@ description: Master workflow for the Unified Cartridge Generator v1 (Legacy/Alte
 
 The All-Cartridges Mandate (6 Laws)
 Segmentation: Long faces must be subdivided for the Polish Stack (Twist/Bend).
-Edge Roles: Edges must be assigned to the MASSA_EDGE_SLOTS layer (1=Perimeter, 2=Contour, 3=Guide, 4=Detail).
+Edge Roles: Edges must be assigned to the MASSA_EDGE_SLOTS layer (1=Perimeter, 2=Contour, 3=Guide, 4=Detail). **VISUALIZATION ONLY:** These edges must NOT create structural faces.
 Identity: get_slot_meta() must return valid dicts for Slots 0-9.
 Defaults: Respect CARTRIDGE_META flags (e.g., ALLOW_SOLIDIFY).
 Surface: Geometry must have VALID UVs, CONSISTENT Normals, and NO Z-Fighting.
@@ -127,6 +127,8 @@ Check your internal code draft for these fatal flags:
   * *Fix:* Add the property definition immediately.
 * `[FAIL] CRITICAL_EDGE_LOSS`: Did you forget to tag `MASSA_EDGE_SLOTS`?
   * *Fix:* Inject the **Pass B** logic block.
+* `[FAIL] CRITICAL_VISUALIZATION_MESH`: Did you create faces from Visualization Edges (Slots 1-4)?
+  * *Fix:* Delete faces connected to these edges or exclude them from face creation logic.
 
 **3. AUTO-CORRECT:**
 If *any* flag is triggered in your simulation, rewrite the code immediately. **DO NOT** output the broken version.
