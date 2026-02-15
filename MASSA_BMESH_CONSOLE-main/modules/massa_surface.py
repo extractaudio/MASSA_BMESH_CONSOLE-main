@@ -286,14 +286,32 @@ def auto_detect_edge_slots(bm):
     for e in bm.edges:
         total_edges += 1
         
-        # [ARCHITECT DEBUG]
-        # Skip assignment if manually set (non-zero)
+        # [ARCHITECT CRITICAL] PRESERVATION OF INTENT
+        # If the cartridge already assigned a slot (non-zero), DO NOT TOUCH IT.
         if e[edge_slots] != 0:
             continue
 
-        # [ARCHITECT FIX] REMOVED is_manifold to catch ALL boundaries
-        # We handle boundary logic via face count below
-        
+        # 1. PERIMETER DETECTION (Slot 1)
+        # An edge is a perimeter if it has only 1 face (is_boundary)
+        if e.is_boundary:
+            e[edge_slots] = 1
+            continue
+
+        # 2. CONTOUR DETECTION (Slot 2)
+        # An edge is a contour if it is sharp (angle based or manually sharp)
+        # BUT we must respect seams. If it's a seam, it might be a Guide (3) or something else.
+        # If it's just a sharp corner, it's a Contour.
+        if not e.smooth and not e.seam:
+             # Calculate angle to confirm it's actually sharp geometry
+             # (Sometimes smooth=False is set but faces are coplanar)
+             if len(e.link_faces) == 2:
+                 ang = e.calc_face_angle_signed()
+                 # If angle is significant (> 1 degree), treat as contour
+                 if abs(ang) > 0.01:
+                     e[edge_slots] = 2
+                     # Note: We don't 'continue' here because it might ALSO be a material boundary
+
+        # 3. MATERIAL BOUNDARY DETECTION (Slot 1-4)
         # Need at least 2 faces to be a boundary between regions
         if len(e.link_faces) < 2:
             continue
@@ -320,7 +338,11 @@ def auto_detect_edge_slots(bm):
             elif max_slot < 0:
                 max_slot = 0
 
-            e[edge_slots] = max_slot
+            # [ARCHITECT LOGIC] Priority Resolution
+            # If we detected a Material Boundary (max_slot > 0), overwrite any Contour (2).
+            # If max_slot is 0 (no boundary), we KEEP the existing value (e.g. 2 from Contour).
+            if max_slot > 0:
+                e[edge_slots] = max_slot
             # print(f"MASSA DEBUG: Edge {e.index} -> Slot {max_slot} (Mats: {checked_mats})")
 
     print(f"MASSA DEBUG: auto_detect_edge_slots -> Edges: {total_edges}, Boundaries Found: {total_boundaries}")
