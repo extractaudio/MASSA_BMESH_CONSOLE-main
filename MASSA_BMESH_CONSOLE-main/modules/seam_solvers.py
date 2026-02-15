@@ -63,7 +63,7 @@ def apply_base_drivers(
     bias="BALANCED",
     # [ARCHITECT NEW]
     use_edges=False,
-    edge_mask=(True, True, False, False, False),  # (Peri, Cont, Guide, Detail, Fold)
+    edge_mask=(True, True, True, False, False),  # (Peri, Cont, Guide, Detail, Fold)
 ):
     """
     LAYER 1: The 'Obvious' Seams.

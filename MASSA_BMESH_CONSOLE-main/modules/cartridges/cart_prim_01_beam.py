@@ -194,11 +194,14 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
         for f in final_walls:
             f.material_index = 0
 
-        # 6. MARK SEAMS
+        # 6. MARK SEAMS & EDGE SLOTS
+        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
         # Mark Caps Seams
         for f in final_start_caps + final_end_caps:
             for e in f.edges:
                 e.seam = True
+                # REMOVED: e[edge_slots] = 1 (Let auto-detect handle Perimeters)
 
         # Mark Longitudinal Seam (Use pts[0] as guide)
         # using pts[0] ensures we follow a valid geometry edge (usually a corner)
@@ -218,6 +221,20 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
                 
                 if on_seam_1 and on_seam_2:
                     e.seam = True
+                    e[edge_slots] = 3 # Slot 3: Guide
+
+        # Mark Segment Seams (if any)
+        # Identify edges that are strictly horizontal (perpendicular to Y) and inside the beam volume
+        # This is a heuristic: bisect doesn't return edges cleanly in the list, so we detect by geometry.
+        if self.segments_y > 0:
+            for e in bm.edges:
+                # Vertical/Horizontal check:
+                # Segment cuts are in XZ plane, so Y coordinate is constant.
+                if abs(e.verts[0].co.y - e.verts[1].co.y) < 0.001:
+                    # Filter out caps (Y~0 and Y~Length)
+                    if 0.01 < e.verts[0].co.y < (self.length - 0.01):
+                         # If it's a valid edge, mark as guide
+                         e[edge_slots] = 3 # Slot 3: Guide
 
         # 7. UV MAPPING
         uv_layer = bm.loops.layers.uv.verify()

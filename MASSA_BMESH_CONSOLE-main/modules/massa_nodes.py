@@ -157,7 +157,23 @@ def get_or_create_viz_overlay_tree():
             
             y -= 300
         
-        nt.links.new(n_join.outputs["Geometry"], n_out.inputs["Geometry"])
+        # [ARCHITECT FIX] Viewport Only Logic
+        # Switch: True=Viewport(All), False=Render(Original Only)
+        n_is_viewport = nt.nodes.new("GeometryNodeIsViewport")
+        n_is_viewport.location = (1000, 200)
+
+        n_switch = nt.nodes.new("GeometryNodeSwitch")
+        n_switch.input_type = "GEOMETRY"
+        n_switch.location = (1200, 0)
+
+        # True -> Join (Original + Tubes)
+        nt.links.new(n_is_viewport.outputs["Boolean"], n_switch.inputs["Switch"])
+        nt.links.new(n_join.outputs["Geometry"], n_switch.inputs["True"])
+        
+        # False -> Original Input Only
+        nt.links.new(n_in.outputs["Geometry"], n_switch.inputs["False"])
+
+        nt.links.new(n_switch.outputs["Output"], n_out.inputs["Geometry"])
 
     except Exception as e:
         print(f"MASSA VIZ ERROR: {e}")
