@@ -117,3 +117,13 @@ Strict rules ensure stability:
 ├── README.md               # General documentation
 └── Analysis.md             # This file
 ```
+
+## 7. Verification Logs
+
+### Edge Slot Logic Verification
+- **Objective:** Verify that the `auto_detect_edge_slots` system (Edge Slots 1-5) strictly reads from Face Slots (0-9) without modifying them.
+- **Method:** Created a standalone unit test mocking `bmesh` and `massa_surface`. Tested scenarios including:
+    - Perimeter Edges (1 face) -> Edge Slot 1.
+    - Material Boundaries (Slot A vs Slot B) -> Max Slot ID (clamped to 4).
+    - Data Integrity -> Asserted that Face Material Indices were untouched.
+- **Result:** Tests passed. Confirmed that the systems are distinct and the "Auto Detect" bridge is one-way (Read Face -> Write Edge).
