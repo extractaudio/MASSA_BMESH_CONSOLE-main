@@ -50,6 +50,8 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                 "phys": "SYNTH_RUBBER",
             },  # UVs calc'd in script
             1: {"name": "Caps", "uv": "BOX", "phys": "METAL_GOLD"},
+            2: {"name": "Rings", "uv": "SKIP", "phys": "GENERIC"},
+            3: {"name": "Edges", "uv": "SKIP", "phys": "GENERIC"},
         }
 
     def invoke(self, context, event):
@@ -93,11 +95,7 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
         row.prop(self, "segments_rad", text="Radial")
         row.prop(self, "segments_len", text="Length")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         # 1. Calculate Local Vector Logic
@@ -157,11 +155,66 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
 
         # 4. MARK SEAMS
         for e in bm.edges:
+            # 1. Material Boundary (Caps vs Insulation)
             if len(e.link_faces) >= 2:
-                # Material Boundary (Caps vs Insulation)
                 mats = {f.material_index for f in e.link_faces}
                 if len(mats) > 1:
                     e.seam = True
+
+        # 3. SLOT 3: GUIDE EDGE (Zipper at -X)
+        # Mark edges that are longitudinal and at angle roughly Pi (x < 0, y ~ 0)
+        # matches the UV wap point: u = (phi + math.pi) / ...
+
+        vertical_edges = []
+        for e in bm.edges:
+            # Filter for Insulation Body
+            if not all(f.material_index == 0 for f in e.link_faces):
+                continue
+            
+            # Filter for Vertical Alignment (before bending)
+            v1, v2 = e.verts
+            is_vertical = abs(v1.co.x - v2.co.x) < 0.001 and abs(v1.co.y - v2.co.y) < 0.001
+            if is_vertical:
+                vertical_edges.append(e)
+
+        if vertical_edges:
+            # Find the column closest to angle PI (-X axis)
+            def get_edge_dist_to_pi(edge):
+                mid = (edge.verts[0].co + edge.verts[1].co) * 0.5
+                ang = math.atan2(mid.y, mid.x)
+                return abs(abs(ang) - math.pi)
+
+            # Analyze all vertical edges
+            scored_edges = [(get_edge_dist_to_pi(e), e) for e in vertical_edges]
+            
+            # Find best score
+            min_dist = min(s[0] for s in scored_edges)
+            
+            # Mark all edges in that column (tolerance for float errors)
+            for dist, e in scored_edges:
+                if dist < (min_dist + 0.001):
+                    e.seam = True
+
+
+        # 2. SLOT 2: RINGS (Every 8 segments)
+        # Fixes UV warping on long wires by breaking strips
+        if self.segments_len >= 16:
+            seg_step = length_linear / self.segments_len
+            for e in bm.edges:
+                if e.seam:
+                    continue
+
+                # Check Transverse (Flat Z)
+                dz = abs(e.verts[0].co.z - e.verts[1].co.z)
+                if dz < 0.001:
+                    z_check = (e.verts[0].co.z + e.verts[1].co.z) * 0.5
+                    idx = int(round(z_check / seg_step))
+
+                    # Mark every 8th, avoiding caps (0 and max)
+                    # We check idx > 0 to avoid the cap itself
+                    if idx > 0 and idx < self.segments_len:
+                        if idx % 8 == 0:
+                            e.seam = True
 
         # 5. UV MAPPING (Seam-Aware & Arc-Compensated)
         uv_layer = bm.loops.layers.uv.verify()

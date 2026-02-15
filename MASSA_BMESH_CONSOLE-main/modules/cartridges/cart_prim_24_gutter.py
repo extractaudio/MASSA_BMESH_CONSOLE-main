@@ -38,7 +38,7 @@ class MASSA_OT_PrimGutter(Massa_OT_Base):
         col.prop(self, "height")
         col.prop(self, "length")
         col.prop(self, "thickness")
-        layout.prop(self, "uv_scale")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         w, h, l = self.width, self.height, self.length

@@ -63,11 +63,7 @@ class MASSA_OT_PrimShard(Massa_OT_Base):
         layout.prop(self, "roughness")
         layout.prop(self, "seed")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         rng = random.Random(self.seed)

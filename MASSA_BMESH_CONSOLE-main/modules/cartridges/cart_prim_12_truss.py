@@ -65,11 +65,7 @@ class MASSA_OT_PrimTruss(Massa_OT_Base):
         col.prop(self, "strut_radius")
         col.prop(self, "joint_radius")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         # 1. CREATE GHOST MESH

@@ -70,11 +70,6 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
         layout.label(text="TOPOLOGY", icon="MOD_WIREFRAME")
         layout.prop(self, "segments_y")
 
-        layout.separator()
-        layout.label(text="UV PROTOCOLS", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
 
     def build_shape(self, bm: bmesh.types.BMesh):
         w, h, t = self.width, self.height, self.thickness

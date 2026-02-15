@@ -58,11 +58,7 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         if self.has_holes:
             layout.prop(self, "hole_radius")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         s = self.size

@@ -65,11 +65,7 @@ class MASSA_OT_PrimTray(Massa_OT_Base):
         layout.label(text="Topology", icon="MOD_WIREFRAME")
         layout.prop(self, "resolution")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         w, l, h = self.size

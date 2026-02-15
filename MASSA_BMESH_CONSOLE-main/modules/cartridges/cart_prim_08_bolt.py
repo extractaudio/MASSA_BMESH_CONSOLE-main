@@ -71,11 +71,7 @@ class MASSA_OT_PrimBolt(Massa_OT_Base):
         layout.label(text="Topology", icon="MOD_WIREFRAME")
         layout.prop(self, "segments_radial")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         # ----------------------------------------------------------------------
