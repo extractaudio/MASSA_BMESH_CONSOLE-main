@@ -261,6 +261,8 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                 # Check for Seam Wrapping
                 # If a face has U values near 0.0 AND 1.0 (e.g., 0.01 and 0.99)
                 us = [item[1] for item in loop_uvs]
+                if not us:
+                    continue
                 min_u, max_u = min(us), max(us)
 
                 if (max_u - min_u) > 0.5:

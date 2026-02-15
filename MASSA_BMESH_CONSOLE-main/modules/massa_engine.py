@@ -63,6 +63,7 @@ def process_edge_slots(bm, op):
 
 
 def run_pipeline(op, context):
+    # print("MASSA DEBUG: run_pipeline STARTED")
     # [ARCHITECT FIX] Ensure DB is ready
     mat_utils.ensure_default_library()
     
@@ -71,6 +72,11 @@ def run_pipeline(op, context):
     bm = bmesh.new()
     try:
         op.build_shape(bm)
+
+        # [ARCHITECT FIX] Ensure layer exists before detection
+        if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
+            bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+            
         massa_surface.auto_detect_edge_slots(bm)
         process_edge_slots(bm, op)
         if abs(op.global_scale - 1.0) > 0.001:

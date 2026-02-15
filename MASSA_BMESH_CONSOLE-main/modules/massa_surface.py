@@ -280,38 +280,50 @@ def auto_detect_edge_slots(bm):
 
     bm.edges.ensure_lookup_table()
 
+    total_edges = 0
+    total_boundaries = 0
+
     for e in bm.edges:
-        # Skip if already assigned (Manual Override Priority)
+        total_edges += 1
+        
+        # [ARCHITECT DEBUG]
+        # Skip assignment if manually set (non-zero)
         if e[edge_slots] != 0:
             continue
 
-        if not e.is_manifold:
+        # [ARCHITECT FIX] REMOVED is_manifold to catch ALL boundaries
+        # We handle boundary logic via face count below
+        
+        # Need at least 2 faces to be a boundary between regions
+        if len(e.link_faces) < 2:
             continue
+            
+        boundary_found = False
+        max_slot = 0
+        
+        # Check all unique material pairs
+        checked_mats = set()
+        for f in e.link_faces:
+            checked_mats.add(f.material_index)
+            
+        if len(checked_mats) > 1:
+            # Different materials found!
+            # Slot ID = Max Material Index
+            max_slot = max(checked_mats)
+            boundary_found = True
 
-        # We only care about edges with exactly 2 faces for boundary checks
-        # (Non-manifold or multi-face edges are ambiguous)
-        if len(e.link_faces) != 2:
-            continue
-
-        f1 = e.link_faces[0]
-        f2 = e.link_faces[1]
-
-        m1 = f1.material_index
-        m2 = f2.material_index
-
-        if m1 != m2:
-            # Boundary detected
-            # Assign to the higher slot index (Assuming 0 is base)
-            target = max(m1, m2)
-
+        if boundary_found:
+            total_boundaries += 1
             # Clamp to 4 (UI only supports 4 slots)
-            if target > 4:
-                target = 4
+            if max_slot > 4:
+                max_slot = 4
+            elif max_slot < 0:
+                max_slot = 0
 
-            e[edge_slots] = target
-            print(f"MASSA DEBUG: Boundary Edge {e.index}: Mat {m1} vs {m2} -> Slot {target}")
+            e[edge_slots] = max_slot
+            # print(f"MASSA DEBUG: Edge {e.index} -> Slot {max_slot} (Mats: {checked_mats})")
 
-    print("MASSA DEBUG: auto_detect_edge_slots END")
+    print(f"MASSA DEBUG: auto_detect_edge_slots -> Edges: {total_edges}, Boundaries Found: {total_boundaries}")
 
 
 def tag_structure_edges(bm, op):
@@ -337,6 +349,9 @@ def tag_structure_edges(bm, op):
 
     for e in bm.edges:
         e[viz_layer] = 0
+
+    total_viz_assignments = 0
+    viz_counts = {}
 
     for e in bm.edges:
         is_concave_geo = False
@@ -370,6 +385,15 @@ def tag_structure_edges(bm, op):
             if e.seam and e[viz_layer] == 0:
                 if debug_view == "SEAM":
                     e[viz_layer] = 5
+
+    
+    # [ARCHITECT DEBUG]
+    viz_counts = {}
+    for e in bm.edges:
+        val = e[viz_layer]
+        if val > 0:
+            viz_counts[val] = viz_counts.get(val, 0) + 1
+    print(f"MASSA DEBUG: tag_structure_edges -> Counts: {viz_counts}")
 
     return cvx, cnv
 
