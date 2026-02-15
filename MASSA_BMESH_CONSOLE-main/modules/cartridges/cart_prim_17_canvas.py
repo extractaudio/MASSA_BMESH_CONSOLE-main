@@ -213,6 +213,15 @@ class MASSA_OT_PrimCanvas(Massa_OT_Base):
                     f.material_index = 1  # Hardware
                     f.smooth = True
 
-        # 6. CLEANUP
+        # 6. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # Material Boundaries (Grommets vs Fabric)
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+
+        # 7. CLEANUP
         # ----------------------------------------------------------------------
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)

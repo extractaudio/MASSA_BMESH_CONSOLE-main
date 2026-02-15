@@ -16,7 +16,7 @@ class MASSA_PT_Main(bpy.types.Panel):
         obj = context.active_object
         
         # Import Bridge for Status Check
-        from ..MCP import mcp_bridge
+
 
         # Helper to draw buttons safely
         def draw_safe_button(col_layout, mod_data):
@@ -41,44 +41,9 @@ class MASSA_PT_Main(bpy.types.Panel):
                 )
 
         # --- 0. MCP SERVER HEADER ---
-        box = layout.box()
-        row = box.row()
-        row.label(text="MCP SERVER STATUS:", icon="PREFERENCES")
+        # REMOVED: MCP Server integration has been deprecated.
         
-        is_running = mcp_bridge.is_running()
-        addr = mcp_bridge.get_address()
-        
-        row = box.row()
-        if is_running:
-            row.label(text=f"Active ({addr})", icon="CHECKMARK")
-            # [ARCHITECT UDPATE] Stop Button (Red Alert)
-            sub = row.row()
-            sub.alert = True
-            sub.operator("massa.stop_mcp_server", text="Stop Server", icon="X")
-
-        else:
-            row.label(text="Offline", icon="ERROR")
-            row.operator("massa.start_mcp_server", text="Start MCP Bridge", icon="URL")
-            
-            # [ARCHITECT UDPATE] Show Port Config when Offline
-            row = box.row()
-            row.prop(console, "mcp_port", text="Bridge Port")
-            
-            # [ARCHITECT UDPATE] Force Stop (for Desyncs - Only show if Offline to allow reset)
-            # If online, the main Stop button handles it.
-            sub = row.row()
-            sub.operator("massa.stop_mcp_server", text="Force Reset", icon="X")
-
-        # [ARCHITECT UDPATE] Force Stop (Always Visible Option)
-        # We place this here just in case, but make it subtle if Active
-        if is_running:
-             layout.separator()
-             row = box.row()
-             row.alignment = "RIGHT" 
-             # Main stop button is above, this is backup
-             row.operator("massa.stop_mcp_server", text="Kill Process", icon="CANCEL")
-
-        layout.separator()
+        # --- 1. PRIMITIVES GROUP ---
 
         # --- 1. PRIMITIVES GROUP ---
         box = layout.box()

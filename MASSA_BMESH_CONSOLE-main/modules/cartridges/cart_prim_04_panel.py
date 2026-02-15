@@ -40,6 +40,7 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
 
     # --- 4. UV ---
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
+    fit_uvs: BoolProperty(name="Fit UVs 0-1", default=False)
 
     def get_slot_meta(self) -> dict:
         return {
@@ -80,7 +81,9 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
 
         layout.separator()
         layout.label(text="UV Protocols", icon="GROUP_UVS")
-        layout.prop(self, "uv_scale")
+        row = layout.row(align=True)
+        row.prop(self, "uv_scale")
+        row.prop(self, "fit_uvs")
 
     def build_shape(self, bm: bmesh.types.BMesh) -> None:
         rng = random.Random(self.seed)
@@ -172,7 +175,7 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
         # ----------------------------------------------------------------------
         # 5. FINAL CLEANUP & NORMAL ENFORCEMENT
         # ----------------------------------------------------------------------
-        bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=bm.edges[:])
+        bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=bm.edges[:] )
 
         # 1. Global Recalc (Fixes walls/boxes)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -181,11 +184,6 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
         bm.normal_update()
 
         # 3. THE FINAL OVERRIDE
-        # We look for ANY face that is:
-        #  - Material 1 (Socket Interior)
-        #  - Horizontal (Normal Z dominant)
-        #  - Pointing Down (Normal Z negative)
-
         for f in bm.faces:
             if f.material_index == 1:
                 # Check for horizontal alignment (Is it a floor?)
@@ -196,24 +194,52 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
                         f.normal_flip()
 
         # ----------------------------------------------------------------------
-        # 6. UV MAPPING
+        # 6. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            # 1. Material Boundaries
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+
+                # 2. Sharp Edges (Box Map Seams)
+                # If same material, check angle
+                if all(m >= 0 for m in mats):
+                    n1 = e.link_faces[0].normal
+                    n2 = e.link_faces[1].normal
+                    if n1.dot(n2) < 0.5:  # 60 degrees
+                        e.seam = True
+
+        # ----------------------------------------------------------------------
+        # 7. UV MAPPING
         # ----------------------------------------------------------------------
         uv_layer = bm.loops.layers.uv.verify()
-        s = self.uv_scale
+        s = 1.0 if self.fit_uvs else self.uv_scale
 
         for f in bm.faces:
             n = f.normal
             nx, ny, nz = abs(n.x), abs(n.y), abs(n.z)
 
+            # Standard Box Map Logic
+            loop_uvs = []
             if nz > nx and nz > ny:
+                # Top/Bottom -> XY
                 for l in f.loops:
-                    l[uv_layer].uv = (l.vert.co.x * s, l.vert.co.y * s)
+                    loop_uvs.append([l, l.vert.co.x, l.vert.co.y])
             elif nx > ny and nx > nz:
+                # Side X -> YZ
                 for l in f.loops:
-                    l[uv_layer].uv = (l.vert.co.y * s, l.vert.co.z * s)
+                    loop_uvs.append([l, l.vert.co.y, l.vert.co.z])
             else:
+                # Side Y -> XZ
                 for l in f.loops:
-                    l[uv_layer].uv = (l.vert.co.x * s, l.vert.co.z * s)
+                    loop_uvs.append([l, l.vert.co.x, l.vert.co.z])
+
+            # Apply Scaled UVs
+            for l, u, v in loop_uvs:
+                l[uv_layer].uv = (u * s, v * s)
 
     def create_box_cell(self, bm, center, w, l, h):
         """

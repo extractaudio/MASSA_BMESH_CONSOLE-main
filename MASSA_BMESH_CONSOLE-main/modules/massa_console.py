@@ -23,13 +23,7 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
         default="SHAPE",
     )
 
-    mcp_port: IntProperty(
-        name="Port",
-        default=5555,
-        min=1024,
-        max=65535,
-        description="Port for MCP Bridge Communication"
-    )
+
 
     # --- 2. GLOBAL VISUALIZATION (Redefined with ICONS) ---
     # The "Preview" Menu

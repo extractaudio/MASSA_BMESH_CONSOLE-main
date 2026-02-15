@@ -38,6 +38,7 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
 
     # --- UV ---
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
+    fit_uvs: BoolProperty(name="Fit UVs 0-1", default=False)
 
     def get_slot_meta(self):
         return {
@@ -59,7 +60,9 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
 
         layout.separator()
         layout.label(text="UV Protocols", icon="GROUP_UVS")
-        layout.prop(self, "uv_scale")
+        row = layout.row(align=True)
+        row.prop(self, "uv_scale")
+        row.prop(self, "fit_uvs")
 
     def build_shape(self, bm: bmesh.types.BMesh):
         s = self.size
@@ -159,25 +162,46 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
 
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-        # 8. UV MAPPING (Box Projection)
+        # 8. MARK SEAMS
+        for e in bm.edges:
+            # 1. Material Boundaries
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+
+            # 2. Sharp Edges (Gusset is mostly sharp)
+            # We can mark the 90-degree edges as seams for better unwrap
+            if len(e.link_faces) >= 2:
+                 n1 = e.link_faces[0].normal
+                 n2 = e.link_faces[1].normal
+                 if n1.dot(n2) < 0.5:
+                     e.seam = True
+
+        # 9. UV MAPPING (Box Projection)
         uv_layer = bm.loops.layers.uv.verify()
-        s = self.uv_scale
+        s = 1.0 if self.fit_uvs else self.uv_scale
 
         for f in bm.faces:
             n = f.normal
             nx, ny, nz = abs(n.x), abs(n.y), abs(n.z)
 
+            loop_uvs = []
             # Z-Dominant (Top/Bottom Plate) -> Project XY
             if nz > nx and nz > ny:
                 for l in f.loops:
-                    l[uv_layer].uv = (l.vert.co.x * s, l.vert.co.y * s)
+                    loop_uvs.append([l, l.vert.co.x, l.vert.co.y])
 
             # X-Dominant (Side Walls) -> Project YZ
             elif nx > ny and nx > nz:
                 for l in f.loops:
-                    l[uv_layer].uv = (l.vert.co.y * s, l.vert.co.z * s)
+                    loop_uvs.append([l, l.vert.co.y, l.vert.co.z])
 
             # Y-Dominant (Side Walls) -> Project XZ
             else:
                 for l in f.loops:
-                    l[uv_layer].uv = (l.vert.co.x * s, l.vert.co.z * s)
+                    loop_uvs.append([l, l.vert.co.x, l.vert.co.z])
+
+            for l, u, v in loop_uvs:
+                l[uv_layer].uv = (u * s, v * s)

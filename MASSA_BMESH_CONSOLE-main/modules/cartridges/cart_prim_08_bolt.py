@@ -171,6 +171,24 @@ class MASSA_OT_PrimBolt(Massa_OT_Base):
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
+        # ----------------------------------------------------------------------
+        # 5. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            # 1. Material Boundaries
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+                
+                # 2. Sharp Edges (Hex Head corners)
+                if all(m >= 0 for m in mats):
+                    n1 = e.link_faces[0].normal
+                    n2 = e.link_faces[1].normal
+                    if n1.dot(n2) < 0.5:  # 60 degrees
+                        e.seam = True
+
         uv_layer = bm.loops.layers.uv.verify()
         s = self.uv_scale
 

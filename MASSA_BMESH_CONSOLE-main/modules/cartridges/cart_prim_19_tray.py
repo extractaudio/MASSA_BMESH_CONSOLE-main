@@ -247,6 +247,22 @@ class MASSA_OT_PrimTray(Massa_OT_Base):
                 else:
                     f.material_index = 1
 
+        # 6. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # Material Boundary (Recess vs Surface)
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+                
+                # Sharp Edges (Box corners)
+                n1 = e.link_faces[0].normal
+                n2 = e.link_faces[1].normal
+                if n1.dot(n2) < 0.5:
+                    e.seam = True
+
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         # ----------------------------------------------------------------------

@@ -155,7 +155,15 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                 bm, edges=edges_long, cuts=(self.segments_len - 1), use_grid_fill=True
             )
 
-        # 4. UV MAPPING (Seam-Aware & Arc-Compensated)
+        # 4. MARK SEAMS
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # Material Boundary (Caps vs Insulation)
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+
+        # 5. UV MAPPING (Seam-Aware & Arc-Compensated)
         uv_layer = bm.loops.layers.uv.verify()
         perim = 2 * math.pi * self.radius
 

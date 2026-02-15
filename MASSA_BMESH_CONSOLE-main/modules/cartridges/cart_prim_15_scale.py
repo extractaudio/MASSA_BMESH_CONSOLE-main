@@ -212,5 +212,20 @@ class MASSA_OT_PrimScale(Massa_OT_Base):
                 for v in verts:
                     v[noise_layer] = tile_noise_seed
 
-        # 3. FINAL CLEANUP
+        # 3. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+                
+                # Sharp Edges (Tiles are cubes, so 90 deg is sharp)
+                n1 = e.link_faces[0].normal
+                n2 = e.link_faces[1].normal
+                if n1.dot(n2) < 0.5:
+                    e.seam = True
+
+        # 4. FINAL CLEANUP
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)

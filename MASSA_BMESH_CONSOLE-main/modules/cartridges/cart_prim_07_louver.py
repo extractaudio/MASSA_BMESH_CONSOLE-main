@@ -200,12 +200,31 @@ class MASSA_OT_PrimLouver(Massa_OT_Base):
         # ----------------------------------------------------------------------
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-        # Pivot Alignment: Z-Min to World Origin
+        # Pivotal Alignment: Z-Min to World Origin
         min_z = min([v.co.z for v in bm.verts])
         bmesh.ops.translate(bm, vec=(0, 0, -min_z), verts=bm.verts)
 
         # ----------------------------------------------------------------------
-        # 5. UV MAPPING (Box Projection)
+        # 5. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            # 1. Material Boundaries
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+                
+                # 2. Sharp Edges (Frame corners)
+                # If same material, check angle
+                if all(m >= 0 for m in mats):
+                    n1 = e.link_faces[0].normal
+                    n2 = e.link_faces[1].normal
+                    if n1.dot(n2) < 0.5:  # 60 degrees
+                        e.seam = True
+
+        # ----------------------------------------------------------------------
+        # 6. UV MAPPING (Box Projection)
         # ----------------------------------------------------------------------
         uv_layer = bm.loops.layers.uv.verify()
         s = self.uv_scale

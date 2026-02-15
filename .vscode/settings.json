@@ -1,0 +1,15 @@
+{
+    "python.analysis.extraPaths": [
+        "D:\\AntiGravity_google\\MASSA_BMESH_CONSOLE-main\\MASSA_BMESH_CONSOLE-main",
+        "D:\\AntiGravity_google\\MASSA_BMESH_CONSOLE-main\\MASSA_BMESH_CONSOLE-main\\modules",
+        "D:\\AntiGravity_google\\MASSA_BMESH_CONSOLE-main\\MASSA_BMESH_CONSOLE-main\\operators"
+    ],
+    "python.autoComplete.extraPaths": [
+        "D:\\AntiGravity_google\\MASSA_BMESH_CONSOLE-main\\MASSA_BMESH_CONSOLE-main"
+    ],
+    "files.exclude": {
+        "**/*.pyc": true,
+        "**/__pycache__": true
+    },
+    "python.analysis.typeCheckingMode": "basic"
+}

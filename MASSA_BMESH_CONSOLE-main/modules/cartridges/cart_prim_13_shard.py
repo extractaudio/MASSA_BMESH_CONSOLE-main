@@ -145,7 +145,26 @@ class MASSA_OT_PrimShard(Massa_OT_Base):
             except:
                 pass  # Bisect failed (plane missed mesh), continue
 
-        # 3. CLEANUP
+        # 3. MARK SEAMS
+        # ----------------------------------------------------------------------
+        # Mark sharp edges and material boundaries (Inner Core vs Shell)
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                
+                # Material Boundary
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+                
+                # Sharp Edges (Fractured bits are sharp)
+                # We mark ALL sharp edges as seams for better UV islands on shards
+                n1 = e.link_faces[0].normal
+                n2 = e.link_faces[1].normal
+                if n1.dot(n2) < 0.5: # 60 deg
+                    e.seam = True
+
+        # 4. CLEANUP
         # ----------------------------------------------------------------------
         # Remove any microscopic leftovers
         bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=bm.edges[:])

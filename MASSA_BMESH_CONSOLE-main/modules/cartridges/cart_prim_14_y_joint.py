@@ -210,7 +210,22 @@ class MASSA_OT_PrimYJoint(Massa_OT_Base):
                 f.material_index = 0
                 f.smooth = True
 
-        # 6. UV MAPPING
+        # 6. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+                
+                # Sharp edges check (optional for pipes, but good for caps)
+                if n1 := e.link_faces[0].normal:
+                    if n2 := e.link_faces[1].normal:
+                         if n1.dot(n2) < 0.5:
+                             e.seam = True
+
+        # 7. UV MAPPING
         # ----------------------------------------------------------------------
         uv_layer = bm.loops.layers.uv.verify()
         s = self.uv_scale

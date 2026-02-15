@@ -335,6 +335,14 @@ def _generate_output(op, context, bm, socket_data, manifest):
 
     allow_unwrap = (viz_mode != "SLOTS") or (debug_mode == "UV")
 
+    allow_unwrap = (viz_mode != "SLOTS") or (debug_mode == "UV")
+    
+    # [ARCHITECT FIX] Force Unwrap if user explicitly requests Auto-Unwrap
+    if getattr(op, "auto_unwrap", False):
+        allow_unwrap = True
+
+    # 1. Standard Per-Slot Unwrap (LSCM / Conformal)
+    # We allow this to run naturally so we respect 'UNWRAP' vs 'BOX' vs 'SKIP'
     if needs_unwrap and allow_unwrap:
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="DESELECT")
@@ -347,13 +355,41 @@ def _generate_output(op, context, bm, socket_data, manifest):
                     bpy.ops.object.material_slot_select()
                 try:
                     bpy.ops.uv.unwrap(
-                        method="CONFORMAL", margin=0.001, correct_aspect=True
+                        method="ANGLE_BASED", margin=0.001, correct_aspect=True
                     )
-                except:
-                    pass
+                except Exception as e:
+                    # [ARCHITECT HYBRID] Fallback to Smart Project if LSCM fails
+                    # This prevents "Unwrap failed to solve" errors on closed meshes
+                    print(f"Massa UV Fallback (Slot {i}): {e}")
+                    try:
+                        bpy.ops.uv.smart_project(
+                            angle_limit=66.0,
+                            island_margin=0.0,
+                            area_weight=0.0,
+                            correct_aspect=True,
+                            scale_to_bounds=False,
+                        )
+                    except:
+                        pass
                 bpy.ops.mesh.select_all(action="DESELECT")
                 if is_debug_override:
                     break
+        bpy.ops.object.mode_set(mode="OBJECT")
+
+    # 2. [ARCHITECT NEW] Global Packing Enforcement
+    # If Auto-Unwrap is on, we take WHATEVER UVs exist (Analytic or Unwrapped)
+    # and pack them strictly into 0-1 bounds.
+    if getattr(op, "auto_unwrap", False) and allow_unwrap:
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        try:
+            bpy.ops.uv.pack_islands(
+                margin=getattr(op, "auto_unwrap_margin", 0.02),
+                rotate=True,
+                scale=True, # Force fit to 0-1
+            )
+        except Exception as e:
+            print(f"Auto Pack Error: {e}")
         bpy.ops.object.mode_set(mode="OBJECT")
 
     massa_sockets.spawn_socket_objects(

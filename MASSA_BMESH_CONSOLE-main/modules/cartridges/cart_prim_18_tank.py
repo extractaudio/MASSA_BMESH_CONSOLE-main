@@ -273,7 +273,17 @@ class MASSA_OT_PrimTank(Massa_OT_Base):
 
                     l[uv_layer].uv = (u, v)
 
-        # 5. PIVOT CORRECTION & CLEANUP
+        # 5. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # Material Boundaries (Caps vs Body)
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+
+        # 6. PIVOT CORRECTION & CLEANUP
         # ----------------------------------------------------------------------
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         # Move pivot to Bottom (Sit on Grid)

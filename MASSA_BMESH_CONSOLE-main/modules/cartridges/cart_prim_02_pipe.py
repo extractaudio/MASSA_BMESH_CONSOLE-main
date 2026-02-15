@@ -174,9 +174,14 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
         for f in final_inner:
             f.material_index = 1
             f.smooth = True
+        cap_set = set(final_caps)
+        cap_set = set(final_caps)
         for f in final_caps:
             f.material_index = 2
-            f.smooth = False
+            f.smooth = True
+            for e in f.edges:
+                if len(e.link_faces) == 1 or any(lf not in cap_set for lf in e.link_faces):
+                    e.seam = True
 
         # 5. UV MAPPING
         uv_layer = bm.loops.layers.uv.verify()

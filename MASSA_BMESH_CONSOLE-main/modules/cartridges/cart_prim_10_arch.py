@@ -203,5 +203,15 @@ class MASSA_OT_PrimArch(Massa_OT_Base):
 
             bmesh.ops.transform(bm, matrix=mat_trans @ mat_rot, verts=new_verts)
 
-        # 3. GLOBAL CLEANUP
+        # 3. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # 1. Material Boundaries
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+
+        # 4. GLOBAL CLEANUP
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
