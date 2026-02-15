@@ -91,6 +91,10 @@ def draw_nav_bar(layout, owner):
 def draw_edge_slots_tab(layout, owner):
     layout.label(text="Edge Role Interpreter", icon="EDGESEL")
 
+    # [ARCHITECT NEW] Source Control
+    row = layout.row()
+    row.prop(owner, "edge_auto_detect", toggle=True, icon="AUTO")
+
     box = layout.box()
     box.label(text="Role Mappings", icon="PREFERENCES")
 
