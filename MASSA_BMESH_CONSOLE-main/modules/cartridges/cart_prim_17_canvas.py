@@ -79,11 +79,7 @@ class MASSA_OT_PrimCanvas(Massa_OT_Base):
         layout.label(text="Hardware", icon="MESH_TORUS")
         layout.prop(self, "grommet_radius")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         # FIXED: Unpack directly to avoid bpy_prop_array attribute error

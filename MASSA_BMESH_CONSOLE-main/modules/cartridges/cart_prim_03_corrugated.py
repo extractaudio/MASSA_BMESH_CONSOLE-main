@@ -84,11 +84,7 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
         row.prop(self, "res_x")
         row.prop(self, "res_y")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def calculate_wave(self, x_norm):
         t = (x_norm * self.frequency * 2 * math.pi) + self.phase

@@ -76,11 +76,7 @@ class MASSA_OT_PrimBundle(Massa_OT_Base):
         layout.prop(self, "seg_radial")
         layout.prop(self, "seg_length")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         rng = random.Random(self.seed)

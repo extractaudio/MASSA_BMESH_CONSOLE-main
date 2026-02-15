@@ -62,6 +62,20 @@ class MassaPropertiesMixin:
         description="Angle to force a UV cut (Independent of shading)",
     )
     seam_from_slots: BoolProperty(name="Seam from Slots", default=True)
+    
+    # [ARCHITECT NEW] Auto-Unwrap Global Overrides
+    auto_unwrap: BoolProperty(
+        name="Auto Smart UV",
+        default=False,
+        description="Force Smart UV Project on result",
+    )
+    auto_unwrap_margin: FloatProperty(
+        name="Margin",
+        default=0.02,
+        min=0.001,
+        max=0.5,
+        description="Island Margin for Auto Unwrap",
+    )
 
     # [ARCHITECT NEW] Edge Role Drivers
     seam_from_edges: BoolProperty(

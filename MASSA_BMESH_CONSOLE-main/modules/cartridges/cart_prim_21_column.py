@@ -89,8 +89,7 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
             row.prop(self, "cap_height", text="C.Height")
             row.prop(self, "cap_margin", text="C.Margin")
 
-        layout.separator()
-        layout.prop(self, "uv_scale")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         w, d, h = self.width, self.depth, self.height

@@ -63,11 +63,7 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
         layout.prop(self, "segments_radial")
         layout.prop(self, "segments_length")
 
-        layout.separator()
-        layout.label(text="UV PROTOCOLS", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         ro = self.radius

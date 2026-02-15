@@ -3,7 +3,7 @@ import bmesh
 import random
 import math
 from mathutils import Vector
-from bpy.props import FloatProperty, IntProperty, FloatVectorProperty
+from bpy.props import FloatProperty, IntProperty, FloatVectorProperty, BoolProperty
 from ...operators.massa_base import Massa_OT_Base
 
 CARTRIDGE_META = {
@@ -28,15 +28,14 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
     size: FloatVectorProperty(name="Size", default=(2.0, 2.0, 0.1), min=0.01)
 
     # --- 2. PATTERN ---
+    # --- 2. PATTERN ---
     cuts_x: IntProperty(name="Grid X", default=4, min=1)
     cuts_y: IntProperty(name="Grid Y", default=4, min=1)
-    density: FloatProperty(name="Density", default=1.0, min=0.0, max=1.0)
-    seed: IntProperty(name="Seed", default=101)
     gap: FloatProperty(name="Frame Gap", default=0.015, min=0.0, unit="LENGTH")
 
     # --- 3. PROFILE ---
     inset_amt: FloatProperty(name="Inset Margin", default=0.05, min=0.001)
-    depth: FloatProperty(name="Recess Depth", default=0.05)
+    inset_height: FloatProperty(name="Inset Height", default=0.05, description="Height offset for the inner tile")
 
     # --- 4. UV ---
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
@@ -45,7 +44,7 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
     def get_slot_meta(self) -> dict:
         return {
             0: {
-                "name": "Frame Anchor",
+                "name": "Edge Banding",
                 "uv": "BOX",
                 "phys": "METAL_STEEL",
                 "sock": True,
@@ -70,23 +69,16 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
         row.prop(self, "cuts_x", text="X")
         row.prop(self, "cuts_y", text="Y")
         col.prop(self, "gap")
-        col.prop(self, "density")
-        col.prop(self, "seed")
 
         layout.separator()
         layout.label(text="Profile", icon="MOD_BEVEL")
         col = layout.column(align=True)
         col.prop(self, "inset_amt")
-        col.prop(self, "depth", text="Depth (+In/-Out)")
+        col.prop(self, "inset_height", text="Tile Offset (+/-)")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh) -> None:
-        rng = random.Random(self.seed)
         sx, sy, sz = self.size
 
         # ----------------------------------------------------------------------
@@ -120,60 +112,63 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
                 valid_top_faces.append(top_face)
 
         # ----------------------------------------------------------------------
-        # 3. CREATE FRAME ANCHOR
+        # 3. INSET & EXTRUDE LOGIC
         # ----------------------------------------------------------------------
-        anchor_size = min(sx, sy) * 0.05
-        res_anchor = bmesh.ops.create_grid(
-            bm, x_segments=1, y_segments=1, size=anchor_size
-        )
-        anchor_verts = res_anchor["verts"]
-        bmesh.ops.translate(bm, verts=anchor_verts, vec=(0, 0, -0.02))
-
-        for v in anchor_verts:
-            if v.link_faces:
-                v.link_faces[0].material_index = 0
-                break
-
-        # ----------------------------------------------------------------------
-        # 4. SOCKET LOGIC
-        # ----------------------------------------------------------------------
-        targets = []
-        for f in valid_top_faces:
-            if rng.random() < self.density:
-                targets.append(f)
-
-        if targets:
+        if valid_top_faces:
             # A. Inset
-            safe_inset = min(self.inset_amt, cell_w / 2.1, cell_l / 2.1)
+            # Safety: Ensure we don't inset more than the face allows
+            safe_limit = min(cell_w / 2.01, cell_l / 2.01)
+            safe_inset = min(self.inset_amt, safe_limit)
+            
+            # Clamp to minimum to avoid zero-area faces/crashes
+            if safe_inset < 0.0001:
+                safe_inset = 0.0001
+
+            # Perform Inset (Individual is safer for disjoint grid faces)
             res_inset = bmesh.ops.inset_individual(
-                bm, faces=targets, thickness=safe_inset, use_even_offset=True
+                bm, faces=valid_top_faces, thickness=safe_inset, use_even_offset=True
             )
+            
+            # In inset_individual, the original faces become the "inner" faces.
+            # We don't need to hunt for them in a dict if we track the original objects,
+            # BUT bmesh operators often replace/invalidating Python objects.
+            # Use the return dict.
             faces_inner = res_inset["faces"]
 
-            # B. Extrude Recess
-            if abs(self.depth) > 0.0001:
-                res_recess = bmesh.ops.extrude_face_region(bm, geom=faces_inner)
+            # B. Extrude / Move Inner Tile
+            if abs(self.inset_height) > 0.0001:
+                res_ext = bmesh.ops.extrude_face_region(bm, geom=faces_inner)
+                
+                verts_ext = [v for v in res_ext["geom"] if isinstance(v, bmesh.types.BMVert)]
+                faces_ext_top = [f for f in res_ext["geom"] if isinstance(f, bmesh.types.BMFace)]
+                
+                # Move Extruded Face
+                bmesh.ops.translate(bm, verts=verts_ext, vec=(0, 0, self.inset_height))
 
-                verts_recess = [
-                    v for v in res_recess["geom"] if isinstance(v, bmesh.types.BMVert)
-                ]
-                faces_walls = [
-                    f for f in res_recess["geom"] if isinstance(f, bmesh.types.BMFace)
-                ]
-
-                # Move Down
-                bmesh.ops.translate(bm, verts=verts_recess, vec=(0, 0, -self.depth))
-
-                # Assign Trim Slot (1) to Walls
-                for f in faces_walls:
-                    f.material_index = 1
-
-                # The 'faces_inner' list still references the floor faces (caps)
+                # Assign Materials
+                # 1. Top Face -> Trim (Slot 1)
+                for f in faces_ext_top:
+                    f.material_index = 1 
+                
+                # 2. Side Walls -> Edge Banding (Slot 0) or Frame (Slot 3)?
+                # The user calls this "inset tile", implying the side wall belongs to the tile.
+                # Let's check faces attached to verts_ext that are NOT the top face.
+                for f in faces_ext_top:
+                    for loop in f.loops:
+                        # The edge of the top face connects to a side face
+                        # The loop.edge.link_faces has usually 2 faces: Top and Side.
+                        for linked_face in loop.edge.link_faces:
+                            if linked_face != f:
+                                linked_face.material_index = 0 # Edge Banding style for the "cut"
+                                
+            else:
+                # No Extrusion, just flat inset. 
+                # The "inner" faces are the ones we inset.
                 for f in faces_inner:
                     f.material_index = 1
 
         # ----------------------------------------------------------------------
-        # 5. FINAL CLEANUP & NORMAL ENFORCEMENT
+        # 4. FINAL CLEANUP & NORMAL ENFORCEMENT
         # ----------------------------------------------------------------------
         bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=bm.edges[:] )
 
@@ -194,7 +189,7 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
                         f.normal_flip()
 
         # ----------------------------------------------------------------------
-        # 6. MARK SEAMS
+        # 5. MARK SEAMS
         # ----------------------------------------------------------------------
         for e in bm.edges:
             # 1. Material Boundaries
@@ -207,13 +202,44 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
                 # 2. Sharp Edges (Box Map Seams)
                 # If same material, check angle
                 if all(m >= 0 for m in mats):
-                    n1 = e.link_faces[0].normal
-                    n2 = e.link_faces[1].normal
-                    if n1.dot(n2) < 0.5:  # 60 degrees
-                        e.seam = True
+                    mat_idx = e.link_faces[0].material_index
+                    
+                    # Special Rule for Edge Banding (Slot 0)
+                    if mat_idx == 0:
+                        # Only ONE vertical seam per Box loop
+                        # Box side faces are approx vertical.
+                        # We want to unwrap as a strip.
+                        
+                        # Check verticality
+                        v1, v2 = e.verts
+                        is_vertical = abs(v1.co.x - v2.co.x) < 0.001 and abs(v1.co.y - v2.co.y) < 0.001
+                        
+                        if is_vertical:
+                            # We need a consistent rule to pick ONE edge per box.
+                            
+                            # Fallback: Just look at normal directions.
+                            # If normals are (-1,0,0) and (0,-1,0), that's a corner.
+                            n1 = e.link_faces[0].normal
+                            n2 = e.link_faces[1].normal
+                            
+                            # If it's the corner between Left (-X) and Back (-Y)?
+                            if n1.x < -0.9 or n2.x < -0.9:
+                                if n1.y < -0.9 or n2.y < -0.9:
+                                    e.seam = True
+                        else:
+                            # Horizontal edges (top/bottom rim)
+                            # These are already handled by Material Boundary (Slot 0 vs Slot 3/2)
+                            pass
+                            
+                    else:
+                        # Standard Box Logic
+                        n1 = e.link_faces[0].normal
+                        n2 = e.link_faces[1].normal
+                        if n1.dot(n2) < 0.5:  # 60 degrees
+                            e.seam = True
 
         # ----------------------------------------------------------------------
-        # 7. UV MAPPING
+        # 6. UV MAPPING
         # ----------------------------------------------------------------------
         uv_layer = bm.loops.layers.uv.verify()
         s = 1.0 if self.fit_uvs else self.uv_scale
@@ -222,24 +248,47 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
             n = f.normal
             nx, ny, nz = abs(n.x), abs(n.y), abs(n.z)
 
-            # Standard Box Map Logic
-            loop_uvs = []
-            if nz > nx and nz > ny:
-                # Top/Bottom -> XY
-                for l in f.loops:
-                    loop_uvs.append([l, l.vert.co.x, l.vert.co.y])
-            elif nx > ny and nx > nz:
-                # Side X -> YZ
-                for l in f.loops:
-                    loop_uvs.append([l, l.vert.co.y, l.vert.co.z])
-            else:
-                # Side Y -> XZ
-                for l in f.loops:
-                    loop_uvs.append([l, l.vert.co.x, l.vert.co.z])
+            # Special Strip Map for Edge Banding (Slot 0)
+            if f.material_index == 0:
+                # Standard Box Map Logic for now to ensure clean islands
+                loop_uvs = []
+                if nz > nx and nz > ny:
+                    # Top/Bottom -> XY
+                    for l in f.loops:
+                        loop_uvs.append([l, l.vert.co.x, l.vert.co.y])
+                elif nx > ny and nx > nz:
+                    # Side X -> YZ
+                    for l in f.loops:
+                        loop_uvs.append([l, l.vert.co.y, l.vert.co.z])
+                else:
+                    # Side Y -> XZ
+                    for l in f.loops:
+                        loop_uvs.append([l, l.vert.co.x, l.vert.co.z])
 
-            # Apply Scaled UVs
-            for l, u, v in loop_uvs:
-                l[uv_layer].uv = (u * s, v * s)
+                # Apply Scaled UVs
+                for l, u, v in loop_uvs:
+                    l[uv_layer].uv = (u * s, v * s)
+
+            else:
+                # Standard Box Map Logic
+                loop_uvs = []
+                if nz > nx and nz > ny:
+                    # Top/Bottom -> XY
+                    for l in f.loops:
+                        loop_uvs.append([l, l.vert.co.x, l.vert.co.y])
+                elif nx > ny and nx > nz:
+                    # Side X -> YZ
+                    for l in f.loops:
+                        loop_uvs.append([l, l.vert.co.y, l.vert.co.z])
+                else:
+                    # Side Y -> XZ
+                    for l in f.loops:
+                        loop_uvs.append([l, l.vert.co.x, l.vert.co.z])
+
+                # Apply Scaled UVs
+                for l, u, v in loop_uvs:
+                    l[uv_layer].uv = (u * s, v * s)
+
 
     def create_box_cell(self, bm, center, w, l, h):
         """
@@ -247,28 +296,29 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
         """
         hw, hl = w / 2, l / 2
         coords = [
+            (-hw, -hl, h),
+            (hw, -hl, h),
+            (hw, hl, h),
+            (-hw, hl, h),  # Top Ring (Z=h)
             (-hw, -hl, 0),
             (hw, -hl, 0),
             (hw, hl, 0),
-            (-hw, hl, 0),  # Top Ring
-            (-hw, -hl, -h),
-            (hw, -hl, -h),
-            (hw, hl, -h),
-            (-hw, hl, -h),  # Bottom Ring
+            (-hw, hl, 0),  # Bottom Ring (Z=0)
         ]
         verts = [bm.verts.new(Vector(c) + center) for c in coords]
 
         # Faces
-        f_top = bm.faces.new([verts[3], verts[2], verts[1], verts[0]])
+        f_top = bm.faces.new([verts[0], verts[1], verts[2], verts[3]])
         f_top.material_index = 3  # Frame Surface
 
-        f_bot = bm.faces.new([verts[4], verts[5], verts[6], verts[7]])
+        f_bot = bm.faces.new([verts[4], verts[7], verts[6], verts[5]])
         f_bot.material_index = 2  # Backing
 
         # Sides
-        side_indices = [(0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+        side_indices = [(0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
         for idxs in side_indices:
             f = bm.faces.new([verts[i] for i in idxs])
-            f.material_index = 2  # Backing
+            f.material_index = 0  # Edge Banding
 
         return f_top
+

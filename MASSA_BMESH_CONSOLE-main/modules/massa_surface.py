@@ -359,9 +359,12 @@ def tag_structure_edges(bm, op):
             # 2. Check Seam (Override)
             # This ensures we see seams even if they aren't standard slots
             # 2. Check Seam (Backend Override)
-            # Only apply if no slot is defined, to prevent overwriting Perimeter/Guide colors.
+            # [ARCHITECT FIX] Only visualize Seams as geometry if explicitly debugging Seams
+            # This prevents "Ghost Edges" from appearing in standard Slot/Wireframe views
+            debug_view = getattr(op, "debug_view", "NONE")
             if e.seam and e[viz_layer] == 0:
-                e[viz_layer] = 5
+                if debug_view == "SEAM":
+                    e[viz_layer] = 5
 
     return cvx, cnv
 

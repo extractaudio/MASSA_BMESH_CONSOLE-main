@@ -68,11 +68,7 @@ class MASSA_OT_PrimChain(Massa_OT_Base):
         row.prop(self, "segments_radial", text="Radial")
         row.prop(self, "segments_bend", text="Bend (Half)")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         # 1. GEOMETRY & SAFETY MATH

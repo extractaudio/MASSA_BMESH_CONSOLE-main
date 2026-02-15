@@ -73,11 +73,7 @@ class MASSA_OT_PrimLouver(Massa_OT_Base):
         col.prop(self, "blade_thick")
         layout.prop(self, "add_screen")
 
-        layout.separator()
-        layout.label(text="UV Protocols", icon="GROUP_UVS")
-        row = layout.row(align=True)
-        row.prop(self, "uv_scale")
-        row.prop(self, "fit_uvs")
+
 
     def build_shape(self, bm: bmesh.types.BMesh):
         sx, sy, sz = self.size
