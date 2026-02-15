@@ -45,6 +45,13 @@ class MassaPropertiesMixin:
         ],
         default="HYBRID",
     )
+
+    edge_auto_detect: BoolProperty(
+        name="Auto-Detect Boundaries",
+        default=True,
+        description="If True, auto-assigns edge slots based on material boundaries. If False, relies on Cartridge assignments.",
+    )
+
     edge_angle: FloatProperty(
         name="Sharp Angle", default=30.0, description="Visual Shading Threshold"
     )

@@ -77,7 +77,9 @@ def run_pipeline(op, context):
         if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
             bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
             
-        massa_surface.auto_detect_edge_slots(bm)
+        if getattr(op, "edge_auto_detect", True):
+            massa_surface.auto_detect_edge_slots(bm)
+
         process_edge_slots(bm, op)
         if abs(op.global_scale - 1.0) > 0.001:
             bmesh.ops.scale(bm, vec=(op.global_scale,) * 3, verts=bm.verts)
