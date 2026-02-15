@@ -304,6 +304,16 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
 
     layout.separator()
 
+    # --- 1.5 GLOBAL OVERRIDES (Auto) ---
+    box = layout.box()
+    row = box.row(align=True)
+    row.label(text="Global Overrides", icon="PREFERENCES")
+    row.prop(owner, "auto_unwrap", text="Auto Smart UV", toggle=True)
+    if owner.auto_unwrap:
+        box.prop(owner, "auto_unwrap_margin", text="Margin")
+
+    layout.separator()
+
     layout.label(text="Seam Intelligence", icon="GROUP_UVS")
 
     # --- 2. DRIVERS (The Main Control Deck) ---

@@ -200,7 +200,22 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
         if self.has_cap:
             add_plate(h - self.cap_height, self.cap_height, self.cap_margin)
             
-        # 3. Recalc Normals
+        # 3. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+                
+                # Sharp Edges (profiles are sharp)
+                n1 = e.link_faces[0].normal
+                n2 = e.link_faces[1].normal
+                if n1.dot(n2) < 0.5:
+                    e.seam = True
+
+        # 4. Recalc Normals
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         
         # 4. UVs (Simple Box)

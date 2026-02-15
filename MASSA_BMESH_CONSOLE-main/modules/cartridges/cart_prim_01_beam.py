@@ -166,8 +166,6 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
         bm.faces.ensure_lookup_table()
         for f in bm.faces:
             cen = f.calc_center_median()
-            norm = f.normal
-
             # Start Cap: Normal -Y, Pos Y ~ 0
             if abs(cen.y) < 0.01:
                 final_start_caps.append(f)
@@ -202,9 +200,29 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
             f.material_index = 0
 
         # 6. MARK SEAMS
+        # Mark Caps Seams
         for f in final_start_caps + final_end_caps:
             for e in f.edges:
                 e.seam = True
+
+        # Mark Longitudinal Seam (Use pts[0] as guide)
+        # using pts[0] ensures we follow a valid geometry edge (usually a corner)
+        if pts:
+            seam_x = pts[0][0]
+            seam_z = pts[0][1]
+            
+            bm.edges.ensure_lookup_table()
+            for e in bm.edges:
+                v1 = e.verts[0]
+                v2 = e.verts[1]
+                
+                # Check if edge lies on the seam line (v.x ~ seam_x, v.z ~ seam_z)
+                # We use a slightly looser tolerance to ensure detection
+                on_seam_1 = (abs(v1.co.x - seam_x) < 0.005) and (abs(v1.co.z - seam_z) < 0.005)
+                on_seam_2 = (abs(v2.co.x - seam_x) < 0.005) and (abs(v2.co.z - seam_z) < 0.005)
+                
+                if on_seam_1 and on_seam_2:
+                    e.seam = True
 
         # 7. UV MAPPING
         uv_layer = bm.loops.layers.uv.verify()

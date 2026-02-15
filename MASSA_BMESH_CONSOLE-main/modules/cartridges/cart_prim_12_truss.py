@@ -228,7 +228,17 @@ class MASSA_OT_PrimTruss(Massa_OT_Base):
 
             bmesh.ops.transform(bm, matrix=mat_final, verts=new_verts)
 
-        # 4. CLEANUP
+        # 4. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # 1. Material Boundaries (Joints vs Struts)
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+
+        # 5. CLEANUP
         # ----------------------------------------------------------------------
         bm_ghost.free()
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)

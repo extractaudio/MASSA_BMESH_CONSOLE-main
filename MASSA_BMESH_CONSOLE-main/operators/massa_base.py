@@ -49,6 +49,12 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         default="NONE",
     )
 
+    # Global UV Overrides
+    auto_unwrap: BoolProperty(name="Auto Smart UV", default=False, description="Force Smart UV Project on result")
+    auto_unwrap_margin: FloatProperty(
+        name="Margin", default=0.02, min=0.001, max=0.5, description="Island Margin for Auto Unwrap"
+    )
+
     viz_edge_mode: EnumProperty(
         name="Viz",
         items=[

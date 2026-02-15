@@ -257,3 +257,91 @@ class MASSA_OT_PrimChain(Massa_OT_Base):
 
         # 3. GLOBAL CLEANUP
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+        # 4. MARK SEAMS FROM UVs
+        # Since UVs are procedurally perfect, we mark seams where UVs are disjoint.
+        for e in bm.edges:
+            if e.seam: 
+                continue
+            
+            # Check for UV discontinuity
+            if len(e.link_loops) >= 2:
+                # Get UVs for this edge from adjacent faces
+                uvs = []
+                for l in e.link_loops:
+                    uvs.append(l[uv_layer].uv)
+                
+                # If UVs are far apart, it's a seam
+                # Simple check: Take the first loop's UV, compare against others
+                # Note: This is an approximation loop. 
+                # A generic "Is Seam" check usually involves checking adjacent loop UV coords for the same vertex.
+                
+                # Robust approach: Check edge verts.
+                # If a vert has different UV coords in different loops connected to this edge, it's a boundary.
+                
+                # Optimization: We know specific topology.
+                # But generic "Seam from UV" is safer for this complex torus.
+                
+                pass # Placeholder for more complex logic if needed.
+                
+        # SIMPLER: Force Material 0/1 Boundaries (if any)
+        # Chain only has Slot 0 currently in generation (Material 1 is unused in loop)
+        
+        # Explicitly Mark Seams via Geometric Check?
+        # NO, sticking to UV check pattern:
+        for v in bm.verts:
+            # If a vertex has multiple UV coordinates that are far apart, the edges using those splits are seams.
+            pass
+            
+        # ACTUALLY: Let's use the explicit "Seam" flags we could have set in the loop.
+        # But since we didn't, let's use a geometric property.
+        # The chain links are smooth.
+        # Let's mark the "Inner Loop" as a seam?
+        # Or just rely on the UVs being correct, and if the user unwraps again, they lose the perfect mapping?
+        # The USER REQUESTED: "make sure the seams... are aligned... so they unwrap correctly"
+        # If we provide explicit UVs, we don't strictly *need* seams for the initial state.
+        # BUT if the user hits "Unwrap", it fails without seams.
+        # So we MUST reverse-engineer the seams.
+        
+        for e in bm.edges:
+            if len(e.link_loops) < 2:
+                continue
+            
+            l1 = e.link_loops[0]
+            l2 = e.link_loops[1]
+            
+            # Compare UVs of the SAME vertex in the two loops
+            # l.vert is the vertex at the start of the loop edge.
+            # We need to find the specific shared vertex data.
+            
+            is_seam = False
+            for v_target in e.verts:
+                uv1 = None
+                uv2 = None
+                
+                # Find the loop pointing to v_target (or starting at it)
+                # This is tedious in BMesh API without helper.
+                pass
+                
+        # BACKUP PLAN: Mark Edge Loops based on Topology
+        # We know Radial Segs and Bend Segs.
+        # This is hard to select on the fly.
+        
+        # FINAL DECISION for CHAIN:
+        # Mark ALL edges that have sharp angles (there shouldn't be any).
+        # Mark edges where UVs wrap (U ~ 0 and U ~ 1).
+        
+        for f in bm.faces:
+            for l in f.loops:
+                # Check adjacent loop across edge
+                if l.edge.seam: continue
+                if not l.link_loop_radial_next: continue
+                
+                l_other = l.link_loop_radial_next
+                
+                u1, v1 = l[uv_layer].uv
+                u2, v2 = l_other[uv_layer].uv
+                
+                # Check dist
+                if abs(u1 - u2) > 0.5 or abs(v1 - v2) > 0.5:
+                    l.edge.seam = True

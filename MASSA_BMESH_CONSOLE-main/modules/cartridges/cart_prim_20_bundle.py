@@ -259,7 +259,16 @@ class MASSA_OT_PrimBundle(Massa_OT_Base):
                         l.vert.co.y * self.uv_scale,
                     )
 
-        # 4. FINAL CLEANUP
+        # 4. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # Material Boundary (Cut Ends vs Insulation)
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+
+        # 5. FINAL CLEANUP
         # ----------------------------------------------------------------------
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 

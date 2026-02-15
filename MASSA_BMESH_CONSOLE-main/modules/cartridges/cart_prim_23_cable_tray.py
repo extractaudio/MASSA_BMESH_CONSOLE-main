@@ -148,6 +148,16 @@ class MASSA_OT_PrimCableTray(Massa_OT_Base):
         for f in bm.faces:
             f.material_index = 0
             
+        # 3. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # Sharp Edges (C-Channel and Rungs are sharp)
+                n1 = e.link_faces[0].normal
+                n2 = e.link_faces[1].normal
+                if n1.dot(n2) < 0.5:
+                    e.seam = True
+
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         
         # UVs

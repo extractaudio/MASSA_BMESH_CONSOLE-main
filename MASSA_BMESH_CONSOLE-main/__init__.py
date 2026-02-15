@@ -19,7 +19,6 @@ from .operators import massa_base, massa_tools, massa_console_op  # 3. LOGIC
 from .modules import cartridges  # 4. CONTENT
 from .modules import advanced_analytics # 4.5 ANALYTICS
 from .ui import ui_massa_panel, ui_massa_pie, gizmo_massa  # 5. INTERFACE
-from .MCP import mcp_bridge  # 6. MCP BRIDGE
 
 # --- MANUAL OVERRIDE / HOT RELOAD LOGIC ---
 if "massa_console" in locals():
@@ -50,11 +49,6 @@ if "massa_console" in locals():
         # 4. CONTENT & UI
         importlib.reload(cartridges)
 
-        # 5. MCP
-        if hasattr(mcp_bridge, "stop_server"):
-            mcp_bridge.stop_server()
-        importlib.reload(mcp_bridge)
-
         # RELOAD INDIVIDUAL CARTRIDGES
         if hasattr(cartridges, "MODULES"):
             for mod in cartridges.MODULES:
@@ -81,11 +75,6 @@ def register():
     bpy.utils.register_class(massa_base.MASSA_OT_ReRun_Active)
     bpy.utils.register_class(massa_tools.MASSA_OT_Condemn)
     bpy.utils.register_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
-
-    # Register MCP Operators
-    bpy.utils.register_class(massa_console_op.MASSA_OT_ConsoleParse)
-    bpy.utils.register_class(massa_console_op.MASSA_OT_ResurrectSelected)
-    bpy.utils.register_class(mcp_bridge.MASSA_OT_StartMCP)
 
     # 3. Register Cartridges
     cartridges.register()
@@ -128,10 +117,6 @@ def unregister():
     cartridges.unregister()
 
     # 3. Unregister Operators
-    mcp_bridge.unregister()
-    bpy.utils.unregister_class(massa_console_op.MASSA_OT_ResurrectSelected)
-    bpy.utils.unregister_class(massa_console_op.MASSA_OT_ConsoleParse)
-
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Condemn)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
     bpy.utils.unregister_class(massa_base.Massa_OT_Base)

@@ -257,7 +257,20 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
         # End Cap
         cap_ring(bm_ring_verts[-1], reverse=False, uv_offset_v=total_len)
 
-        # 6. FINAL CLEANUP
+        # 6. MARK SEAMS
+        # ----------------------------------------------------------------------
+        for e in bm.edges:
+            if len(e.link_faces) >= 2:
+                # 1. Material Boundaries (Cut Ends vs Wire)
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+            
+            # 2. Existing Seams (from Cap generation?)
+            # No, we rely on implicit U-wrapping seams.
+            # But let's enforce the Cut End boundary strictly.
+
+        # 7. FINAL CLEANUP
         # ----------------------------------------------------------------------
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 

@@ -196,7 +196,26 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
                 f.material_index = 0
                 f.smooth = True
 
-        # 5. UV MAPPING
+        # 5. MARK SEAMS
+        # Explicit Seam Logic (Aligning with Beam/Pipe behavior)
+        for e in bm.edges:
+            # 1. Material Boundaries (Surface vs Rim)
+            if len(e.link_faces) >= 2:
+                mats = {f.material_index for f in e.link_faces}
+                if len(mats) > 1:
+                    e.seam = True
+                    continue
+
+                # 2. Rim Sharp Edges (Box Mapping seams)
+                # If both faces are Rim, check angle
+                if all(m == 1 for m in mats):
+                    n1 = e.link_faces[0].normal
+                    n2 = e.link_faces[1].normal
+                    # Seam if < 0.5 (60 deg) dot product (sharp corner)
+                    if n1.dot(n2) < 0.5:
+                        e.seam = True
+
+        # 6. UV MAPPING
         uv_layer = bm.loops.layers.uv.verify()
 
         # Arc-Length Setup for Surface
@@ -227,6 +246,7 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
 
         def get_arc_u(world_x):
             # Normalize world X (-width/2 to width/2) to 0-1
+            # Clamp to prevent slight float errors
             t = (world_x / self.width) + 0.5
             t = max(0.0, min(1.0, t))
 
@@ -243,17 +263,36 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
             norm = f.normal
 
             if mat == 0:  # SURFACE (Slot 0)
+                # Using standard loop_uvs structure for consistency
+                loop_uvs = []
                 for l in f.loops:
                     v = l.vert
                     u_dist = get_arc_u(v.co.x)
+                    # Center Y around 0 if needed, but here y depends on origin.
+                    # Original code used (v.co.y + length*0.5), assuming centered extrusion?
+                    # Check Step 4: translate UP but not centering Y?
+                    # Step 2: v.co.y *= scale_y*2.0. Grid centers at 0.
+                    # So v.co.y ranges [-L/2, L/2].
+                    # To map 0..1, add L/2.
                     v_dist = v.co.y + (self.length * 0.5)
-                    l[uv_layer].uv = (u_dist * su, v_dist * sv)
+
+                    loop_uvs.append([l, u_dist, v_dist])
+
+                for l, u, v in loop_uvs:
+                    l[uv_layer].uv = (u * su, v * sv)
+
             else:  # RIM (Slot 1) - Box Map
+                loop_uvs = []
                 for l in f.loops:
                     co = l.vert.co
+                    # Simple Box Map Logic
                     if abs(norm.x) > abs(norm.y):
                         # Side Walls (mapped to YZ)
-                        l[uv_layer].uv = (co.y * self.uv_scale, co.z * self.uv_scale)
+                        u, v = co.y, co.z
                     else:
                         # End Caps (mapped to XZ)
-                        l[uv_layer].uv = (co.x * self.uv_scale, co.z * self.uv_scale)
+                        u, v = co.x, co.z
+                    loop_uvs.append([l, u, v])
+
+                for l, u, v in loop_uvs:
+                    l[uv_layer].uv = (u * self.uv_scale, v * self.uv_scale)
