@@ -193,6 +193,9 @@ class MASSA_PT_Main(bpy.types.Panel):
         elif console.ui_tab == "SLOTS":
             ui_shared.draw_slots_tab(col, console, slot_names={}, stats=None)
 
+        elif console.ui_tab == "COLLISION":
+            ui_shared.draw_collision_tab(col, console, slot_names={})
+
         layout.separator()
         row = layout.row()
         row.alignment = "CENTER"
