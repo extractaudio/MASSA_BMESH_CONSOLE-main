@@ -182,6 +182,11 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                 "seam_use_guide",
                 "seam_use_detail",
                 "seam_use_fold",
+                "phys_gen_ucx",
+                "phys_bake_strain",
+                "phys_kinematic_pin",
+                "phys_auto_rig",
+                "phys_yield_strength",
             ]
         )
 
@@ -307,6 +312,19 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         self._inject_cartridge_defaults()
 
         # Run Pipeline
+        # [ARCHITECT NEW] PHASE 2 PROTOCOL (CLEANUP)
+        # Garbage collection for existing active object's children (UCX/Joints)
+        # This prevents infinite duplication during Redo Panel updates.
+        try:
+            clean_obj = context.active_object
+            if clean_obj:
+                # Loop safely over a copy of children
+                for child in list(clean_obj.children):
+                    if child.name.startswith("UCX_") or child.name.startswith("MASSA_JOINT_"):
+                        bpy.data.objects.remove(child, do_unlink=True)
+        except Exception as e:
+            print(f"Massa Child Cleanup Error: {e}")
+
         result = massa_engine.run_pipeline(self, context)
 
         # [ARCHITECT NEW] Apply Resurrection Transform

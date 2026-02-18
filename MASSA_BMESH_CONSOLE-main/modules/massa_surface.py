@@ -919,3 +919,140 @@ def _calculate_peaks(bm, bvh, dist, contrast):
         data[v] = min(1.0, val)
 
     return data
+
+
+def bake_strain_map(bm, op):
+    """
+    [Phase 3 Protocol] Strain Maps (phys_bake_strain)
+    Creates 'MASSA_YieldMap' Color Attribute for Chaos Destruction.
+    Iterates vertices.
+    - Slot 1 (Perimeter) -> (1.0, 1.0, 1.0, 1.0) * Strength
+    - Slot 4 (Detail) -> (0.1, 0.1, 0.1, 1.0) * Strength
+    """
+    if not getattr(op, "phys_bake_strain", False):
+        return
+
+    # Create/Verify Layer (Float Color on Loops)
+    # BMesh uses loops for color attributes (Corner Domain)
+    try:
+        # Try Float Color
+        layer = bm.loops.layers.float_color.get("MASSA_YieldMap")
+        if not layer:
+            layer = bm.loops.layers.float_color.new("MASSA_YieldMap")
+    except:
+        # Fallback to Byte Color if needed (though Float is standard now)
+        try:
+            layer = bm.loops.layers.color.get("MASSA_YieldMap")
+            if not layer:
+                layer = bm.loops.layers.color.new("MASSA_YieldMap")
+        except:
+            print("MASSA ERROR: Could not create Strain Map layer.")
+            return
+
+    try:
+        edge_slots_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+    except:
+         edge_slots_layer = None
+
+    if not edge_slots_layer:
+        # If no slots, just return (or create empty map)
+        return
+
+    strength = getattr(op, "phys_yield_strength", 1.0)
+    
+    # Pre-calculate Vertex Constraints
+    # We map Vert -> Max Constraint Value
+    # 0.0 = Default
+    # 0.1 * Strength = Detail (Slot 4)
+    # 1.0 * Strength = Indestructible (Slot 1)
+    
+    vert_vals = {}
+    
+    bm.verts.ensure_lookup_table()
+    bm.edges.ensure_lookup_table()
+    
+    for v in bm.verts:
+        max_val = 0.0
+        for e in v.link_edges:
+            slot_id = e[edge_slots_layer]
+            
+            val = 0.0
+            if slot_id == 1: # Perimeter
+                val = 1.0
+            elif slot_id == 4: # Detail
+                val = 0.1
+            
+            if val > max_val:
+                max_val = val
+                
+        vert_vals[v] = max_val * strength
+        
+    # Apply to Loops
+    for f in bm.faces:
+        for l in f.loops:
+            v = l.vert
+            val = vert_vals.get(v, 0.0)
+            # RGBA: (val, val, val, 1.0)
+            l[layer] = (val, val, val, 1.0)
+
+
+def bake_kinematic_anchors(obj, bm, op):
+    """
+    [Phase 3 Protocol] Kinematic Anchors (phys_kinematic_pin)
+    Creates 'MASSA_Kinematic' Vertex Group.
+    - Slot 1 Verts -> 1.0 (Anchor)
+    - 1-Ring Neighbors -> 0.5 (Falloff)
+    """
+    if not getattr(op, "phys_kinematic_pin", False):
+        return
+        
+    # 1. Create VG on Object
+    vg = obj.vertex_groups.get("MASSA_Kinematic")
+    if not vg:
+        vg = obj.vertex_groups.new(name="MASSA_Kinematic")
+    
+    vg_index = vg.index
+    
+    # 2. Get Deform Layer on BMesh
+    deform_layer = bm.verts.layers.deform.verify()
+    
+    try:
+        edge_slots_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+    except:
+        edge_slots_layer = None
+
+    if not edge_slots_layer:
+        return
+        
+    # 3. Identify Anchors
+    anchors = set()
+    supports = set()
+    
+    bm.verts.ensure_lookup_table()
+    for v in bm.verts:
+        is_anchor = False
+        for e in v.link_edges:
+            if e[edge_slots_layer] == 1:
+                is_anchor = True
+                break
+        
+        if is_anchor:
+            anchors.add(v)
+            
+    # 4. Identify Supports (1-Ring from Anchors)
+    for v in anchors:
+        for e in v.link_edges:
+            other = e.other_vert(v)
+            if other not in anchors:
+                supports.add(other)
+                
+    # 5. Apply Weights
+    for v in anchors:
+        dvert = v[deform_layer]
+        dvert[vg_index] = 1.0
+        
+    for v in supports:
+        dvert = v[deform_layer]
+        # Only set if not already set (though logic above ensures disjoint)
+        dvert[vg_index] = 0.5
+

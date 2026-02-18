@@ -563,6 +563,28 @@ def draw_collision_tab(layout, owner, slot_names):
     """
     layout.label(text="Collision & Physics", icon="PHYSICS")
 
+    # --- P1: GLOBAL PHYSICS SETTINGS ---
+    # Box 1: Data Maps (Chaos & Cloth)
+    box = layout.box()
+    box.label(text="Data Maps (Chaos & Cloth)", icon="BRUSH_DATA")
+    row = box.row(align=True)
+    row.prop(owner, "phys_bake_strain", text="Strain (VCol)")
+    row.prop(owner, "phys_kinematic_pin", text="Pin (Weight)")
+    box.prop(owner, "phys_yield_strength")
+
+    # Box 2: Engine Proxies (Collision)
+    box = layout.box()
+    box.label(text="Engine Proxies (Collision)", icon="MOD_PHYSICS")
+    box.prop(owner, "phys_gen_ucx", text="Generate UCX", toggle=True, icon="MESH_CUBE")
+
+    # Box 3: Mechanics (Rigid Body Links)
+    box = layout.box()
+    box.label(text="Mechanics (Rigid Body Links)", icon="CONSTRAINT")
+    box.prop(owner, "phys_auto_rig", text="Auto-Rig Constraints", toggle=True, icon="CONSTRAINT_BONE")
+
+    layout.separator()
+    layout.label(text="Per-Slot Collision", icon="MATERIAL")
+
     for i in range(10):
         box = layout.box()
         row = box.row()
