@@ -42,9 +42,9 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Outer Surface", "uv": "SKIP", "phys": "METAL_STEEL"},
-            1: {"name": "Inner Wall", "uv": "SKIP", "phys": "GENERIC"},
-            2: {"name": "Ends", "uv": "SKIP", "phys": "METAL_STEEL"},
+            0: {"name": "Outer Surface", "uv": "SKIP", "phys": "METAL_STEEL", "mat": "Metal Steel"},
+            1: {"name": "Inner Wall", "uv": "SKIP", "phys": "GENERIC", "mat": "Generic"},
+            2: {"name": "Ends", "uv": "SKIP", "phys": "METAL_STEEL", "mat": "Metal Steel"},
         }
 
     def draw_shape_ui(self, layout):

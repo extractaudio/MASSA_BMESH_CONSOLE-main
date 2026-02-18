@@ -111,9 +111,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         """
         ENGINEERING FIX:
         Reads 'get_slot_meta' from the active cartridge and force-applies
-        Physics IDs to Visual Material slots IF they are currently 'NONE'.
-        [ARCHITECT FIX]: Translates Physics KEY (e.g. 'METAL_STEEL') to
-        Visual Material NAME (e.g. 'Metal Steel') via mat_utils.DB.
+        defaults for Visual and Physics materials if currently set to 'NONE'.
         """
         if not hasattr(self, "get_slot_meta"):
             return
@@ -121,31 +119,44 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         meta_slots = self.get_slot_meta()
 
         for i, data in meta_slots.items():
-            # Check current property value
+            # --- 1. VISUAL MATERIAL ---
             prop_name = f"mat_{i}"
-            if not hasattr(self, prop_name):
-                continue
+            if hasattr(self, prop_name):
+                current_val = getattr(self, prop_name, "NONE")
 
-            current_val = getattr(self, prop_name, "NONE")
+                # Only override if the user/system hasn't set a specific material yet
+                if current_val == "NONE":
+                    # Try explicit visual material key first
+                    vis_mat = data.get("mat")
+                    if vis_mat:
+                        try:
+                            setattr(self, prop_name, vis_mat)
+                        except Exception:
+                            pass
+                    else:
+                        # Fallback: Infer from Physics ID (Legacy / Compatibility)
+                        phys_id = data.get("phys", "GENERIC")
+                        if phys_id != "GENERIC":
+                            vis_name = mat_utils.get_visual_name_from_id(phys_id)
+                            if vis_name != "NONE":
+                                try:
+                                    setattr(self, prop_name, vis_name)
+                                except Exception:
+                                    pass
 
-            # Only override if the user/system hasn't set a specific material yet
-            if current_val == "NONE":
-                # 1. Get Physics ID Key (e.g. 'METAL_STEEL')
-                phys_id = data.get("phys", "GENERIC")
+            # --- 2. PHYSICS MATERIAL ---
+            prop_name_phys = f"phys_mat_{i}"
+            if hasattr(self, prop_name_phys):
+                current_phys = getattr(self, prop_name_phys, "NONE")
 
-                # [ARCHITECT FIX] Skip Generic to allow Surface Map Fallbacks (Debug Colors)
-                if phys_id == "GENERIC":
-                    continue
-
-                # 2. Look up the Human-Readable Name from DB
-                vis_name = mat_utils.get_visual_name_from_id(phys_id)
-
-                # 3. Apply if valid
-                if vis_name != "NONE":
-                    try:
-                        setattr(self, prop_name, vis_name)
-                    except Exception:
-                        pass
+                # If set to NONE (Default), inject cartridge preference
+                if current_phys == "NONE":
+                    phys_id = data.get("phys")
+                    if phys_id:
+                        try:
+                            setattr(self, prop_name_phys, phys_id)
+                        except Exception:
+                            pass
 
     def _sync(self, context, from_console=False):
         if not hasattr(context.scene, "massa_console"):

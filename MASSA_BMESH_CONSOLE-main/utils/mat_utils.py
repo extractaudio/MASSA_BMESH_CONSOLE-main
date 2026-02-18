@@ -159,7 +159,7 @@ def get_or_create_placeholder_material():
 # ==============================================================================
 
 def get_phys_items(self, context):
-    items = []
+    items = [("NONE", "Default (Use Cartridge)", "Use Cartridge Default")]
     for k in sorted(MASTER_MAT_DB.keys()):
         if not k.startswith("MASSA_DEBUG"):
             items.append((k, MASTER_MAT_DB[k]["name"], f"Data: {k}"))

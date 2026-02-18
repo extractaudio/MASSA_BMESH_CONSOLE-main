@@ -57,8 +57,8 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
         Explicitly use 'SKIP' to prevent Console overrides unless user requests it.
         """
         return {
-            0: {"name": "Surface", "uv": "SKIP", "phys": "METAL_ALUMINUM"},
-            1: {"name": "Edge Trim", "uv": "SKIP", "phys": "METAL_ALUMINUM"},
+            0: {"name": "Surface", "uv": "SKIP", "phys": "METAL_ALUMINUM", "mat": "Metal Aluminum"},
+            1: {"name": "Edge Trim", "uv": "SKIP", "phys": "METAL_ALUMINUM", "mat": "Metal Aluminum"},
         }
 
     def draw_shape_ui(self, layout):

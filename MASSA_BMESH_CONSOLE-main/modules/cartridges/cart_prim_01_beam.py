@@ -49,8 +49,8 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Surface", "uv": "SKIP", "phys": "METAL_IRON"},
-            1: {"name": "Caps", "uv": "BOX", "phys": "METAL_IRON"},
+            0: {"name": "Surface", "uv": "SKIP", "phys": "METAL_IRON", "mat": "Metal Iron"},
+            1: {"name": "Caps", "uv": "BOX", "phys": "METAL_IRON", "mat": "Metal Iron"},
         }
 
     def draw_shape_ui(self, layout):
