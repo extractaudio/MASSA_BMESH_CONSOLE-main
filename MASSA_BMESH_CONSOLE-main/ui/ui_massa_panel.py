@@ -15,9 +15,6 @@ class MASSA_PT_Main(bpy.types.Panel):
         console = context.scene.massa_console  # Access state properties
         obj = context.active_object
         
-        # Import Bridge for Status Check
-
-
         # Helper to draw buttons safely
         def draw_safe_button(col_layout, mod_data):
             meta = mod_data.CARTRIDGE_META
@@ -40,125 +37,141 @@ class MASSA_PT_Main(bpy.types.Panel):
                     icon="QUESTION",
                 )
 
-        # --- 0. MCP SERVER HEADER ---
-        # REMOVED: MCP Server integration has been deprecated.
-        
-        # --- 1. PRIMITIVES GROUP ---
-
-        # --- 1. PRIMITIVES GROUP ---
-        box = layout.box()
-        row = box.row()
-        icon = "TRIA_DOWN" if console.ui_expand_prims else "TRIA_RIGHT"
-        row.prop(console, "ui_expand_prims", icon=icon, text="Primitives", emboss=False)
-
-        if console.ui_expand_prims:
-            # [ARCHITECT] align=False decouples buttons so they don't share borders (prevents glitching)
-            col = box.column(align=False)
-            col.scale_y = 1.4  # Good height for clicking
-            for mod in MODULES:
-                meta = mod.CARTRIDGE_META
-                if meta["id"].startswith("prim_") and not meta["id"].startswith("prim_con"):
-                    draw_safe_button(col, mod)
-                    # [ARCHITECT] Non-destructive bottom padding between buttons
-                    col.separator(factor=0.1)
-
+        # --- MODE TOGGLE ---
+        row = layout.row()
+        row.prop(console, "massa_op_mode", expand=True)
         layout.separator()
 
-        # --- 1.5 PRIMITIVES : CONSTRUCTION GROUP ---
-        box = layout.box()
-        row = box.row()
-        icon = "TRIA_DOWN" if console.ui_expand_prim_con else "TRIA_RIGHT"
-        row.prop(
-            console,
-            "ui_expand_prim_con",
-            icon=icon,
-            text="Primitives : Construction",
-            emboss=False,
-        )
-
-        if console.ui_expand_prim_con:
-            col = box.column(align=False)
-            col.scale_y = 1.4
-            for mod in MODULES:
-                meta = mod.CARTRIDGE_META
-                if meta["id"].startswith("prim_con"):
-                    draw_safe_button(col, mod)
-                    col.separator(factor=0.1)
-
-        layout.separator()
-
-        # --- 2. ARCHITECTURE GROUP ---
-        box = layout.box()
-        row = box.row()
-        icon = "TRIA_DOWN" if console.ui_expand_arch else "TRIA_RIGHT"
-        row.prop(
-            console, "ui_expand_arch", icon=icon, text="Architecture", emboss=False
-        )
-
-        if console.ui_expand_arch:
-            col = box.column(align=False)
-            col.scale_y = 1.4
-            for mod in MODULES:
-                meta = mod.CARTRIDGE_META
-                if meta["id"].startswith("arch_"):
-                    draw_safe_button(col, mod)
-            col.separator(factor=0.1)
-
-        layout.separator()
-
-        # --- 3. BUILDINGS/MISC GROUP ---
-        box = layout.box()
-        row = box.row()
-        icon = "TRIA_DOWN" if console.ui_expand_builds else "TRIA_RIGHT"
-        row.prop(
-            console,
-            "ui_expand_builds",
-            icon=icon,
-            text="Buildings / Other",
-            emboss=False,
-        )
-
-        if console.ui_expand_builds:
-            col = box.column(align=False)
-            col.scale_y = 1.4
-            for mod in MODULES:
-                meta = mod.CARTRIDGE_META
-                # Logic: Anything that is NOT prim_ and NOT arch_
-                if not meta["id"].startswith("prim_") and not meta["id"].startswith(
-                    "arch_"
-                ):
-                    draw_safe_button(col, mod)
-                    col.separator(factor=0.1)
-
-        layout.separator()
-
-        # --- 4. REGENERATE BUTTON (The Shadow Panel) ---
-        # [ARCHITECT] This allows re-running the logic on the selected object
-        # using the CURRENT settings in the Brain (Sidebar).
-        if obj and "massa_op_id" in obj:
+        if console.massa_op_mode == 'ACTIVE':
+            # --- 1. PRIMITIVES GROUP ---
             box = layout.box()
-            col = box.column(align=True)
-            col.scale_y = 1.2
+            row = box.row()
+            icon = "TRIA_DOWN" if console.ui_expand_prims else "TRIA_RIGHT"
+            row.prop(console, "ui_expand_prims", icon=icon, text="Primitives", emboss=False)
 
-            # [ARCHITECT NEW] Resurrection Logic
-            # Directly call the original operator with rerun_mode=True
-            # This triggers the specific operator (e.g. Box), allowing the Redo Panel to appear.
-            op_id = obj["massa_op_id"]
-            try:
-                # [ARCHITECT UDPATE] Red Alert Button for Resurrection
-                row = col.row()
-                row.alert = True
-                row.scale_y = 1.2
-                op = row.operator(
-                    op_id, text="Resurrect Selected", icon="FILE_REFRESH"
-                )
-                op.rerun_mode = True
+            if console.ui_expand_prims:
+                # [ARCHITECT] align=False decouples buttons so they don't share borders (prevents glitching)
+                col = box.column(align=False)
+                col.scale_y = 1.4  # Good height for clicking
+                for mod in MODULES:
+                    meta = mod.CARTRIDGE_META
+                    if meta["id"].startswith("prim_") and not meta["id"].startswith("prim_con"):
+                        draw_safe_button(col, mod)
+                        # [ARCHITECT] Non-destructive bottom padding between buttons
+                        col.separator(factor=0.1)
 
-                # [ARCHITECT UPDATE] Condemn (Finalize) Button
-                col.separator(factor=0.5)
-                col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
-            except Exception:
-                col.label(text="Unknown Operator", icon="ERROR")
+            layout.separator()
+
+            # --- 1.5 PRIMITIVES : CONSTRUCTION GROUP ---
+            box = layout.box()
+            row = box.row()
+            icon = "TRIA_DOWN" if console.ui_expand_prim_con else "TRIA_RIGHT"
+            row.prop(
+                console,
+                "ui_expand_prim_con",
+                icon=icon,
+                text="Primitives : Construction",
+                emboss=False,
+            )
+
+            if console.ui_expand_prim_con:
+                col = box.column(align=False)
+                col.scale_y = 1.4
+                for mod in MODULES:
+                    meta = mod.CARTRIDGE_META
+                    if meta["id"].startswith("prim_con"):
+                        draw_safe_button(col, mod)
+                        col.separator(factor=0.1)
+
+            layout.separator()
+
+            # --- 2. ARCHITECTURE GROUP ---
+            box = layout.box()
+            row = box.row()
+            icon = "TRIA_DOWN" if console.ui_expand_arch else "TRIA_RIGHT"
+            row.prop(
+                console, "ui_expand_arch", icon=icon, text="Architecture", emboss=False
+            )
+
+            if console.ui_expand_arch:
+                col = box.column(align=False)
+                col.scale_y = 1.4
+                for mod in MODULES:
+                    meta = mod.CARTRIDGE_META
+                    if meta["id"].startswith("arch_"):
+                        draw_safe_button(col, mod)
+                col.separator(factor=0.1)
+
+            layout.separator()
+
+            # --- 3. BUILDINGS/MISC GROUP ---
+            box = layout.box()
+            row = box.row()
+            icon = "TRIA_DOWN" if console.ui_expand_builds else "TRIA_RIGHT"
+            row.prop(
+                console,
+                "ui_expand_builds",
+                icon=icon,
+                text="Buildings / Other",
+                emboss=False,
+            )
+
+            if console.ui_expand_builds:
+                col = box.column(align=False)
+                col.scale_y = 1.4
+                for mod in MODULES:
+                    meta = mod.CARTRIDGE_META
+                    # Logic: Anything that is NOT prim_ and NOT arch_
+                    if not meta["id"].startswith("prim_") and not meta["id"].startswith(
+                        "arch_"
+                    ):
+                        draw_safe_button(col, mod)
+                        col.separator(factor=0.1)
+
+            layout.separator()
+
+            # --- 4. REGENERATE BUTTON (The Shadow Panel) ---
+            # [ARCHITECT] This allows re-running the logic on the selected object
+            # using the CURRENT settings in the Brain (Sidebar).
+            if obj and "massa_op_id" in obj:
+                box = layout.box()
+                col = box.column(align=True)
+                col.scale_y = 1.2
+
+                # [ARCHITECT NEW] Resurrection Logic
+                # Directly call the original operator with rerun_mode=True
+                # This triggers the specific operator (e.g. Box), allowing the Redo Panel to appear.
+                op_id = obj["massa_op_id"]
+                try:
+                    # [ARCHITECT UDPATE] Red Alert Button for Resurrection
+                    row = col.row()
+                    row.alert = True
+                    row.scale_y = 1.2
+                    op = row.operator(
+                        op_id, text="Resurrect Selected", icon="FILE_REFRESH"
+                    )
+                    op.rerun_mode = True
+
+                    # [ARCHITECT UPDATE] Condemn (Finalize) Button
+                    col.separator(factor=0.5)
+                    col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
+                except Exception:
+                    col.label(text="Unknown Operator", icon="ERROR")
+
+                layout.separator()
+
+        elif console.massa_op_mode == 'POINT_SHOOT':
+            # --- POINT & SHOOT UI ---
+            box = layout.box()
+            box.label(text="Targeting", icon="VIEW3D")
+
+            # Cartridge Selector
+            box.prop(console, "massa_staged_cartridge")
+
+            # Target Coordinate
+            row = box.row(align=True)
+            row.prop(console, "massa_target_coord", text="Target")
+            row.operator("massa.pick_coordinate", icon="EYEDROPPER", text="")
 
             layout.separator()
 
@@ -177,8 +190,17 @@ class MASSA_PT_Main(bpy.types.Panel):
             ui_shared.draw_edge_slots_tab(col, console)
 
         elif console.ui_tab == "SHAPE":
-            col.label(text="Shape parameters are specific to", icon="INFO")
-            col.label(text="the active operator.", icon="BLANK1")
+            if console.massa_op_mode == 'ACTIVE':
+                col.label(text="Shape parameters are specific to", icon="INFO")
+                col.label(text="the active operator.", icon="BLANK1")
+            else:
+                 # In Point & Shoot, show global transform params from mixin
+                 col.label(text="Global Transform", icon="OBJECT_ORIGIN")
+                 col.prop(console, "global_scale")
+                 col.prop(console, "pivot_mode")
+                 col.prop(console, "ui_use_rot", toggle=True)
+                 if console.ui_use_rot:
+                     col.prop(console, "rotation")
 
         elif console.ui_tab == "POLISH":
             ui_shared.draw_polish_tab(col, console)
@@ -197,6 +219,13 @@ class MASSA_PT_Main(bpy.types.Panel):
             ui_shared.draw_collision_tab(col, console, slot_names={})
 
         layout.separator()
-        row = layout.row()
-        row.alignment = "CENTER"
-        row.label(text="Parameters also available in F9", icon="INFO")
+
+        if console.massa_op_mode == 'POINT_SHOOT':
+             # SHOOT BUTTON
+             row = layout.row()
+             row.scale_y = 2.0
+             row.operator("massa.shoot_dispatcher", text="SHOOT", icon="PLAY")
+        else:
+            row = layout.row()
+            row.alignment = "CENTER"
+            row.label(text="Parameters also available in F9", icon="INFO")
