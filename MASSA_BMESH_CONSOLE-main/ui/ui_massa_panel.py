@@ -251,6 +251,9 @@ class MASSA_PT_Main(bpy.types.Panel):
         elif console.ui_tab == "COLLISION":
             ui_shared.draw_collision_tab(col, console, slot_names={})
 
+        elif console.ui_tab == "SOCKETS":
+            ui_shared.draw_sockets_ui(col, console)
+
         layout.separator()
 
         if console.massa_op_mode == 'POINT_SHOOT':

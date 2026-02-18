@@ -84,6 +84,7 @@ def draw_nav_bar(layout, owner):
     _nav_btn("MATERIAL", "SLOTS")
     _nav_btn("EDGESEL", "EDGES")
     _nav_btn("PHYSICS", "COLLISION")
+    _nav_btn("EMPTY_AXIS", "SOCKETS")
 
     # [ARCHITECT FIX] Return the main column (Right side of split)
     return col_main
@@ -616,3 +617,29 @@ def draw_collision_tab(layout, owner, slot_names):
             col.prop(owner, f"phys_friction_{i}", text="Friction")
             col.prop(owner, f"phys_bounce_{i}", text="Restitution")
             col.prop(owner, f"phys_bond_{i}", text="Attachment Strength")
+
+def draw_sockets_ui(layout, owner):
+    """
+    [ARCHITECT NEW] Phase 1: Sockets Tab UI
+    """
+    layout.label(text="Socket Generation", icon="EMPTY_AXIS")
+
+    box = layout.box()
+    row = box.row()
+    row.prop(owner, "sock_enable", text="Enable Sockets", icon="CHECKBOX_HLT", toggle=True)
+
+    if owner.sock_enable:
+        box.separator()
+
+        # Visual Settings
+        box.label(text="Visuals", icon="RESTRICT_VIEW_OFF")
+        box.prop(owner, "sock_visual_size")
+
+        box.separator()
+
+        # Constraints
+        box.label(text="Mechanics (Constraints)", icon="CONSTRAINT")
+        box.prop(owner, "sock_constraint_type")
+
+        if owner.sock_constraint_type != 'NONE':
+            box.prop(owner, "sock_break_strength")
