@@ -388,7 +388,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         elif self.ui_tab == "COLLISION":
             ui_shared.draw_collision_tab(col, self, slots)
         elif self.ui_tab == "SOCKETS":
-            ui_shared.draw_sockets_ui(col, self)
+            ui_shared.draw_sockets_ui(col, self, slots)
 
 
 class MASSA_OT_ReRun_Active(Operator):
