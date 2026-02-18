@@ -252,17 +252,122 @@ def create_debug_neutral_material():
     return mat
 
 def create_debug_channel_material(channel_idx):
+    # Legacy Support / Individual Channel Fallback
     name = f"Massa_Debug_Chan_{channel_idx}"
     if name in bpy.data.materials: return bpy.data.materials[name]
     mat = bpy.data.materials.new(name=name); mat.use_nodes=True; nt=mat.node_tree; nt.nodes.clear()
     out = nt.nodes.new("ShaderNodeOutputMaterial")
     emission = nt.nodes.new("ShaderNodeEmission")
-    attr = nt.nodes.new("ShaderNodeAttribute"); attr.attribute_name="Massa_Surface"
-    sep = nt.nodes.new("ShaderNodeSeparateColor")
-    nt.links.new(attr.outputs["Color"], sep.inputs["Color"])
+    attr = nt.nodes.new("ShaderNodeAttribute"); attr.attribute_name="Data_Colors_1"
+
+    # Safe Separation
+    try:
+        sep = nt.nodes.new("ShaderNodeSeparateColor")
+    except:
+        sep = nt.nodes.new("ShaderNodeSeparateRGB") # Fallback
+
+    nt.links.new(attr.outputs["Color"], sep.inputs["Color"] if "Color" in sep.inputs else sep.inputs["Image"])
+
     target_out = ["Red", "Green", "Blue"][channel_idx] if channel_idx < 3 else "Alpha"
-    nt.links.new(sep.outputs[target_out], emission.inputs["Color"])
+
+    # Safe Link
+    socket = sep.outputs.get(target_out)
+    if not socket and target_out == "Alpha":
+         # Try "A" or fallback to Red if missing (Visual Error Indication)
+         socket = sep.outputs.get("A") or sep.outputs.get("Red")
+
+    if socket:
+        nt.links.new(socket, emission.inputs["Color"])
+
     nt.links.new(emission.outputs["Emission"], out.inputs["Surface"])
+    return mat
+
+
+def create_debug_data_layers_material():
+    """
+    Visualize Data_Colors_1 (RGBW) and Data_Colors_2 (O/B/P/B) with Drivers.
+    """
+    name = "Massa_Debug_Data_Combined"
+    if name in bpy.data.materials: return bpy.data.materials[name]
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+
+    # OUTPUT
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    out.location = (1200, 0)
+    emission = nt.nodes.new("ShaderNodeEmission")
+    emission.location = (1000, 0)
+    nt.links.new(emission.outputs["Emission"], out.inputs["Surface"])
+
+    # ATTRIBUTES
+    attr1 = nt.nodes.new("ShaderNodeAttribute"); attr1.attribute_name = "Data_Colors_1"; attr1.location = (-600, 200)
+    attr2 = nt.nodes.new("ShaderNodeAttribute"); attr2.attribute_name = "Data_Colors_2"; attr2.location = (-600, -200)
+
+    # SPLIT
+    sep1 = nt.nodes.new("ShaderNodeSeparateColor"); sep1.location = (-400, 200)
+    nt.links.new(attr1.outputs["Color"], sep1.inputs["Color"])
+
+    sep2 = nt.nodes.new("ShaderNodeSeparateColor"); sep2.location = (-400, -200)
+    nt.links.new(attr2.outputs["Color"], sep2.inputs["Color"])
+
+    # HELPERS
+    def _val(label, y):
+        v = nt.nodes.new("ShaderNodeValue"); v.label = label; v.outputs[0].default_value = 1.0; v.location = (-400, y)
+        d = v.outputs[0].driver_add("default_value")
+        var = d.driver.variables.new(); var.name = "var"; var.type = 'SINGLE_PROP'
+        var.targets[0].id_type = 'SCENE'; var.targets[0].id = bpy.context.scene; var.targets[0].data_path = f"massa_console.{label}"
+        d.driver.expression = "var"
+        return v
+
+    def _mix(node_in, socket_name, driver_node, y):
+        m = nt.nodes.new("ShaderNodeMath"); m.operation = 'MULTIPLY'; m.location = (-200, y)
+        s = node_in.outputs.get(socket_name)
+        if not s and socket_name == "Alpha": s = node_in.outputs.get("A")
+        if s: nt.links.new(s, m.inputs[0])
+        nt.links.new(driver_node.outputs[0], m.inputs[1])
+        return m
+
+    def _tint(scalar_node, color, loc):
+        mul = nt.nodes.new("ShaderNodeMixRGB"); mul.blend_type = 'MULTIPLY'; mul.inputs[0].default_value = 1.0; mul.location = loc
+        nt.links.new(scalar_node.outputs[0], mul.inputs[1])
+        mul.inputs[2].default_value = (*color, 1)
+        return mul
+
+    def _add(prev, new_node, loc):
+        add = nt.nodes.new("ShaderNodeMixRGB"); add.blend_type = 'ADD'; add.inputs[0].default_value = 1.0; add.location = loc
+        if prev: nt.links.new(prev.outputs[0], add.inputs[1])
+        else: add.inputs[1].default_value = (0,0,0,1)
+        nt.links.new(new_node.outputs[0], add.inputs[2])
+        return add
+
+    # DRIVERS
+    v_g1 = _val("show_data_set_1", 400); v_g2 = _val("show_data_set_2", -400)
+    v_w1 = _val("wear_show", 350); v_t1 = _val("thick_show", 300); v_gr1 = _val("grav_show", 250); v_c1 = _val("cavity_show", 200)
+    v_w2 = _val("wear2_show", -50); v_f2 = _val("flow2_show", -100); v_c2 = _val("cover_show", -150); v_p2 = _val("peak_show", -200)
+
+    # PROCESS
+    c1 = _tint(_mix(sep1, "Red", v_w1, 350), (1,0,0), (200,350))
+    c2 = _tint(_mix(sep1, "Green", v_t1, 300), (0,1,0), (200,300))
+    c3 = _tint(_mix(sep1, "Blue", v_gr1, 250), (0,0,1), (200,250))
+    c4 = _tint(_mix(sep1, "Alpha", v_c1, 200), (1,1,1), (200,200))
+
+    s1 = _add(_add(_add(c1, c2, (400,300)), c3, (550,300)), c4, (700,300))
+    g1 = nt.nodes.new("ShaderNodeMixRGB"); g1.blend_type='MULTIPLY'; g1.inputs[0].default_value=1.0; g1.location=(850,300)
+    nt.links.new(s1.outputs[0], g1.inputs[1]); nt.links.new(v_g1.outputs[0], g1.inputs[2])
+
+    d1 = _tint(_mix(sep2, "Red", v_w2, -50), (1.0, 0.5, 0.0), (200,-50))
+    d2 = _tint(_mix(sep2, "Green", v_f2, -100), (0.0, 0.5, 1.0), (200,-100))
+    d3 = _tint(_mix(sep2, "Blue", v_c2, -150), (0.5, 0.0, 1.0), (200,-150))
+    d4 = _tint(_mix(sep2, "Alpha", v_p2, -200), (0.4, 0.2, 0.0), (200,-200))
+
+    s2 = _add(_add(_add(d1, d2, (400,-100)), d3, (550,-100)), d4, (700,-100))
+    g2 = nt.nodes.new("ShaderNodeMixRGB"); g2.blend_type='MULTIPLY'; g2.inputs[0].default_value=1.0; g2.location=(850,-100)
+    nt.links.new(s2.outputs[0], g2.inputs[1]); nt.links.new(v_g2.outputs[0], g2.inputs[2])
+
+    fin = _add(g1, g2, (1000, 100))
+    nt.links.new(fin.outputs[0], emission.inputs["Color"])
     return mat
 
 def create_debug_physics_material():
