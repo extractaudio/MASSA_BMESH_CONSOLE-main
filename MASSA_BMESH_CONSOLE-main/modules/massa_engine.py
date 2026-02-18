@@ -544,8 +544,9 @@ def _generate_output(op, context, bm, socket_data, manifest):
 
 def phys_gen_ucx(obj, op, manifest, slot_map):
     """
-    PHASE 4: UCX CONVEX HULL FORGE
-    Generates optimized collision hulls for ALL used Slots.
+    PHASE 4: UCX COLLISION FORGE
+    Generates optimized collision meshes for ALL used Slots.
+    Supports: BOX, SPHERE, CAPSULE, HULL, MESH.
     """
     # [ARCHITECT UPDATED] Target all active slots in the map
     target_slots = set(slot_map.keys()) if slot_map else set()
@@ -555,8 +556,18 @@ def phys_gen_ucx(obj, op, manifest, slot_map):
         target_slots = {0, 1, 2}  # Legacy Fallback
 
     # Identify all participating geometry (Main + Detached Children)
-    all_objs = [obj] + [c for c in obj.children if c.type == 'MESH']
-    
+    all_objs = [obj] + [c for c in obj.children if c.type == "MESH"]
+
+    # Pre-fetch slot names from cartridge metadata
+    slot_names = {}
+    try:
+        if hasattr(op, "get_slot_meta"):
+            meta = op.get_slot_meta()
+            for i, data in meta.items():
+                slot_names[i] = data.get("name", f"Slot_{i}")
+    except:
+        pass
+
     for i in target_slots:
         # Resolve Material Index
         mat_idx = i
@@ -565,72 +576,217 @@ def phys_gen_ucx(obj, op, manifest, slot_map):
 
         if mat_idx is None:
             continue
-            
-        faces_co = []
-        
-        # Collect vertices from all parts
+
+        # 1. Determine Shape & Name
+        shape_type = getattr(op, f"collision_shape_{i}", "BOX")
+
+        slot_label = slot_names.get(i, f"{i:02d}")
+        # Sanitize label
+        slot_label = slot_label.replace(" ", "_").replace(".", "_")
+
+        ucx_name = f"UCX_{obj.name}_{slot_label}"
+
+        # 2. Collect Geometry
+        # We need full geometry for MESH, just verts for others (mostly)
+
+        collected_verts = []
+        collected_faces = []  # List of lists of indices into collected_verts
+
+        vert_offset = 0
+
+        has_geom = False
+
         for part in all_objs:
             try:
                 me = part.data
                 if not me.vertices:
                     continue
-                
+
+                # We need BMesh to filter faces by material index easily
                 bm_temp = bmesh.new()
                 bm_temp.from_mesh(me)
-                
+
                 # Transform to Main Object Local Space if needed
                 if part != obj:
-                    bmesh.ops.transform(bm_temp, matrix=part.matrix_local, verts=bm_temp.verts)
-                
+                    bmesh.ops.transform(
+                        bm_temp, matrix=part.matrix_local, verts=bm_temp.verts
+                    )
+
+                # Filter faces
                 part_faces = [f for f in bm_temp.faces if f.material_index == mat_idx]
-                
+
+                if not part_faces:
+                    bm_temp.free()
+                    continue
+
+                has_geom = True
+
+                # Extract Geometry
+                # We need to map local verts to global collected_verts
+                # Optimization: Only extract used verts
+
+                used_verts = set()
                 for f in part_faces:
                     for v in f.verts:
-                        faces_co.append(v.co.copy())
-                
+                        used_verts.add(v)
+
+                # Create a mapping from bm_vert to new index
+                v_map = {}
+                sorted_verts = list(used_verts)  # Stable order
+
+                for v in sorted_verts:
+                    collected_verts.append(v.co.copy())
+                    v_map[v] = vert_offset
+                    vert_offset += 1
+
+                for f in part_faces:
+                    face_indices = [v_map[v] for v in f.verts]
+                    collected_faces.append(face_indices)
+
                 bm_temp.free()
-            except:
+            except Exception as e:
+                print(f"Geometry Collection Error ({part.name}): {e}")
                 pass
-        
-        if not faces_co:
+
+        if not has_geom:
             continue
-            
-        # Generate Hull
+
+        # 3. Generate Shape
         try:
-            bm_hull = bmesh.new()
-            for co in faces_co:
-                bm_hull.verts.new(co)
-            
-            bmesh.ops.convex_hull(bm_hull, input=bm_hull.verts[:])
-            
-            # Use only Hull Geometry (Clean remaining loose verts if any)
-            # convex_hull output usually includes all geometry. 
-            # We trust the result is a convex hull.
-            
-            ucx_name = f"UCX_{obj.name}_{i:02d}"
-            
-            # Remove old if exists (Cleanup for iterative workflow)
-            # (User didn't ask for cleanup but good practice for 'Resurrection')
-            # But here we create new data mesh each time.
-            
+            bm_final = bmesh.new()
+
+            if shape_type == "MESH":
+                # Reconstruct Mesh
+                # Add vertices
+                bm_verts = [bm_final.verts.new(co) for co in collected_verts]
+                bm_final.verts.ensure_lookup_table()
+
+                # Add faces
+                for f_idx in collected_faces:
+                    try:
+                        verts = [bm_verts[idx] for idx in f_idx]
+                        bm_final.faces.new(verts)
+                    except ValueError:
+                        # Duplicate faces or invalid geometry might occur
+                        pass
+
+                bmesh.ops.recalc_face_normals(bm_final, faces=bm_final.faces)
+
+            elif shape_type == "HULL":
+                # Add vertices only
+                for co in collected_verts:
+                    bm_final.verts.new(co)
+
+                bmesh.ops.convex_hull(bm_final, input=bm_final.verts[:])
+                # Clean up loose geometry if any (convex_hull output might leave original verts?)
+                # Actually convex_hull returns geom.
+                # Usually best to just use the result.
+                # But typically it modifies bm_final in place.
+
+            elif shape_type == "BOX":
+                # Bounding Box
+                min_v = Vector((float("inf"), float("inf"), float("inf")))
+                max_v = Vector((float("-inf"), float("-inf"), float("-inf")))
+
+                for co in collected_verts:
+                    min_v.x = min(min_v.x, co.x)
+                    min_v.y = min(min_v.y, co.y)
+                    min_v.z = min(min_v.z, co.z)
+                    max_v.x = max(max_v.x, co.x)
+                    max_v.y = max(max_v.y, co.y)
+                    max_v.z = max(max_v.z, co.z)
+
+                center = (min_v + max_v) / 2
+                size = max_v - min_v
+
+                # Create Cube
+                bmesh.ops.create_cube(bm_final, size=1.0)  # Unit cube
+                # Scale and Translate
+                bmesh.ops.scale(bm_final, vec=size, verts=bm_final.verts)
+                bmesh.ops.translate(bm_final, vec=center, verts=bm_final.verts)
+
+            elif shape_type == "SPHERE":
+                # Bounding Sphere
+                min_v = Vector((float("inf"), float("inf"), float("inf")))
+                max_v = Vector((float("-inf"), float("-inf"), float("-inf")))
+
+                for co in collected_verts:
+                    min_v.x = min(min_v.x, co.x)
+                    min_v.y = min(min_v.y, co.y)
+                    min_v.z = min(min_v.z, co.z)
+                    max_v.x = max(max_v.x, co.x)
+                    max_v.y = max(max_v.y, co.y)
+                    max_v.z = max(max_v.z, co.z)
+
+                center = (min_v + max_v) / 2
+                # Simple radius: max distance from center
+                radius = 0.0
+                for co in collected_verts:
+                    dist = (co - center).length
+                    if dist > radius:
+                        radius = dist
+
+                bmesh.ops.create_uvsphere(
+                    bm_final, u_segments=16, v_segments=8, radius=radius
+                )
+                bmesh.ops.translate(bm_final, vec=center, verts=bm_final.verts)
+
+            elif shape_type == "CAPSULE":
+                # Bounding Capsule (Approximation using Cylinder/Capsule logic)
+                # Since BMesh doesn't have create_capsule, we use a Cylinder.
+                # Or we can just do a bounding box Z-aligned Cylinder.
+
+                min_v = Vector((float("inf"), float("inf"), float("inf")))
+                max_v = Vector((float("-inf"), float("-inf"), float("-inf")))
+
+                for co in collected_verts:
+                    min_v.x = min(min_v.x, co.x)
+                    min_v.y = min(min_v.y, co.y)
+                    min_v.z = min(min_v.z, co.z)
+                    max_v.x = max(max_v.x, co.x)
+                    max_v.y = max(max_v.y, co.y)
+                    max_v.z = max(max_v.z, co.z)
+
+                center = (min_v + max_v) / 2
+                size = max_v - min_v
+                radius = max(size.x, size.y) / 2.0
+                height = size.z
+
+                # Cylinder
+                bmesh.ops.create_cone(
+                    bm_final,
+                    cap_ends=True,
+                    cap_tris=False,
+                    segments=16,
+                    radius1=radius,
+                    radius2=radius,
+                    depth=height,
+                )
+                bmesh.ops.translate(bm_final, vec=center, verts=bm_final.verts)
+
+            # 4. Finalize
             mesh_ucx = bpy.data.meshes.new(f"Mesh_{ucx_name}")
-            bm_hull.to_mesh(mesh_ucx)
-            bm_hull.free()
-            
+            bm_final.to_mesh(mesh_ucx)
+            bm_final.free()
+
             ucx_obj = bpy.data.objects.new(ucx_name, mesh_ucx)
-            
-            # Link to same collection
+
+            # Link
             if obj.users_collection:
                 obj.users_collection[0].objects.link(ucx_obj)
             else:
                 bpy.context.collection.objects.link(ucx_obj)
 
             ucx_obj.parent = obj
-            ucx_obj.display_type = 'WIRE'
+            # [ARCHITECT FIX] Set display type to WIRE for cleanliness
+            ucx_obj.display_type = "WIRE"
             ucx_obj.hide_render = True
-            
+
         except Exception as e:
-            print(f"UCX Forge Error (Slot {i}): {e}")
+            print(f"UCX Shape Error (Slot {i}): {e}")
+            import traceback
+
+            traceback.print_exc()
 
 
 def phys_auto_rig(obj, op, manifest):
