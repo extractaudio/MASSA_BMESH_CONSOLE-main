@@ -549,7 +549,7 @@ def draw_slots_tab(layout, owner, slot_names, stats):
 
         sub = row.row(align=True)
         sub.prop(owner, f"sep_{i}", text="", icon="UNLINKED", toggle=True)
-        sub.prop(owner, f"sock_{i}", text="", icon="EMPTY_AXIS", toggle=True)
+        # [ARCHITECT MOVED] Socket button moved to Sockets Tab
         sub.prop(owner, f"prot_{i}", text="", icon="LOCKED", toggle=True)
 
         if is_expanded:
@@ -618,7 +618,7 @@ def draw_collision_tab(layout, owner, slot_names):
             col.prop(owner, f"phys_bounce_{i}", text="Restitution")
             col.prop(owner, f"phys_bond_{i}", text="Attachment Strength")
 
-def draw_sockets_ui(layout, owner):
+def draw_sockets_ui(layout, owner, slot_names):
     """
     [ARCHITECT NEW] Phase 1: Sockets Tab UI
     """
@@ -643,3 +643,29 @@ def draw_sockets_ui(layout, owner):
 
         if owner.sock_constraint_type != 'NONE':
             box.prop(owner, "sock_break_strength")
+
+        layout.separator()
+        layout.label(text="Per-Slot Configuration", icon="MATERIAL")
+
+        for i in range(10):
+            box = layout.box()
+            row = box.row()
+
+            is_expanded = getattr(owner, f"expand_{i}", False)
+            icon = "TRIA_DOWN" if is_expanded else "TRIA_RIGHT"
+            row.prop(owner, f"expand_{i}", icon=icon, text="", emboss=False)
+
+            s_name = slot_names.get(i, f"Slot {i}")
+            row.label(text=f"{i}: {s_name}", icon="MATERIAL")
+
+            # Header Controls
+            sub = row.row(align=True)
+            if getattr(owner, f"sock_{i}", False):
+                sub.prop(owner, f"sock_{i}", text="Enabled", icon="CHECKMARK", toggle=True)
+            else:
+                sub.prop(owner, f"sock_{i}", text="Enable", icon="EMPTY_AXIS", toggle=True)
+
+            if is_expanded:
+                col = box.column(align=True)
+                col.label(text="Socket Properties", icon="INFO")
+                # Placeholder for future per-slot socket settings
