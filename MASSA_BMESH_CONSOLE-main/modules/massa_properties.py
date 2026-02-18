@@ -56,6 +56,35 @@ class MassaPropertiesMixin:
         name="Sharp Angle", default=30.0, description="Visual Shading Threshold"
     )
 
+    # [ARCHITECT NEW] Auto-Detect Sharp Edge (Convex/Concave)
+    edge_sharp_convex_active: BoolProperty(
+        name="Sharp (Convex)",
+        default=False,
+        description="Mark exposed ridges as Sharp",
+    )
+    edge_sharp_convex_angle: FloatProperty(
+        name="Angle (Cvx)",
+        default=0.52359, # 30 degrees
+        min=0.0,
+        max=3.14159,
+        subtype="ANGLE",
+        description="Angle threshold for Convex edges",
+    )
+
+    edge_sharp_concave_active: BoolProperty(
+        name="Sharp (Concave)",
+        default=False,
+        description="Mark enclosed valleys as Sharp",
+    )
+    edge_sharp_concave_angle: FloatProperty(
+        name="Angle (Cnv)",
+        default=0.52359, # 30 degrees
+        min=0.0,
+        max=3.14159,
+        subtype="ANGLE",
+        description="Angle threshold for Concave edges",
+    )
+
     # --- SEAM LOGIC (UVs) ---
     seam_active: BoolProperty(name="Write Seams", default=False)
 
