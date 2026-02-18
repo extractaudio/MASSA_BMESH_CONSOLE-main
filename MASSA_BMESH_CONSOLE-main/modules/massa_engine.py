@@ -543,19 +543,24 @@ def _generate_output(op, context, bm, socket_data, manifest):
 def phys_gen_ucx(obj, op, manifest, slot_map):
     """
     PHASE 4: UCX CONVEX HULL FORGE
-    Generates optimized collision hulls for Slot 0, 1, 2 (Structural).
+    Generates optimized collision hulls for ALL used Slots.
     """
-    target_slots = {0, 1, 2}
-    
+    # [ARCHITECT UPDATED] Target all active slots in the map
+    target_slots = set(slot_map.keys()) if slot_map else set()
+
+    # Fallback if map is missing (though it shouldn't be)
+    if not target_slots:
+        target_slots = {0, 1, 2}  # Legacy Fallback
+
     # Identify all participating geometry (Main + Detached Children)
     all_objs = [obj] + [c for c in obj.children if c.type == 'MESH']
     
     for i in target_slots:
         # Resolve Material Index
         mat_idx = i
-        if slot_map is not None:
+        if slot_map:
             mat_idx = slot_map.get(i)
-        
+
         if mat_idx is None:
             continue
             
@@ -616,8 +621,8 @@ def phys_gen_ucx(obj, op, manifest, slot_map):
             if obj.users_collection:
                 obj.users_collection[0].objects.link(ucx_obj)
             else:
-                 context.collection.objects.link(ucx_obj)
-            
+                bpy.context.collection.objects.link(ucx_obj)
+
             ucx_obj.parent = obj
             ucx_obj.display_type = 'WIRE'
             ucx_obj.hide_render = True
@@ -631,8 +636,13 @@ def phys_auto_rig(obj, op, manifest):
     PHASE 4: AUTO-RIGGER
     Detects detached parts and auto-rigs them with Hinge Constraints.
     """
-    children = [c for c in obj.children if c.type == 'MESH']
-    
+    # [ARCHITECT UPDATED] Strict Child Validation
+    children = []
+    for c in obj.children:
+        if c.type == "MESH" and c.data and len(c.data.vertices) > 0:
+            # Ensure it's not a helper/empty
+            children.append(c)
+
     if not children:
         return
 
@@ -677,8 +687,8 @@ def phys_auto_rig(obj, op, manifest):
             if obj.users_collection:
                 obj.users_collection[0].objects.link(empty)
             else:
-                context.collection.objects.link(empty)
-            
+                bpy.context.collection.objects.link(empty)
+
             # Align Empty Matrix
             # Location in World = Parent.MatrixWorld @ PivotLocal
             empty.matrix_world = obj.matrix_world @ pivot_local
@@ -686,11 +696,11 @@ def phys_auto_rig(obj, op, manifest):
             empty.parent = obj
             
             # Create Rigid Body Constraint
-            # We add it to the scene collection but need to enable RB 
-            bpy.ops.object.select_all(action='DESELECT')
+            # We add it to the scene collection but need to enable RB
+            bpy.ops.object.select_all(action="DESELECT")
             empty.select_set(True)
-            context.view_layer.objects.active = empty
-            
+            bpy.context.view_layer.objects.active = empty
+
             # Add Rigid Body Constraint via Operator (Safest)
             # This ensures physics world is respected/created
             try:
