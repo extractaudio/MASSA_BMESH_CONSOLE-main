@@ -154,20 +154,76 @@ def apply_plating(bm, manifest, thickness, depth):
             pass
 
 
-def apply_taper(bm, taper_x, taper_y):
+def apply_taper(bm, taper_x, taper_y, curve=1.0, mirror=False, invert=False):
     if abs(taper_x) < 0.001 and abs(taper_y) < 0.001:
         return
     verts = [v for v in bm.verts if v.is_valid]
     if not verts:
         return
     min_z = min([v.co.z for v in verts])
-    height = max([v.co.z for v in verts]) - min_z
+    max_z = max([v.co.z for v in verts])
+    height = max_z - min_z
     if height < 0.0001:
         return
+
     for v in verts:
         h_fac = (v.co.z - min_z) / height
+
+        if mirror:
+            h_fac = 1.0 - abs(h_fac - 0.5) * 2.0
+
+        if invert:
+            h_fac = 1.0 - h_fac
+
+        if curve != 1.0 and h_fac > 0.0:
+            h_fac = pow(h_fac, curve)
+
         v.co.x *= 1.0 - (h_fac * taper_x)
         v.co.y *= 1.0 - (h_fac * taper_y)
+
+
+def apply_bend(bm, angle, axis="X"):
+    if abs(angle) < 0.001 or not bm.verts:
+        return
+
+    verts = [v for v in bm.verts if v.is_valid]
+    if not verts:
+        return
+
+    min_z = min([v.co.z for v in verts])
+    max_z = max([v.co.z for v in verts])
+    height = max_z - min_z
+    if height < 0.001:
+        return
+
+    if axis == "Z":
+        # Twist logic
+        for v in verts:
+            theta = ((v.co.z - min_z) / height) * angle
+            cos_t = math.cos(theta)
+            sin_t = math.sin(theta)
+            x = v.co.x
+            y = v.co.y
+            v.co.x = x * cos_t - y * sin_t
+            v.co.y = x * sin_t + y * cos_t
+        return
+
+    # Bend logic (X or Y)
+    radius = height / angle
+
+    for v in verts:
+        z_norm = (v.co.z - min_z)
+        theta = (z_norm / height) * angle
+
+        if axis == "X":
+            r_cur = radius - v.co.x
+            v.co.x = radius - r_cur * math.cos(theta)
+            v.co.z = min_z + r_cur * math.sin(theta)
+
+        elif axis == "Y":
+            r_cur = radius - v.co.y
+            v.co.y = radius - r_cur * math.cos(theta)
+            v.co.z = min_z + r_cur * math.sin(theta)
 
 
 def apply_noise(bm, strength, scale, seed, global_scale):
@@ -198,7 +254,7 @@ def apply_smooth(bm, iterations, factor):
     )
 
 
-def apply_chamfer(bm, width, segments, is_square=False):
+def apply_chamfer(bm, width, segments, is_square=False, angle_limit=0.05):
     if width <= 0.00001:
         return
     bm.edges.ensure_lookup_table()
@@ -206,7 +262,7 @@ def apply_chamfer(bm, width, segments, is_square=False):
     for e in bm.edges:
         if e.is_manifold:
             try:
-                if e.calc_face_angle_signed() > 0.05:
+                if e.calc_face_angle_signed() > angle_limit:
                     targets.append(e)
             except ValueError:
                 continue
@@ -295,17 +351,35 @@ def apply_fill_holes(bm, sides=4):
         pass
 
 
-def apply_symmetrize(bm, direction="POS_X"):
+def apply_symmetrize(bm, direction="POS_X", offset=0.0):
     dirs = {"POS_X": 0, "POS_Y": 1, "POS_Z": 2, "NEG_X": 3, "NEG_Y": 4, "NEG_Z": 5}
+    dir_idx = dirs.get(direction, 0)
+
+    # Calculate offset vector
+    off_vec = Vector((0,0,0))
+    if dir_idx in {0, 3}: # X axis
+        off_vec.x = -offset
+    elif dir_idx in {1, 4}: # Y axis
+        off_vec.y = -offset
+    elif dir_idx in {2, 5}: # Z axis
+        off_vec.z = -offset
+
+    if off_vec.length_squared > 0.000001:
+        bmesh.ops.translate(bm, vec=off_vec, verts=bm.verts[:])
+
     try:
         bmesh.ops.symmetrize(
             bm,
             input=bm.verts[:] + bm.edges[:] + bm.faces[:],
-            direction=dirs.get(direction, 0),
+            direction=dir_idx,
             dist=0.005,
         )
-    except:
-        pass
+    except Exception as e:
+        print(f"Massa Symmetrize Error: {e}")
+
+    # Restore position
+    if off_vec.length_squared > 0.000001:
+        bmesh.ops.translate(bm, vec=-off_vec, verts=bm.verts[:])
 
 
 def apply_bridge_loops(bm):
