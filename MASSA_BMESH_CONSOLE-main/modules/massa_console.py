@@ -1,7 +1,19 @@
 import bpy
-from bpy.props import PointerProperty, EnumProperty, IntProperty, BoolProperty
+from bpy.props import PointerProperty, EnumProperty, IntProperty, BoolProperty, FloatVectorProperty
 from .massa_properties import MassaPropertiesMixin
 
+def get_cartridge_items(self, context):
+    try:
+        from .cartridges import MODULES
+    except ImportError:
+        return []
+
+    items = []
+    for i, mod in enumerate(MODULES):
+        meta = mod.CARTRIDGE_META
+        # Identifier, Name, Description, Icon, ID
+        items.append((meta["id"], meta["name"], meta.get("description", ""), meta.get("icon", "MESH_CUBE"), i))
+    return items
 
 class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
     """
@@ -81,6 +93,29 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
             ("SLOTS", "Slots", "Show Colored Edge Slots (Shader)", "SHADING_WIRE", 2),
         ],
         default="NATIVE",
+    )
+
+    # --- 4. POINT & SHOOT MODE ---
+    massa_op_mode: EnumProperty(
+        name="Operation Mode",
+        items=[
+            ("ACTIVE", "Active (Redo)", "Standard generation on active object"),
+            ("POINT_SHOOT", "Point & Generate", "Targeted generation at 3D cursor/point"),
+        ],
+        default="ACTIVE",
+    )
+
+    massa_target_coord: FloatVectorProperty(
+        name="Target Coordinate",
+        size=3,
+        subtype="TRANSLATION",
+        default=(0.0, 0.0, 0.0),
+    )
+
+    massa_staged_cartridge: EnumProperty(
+        name="Staged Cartridge",
+        items=get_cartridge_items,
+        description="Cartridge to generate in Point & Shoot mode",
     )
 
 

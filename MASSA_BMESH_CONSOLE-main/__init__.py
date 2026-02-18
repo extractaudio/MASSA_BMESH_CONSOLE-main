@@ -15,7 +15,7 @@ bl_info = {
 from .utils import mat_utils
 from .modules import massa_console  # 1. BRAIN
 from .modules import massa_engine  # 2. CORE
-from .operators import massa_base, massa_tools, massa_console_op  # 3. LOGIC
+from .operators import massa_base, massa_tools, massa_console_op, massa_point_tool, massa_shooter  # 3. LOGIC
 from .modules import cartridges  # 4. CONTENT
 from .modules import advanced_analytics # 4.5 ANALYTICS
 from .ui import ui_massa_panel, ui_massa_pie, gizmo_massa  # 5. INTERFACE
@@ -53,6 +53,8 @@ if "massa_console" in locals():
         importlib.reload(massa_base)  # The Muscle (inherits props + uses engine)
         importlib.reload(massa_tools)
         importlib.reload(massa_console_op)
+        importlib.reload(massa_point_tool)
+        importlib.reload(massa_shooter)
 
         # 4. CONTENT & UI
         importlib.reload(cartridges)
@@ -88,6 +90,8 @@ def register():
     bpy.utils.register_class(massa_base.MASSA_OT_ReRun_Active)
     bpy.utils.register_class(massa_tools.MASSA_OT_Condemn)
     bpy.utils.register_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
+    bpy.utils.register_class(massa_point_tool.MASSA_OT_PickCoordinate)
+    bpy.utils.register_class(massa_shooter.MASSA_OT_ShootDispatcher)
 
     # 3. Register Cartridges
     cartridges.register()
@@ -135,6 +139,8 @@ def unregister():
     cartridges.unregister()
 
     # 3. Unregister Operators
+    bpy.utils.unregister_class(massa_shooter.MASSA_OT_ShootDispatcher)
+    bpy.utils.unregister_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Condemn)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
     bpy.utils.unregister_class(massa_base.Massa_OT_Base)
