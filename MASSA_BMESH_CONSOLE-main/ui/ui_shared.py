@@ -83,6 +83,7 @@ def draw_nav_bar(layout, owner):
     _nav_btn("GROUP_UVS", "UVS")
     _nav_btn("MATERIAL", "SLOTS")
     _nav_btn("EDGESEL", "EDGES")
+    _nav_btn("PHYSICS", "COLLISION")
 
     # [ARCHITECT FIX] Return the main column (Right side of split)
     return col_main
@@ -554,3 +555,42 @@ def draw_slots_tab(layout, owner, slot_names, stats):
             col = box.column(align=True)
             col.prop(owner, f"mat_{i}", text="Visual")
             col.prop(owner, f"phys_mat_{i}", text="Physics")
+
+
+def draw_collision_tab(layout, owner, slot_names):
+    """
+    [ARCHITECT NEW] Collision & Physics Tab
+    """
+    layout.label(text="Collision & Physics", icon="PHYSICS")
+
+    for i in range(10):
+        box = layout.box()
+        row = box.row()
+
+        is_expanded = getattr(owner, f"expand_{i}", False)
+        icon = "TRIA_DOWN" if is_expanded else "TRIA_RIGHT"
+        row.prop(owner, f"expand_{i}", icon=icon, text="", emboss=False)
+
+        s_name = slot_names.get(i, f"Slot {i}")
+        row.label(text=f"{i}: {s_name}", icon="MATERIAL")
+
+        # Wireframe Toggle on Header
+        sub = row.row(align=True)
+        if getattr(owner, f"show_coll_{i}", False):
+            sub.prop(
+                owner, f"show_coll_{i}", text="", icon="SHADING_WIRE", toggle=True
+            )
+        else:
+            sub.prop(owner, f"show_coll_{i}", text="", icon="X", toggle=True)
+
+        if is_expanded:
+            col = box.column(align=True)
+
+            # Shape
+            col.prop(owner, f"collision_shape_{i}", text="Shape")
+            col.separator()
+
+            # Physics Props
+            col.prop(owner, f"phys_friction_{i}", text="Friction")
+            col.prop(owner, f"phys_bounce_{i}", text="Restitution")
+            col.prop(owner, f"phys_bond_{i}", text="Attachment Strength")
