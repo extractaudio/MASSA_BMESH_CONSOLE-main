@@ -533,8 +533,10 @@ def _generate_output(op, context, bm, socket_data, manifest):
 
     # [ARCHITECT NEW] Phase 4 Protocol: Physics Volumes
     try:
-        phys_gen_ucx(obj, op, manifest, slot_map)
-        phys_auto_rig(obj, op, manifest)
+        if getattr(op, "phys_gen_ucx", False):
+            phys_gen_ucx(obj, op, manifest, slot_map)
+        if getattr(op, "phys_auto_rig", False):
+            phys_auto_rig(obj, op, manifest)
     except Exception as e:
         print(f"Phase 4 Physics Error: {e}")
         traceback.print_exc()
