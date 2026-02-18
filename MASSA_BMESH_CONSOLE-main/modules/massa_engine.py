@@ -307,13 +307,19 @@ def _generate_output(op, context, bm, socket_data, manifest):
     #        pass
 
     mesh = bpy.data.meshes.new("Massa_Obj")
+    obj = bpy.data.objects.new(op.bl_label, mesh)
+
+    # [ARCHITECT FIX] MATERIAL ASSIGNMENT (Moved up to support Slot Selection)
+    # Must be done BEFORE bm.to_mesh() to preserve face material indices (0-9).
+    # If slots are missing on the target mesh, to_mesh() clamps indices to 0.
+    massa_surface.assign_materials(obj, op)
+
     bm.to_mesh(mesh)
     bm.free()
 
     if mesh.uv_layers:
         mesh.uv_layers[0].name = "UVMap"
 
-    obj = bpy.data.objects.new(op.bl_label, mesh)
     context.collection.objects.link(obj)
 
     bpy.ops.object.select_all(action="DESELECT")
@@ -341,9 +347,6 @@ def _generate_output(op, context, bm, socket_data, manifest):
         obj["MASSA_PARAMS"] = _capture_operator_params(op)
     except Exception as e:
         print(f"Massa Save Error: {e}")
-
-    # [ARCHITECT FIX] MATERIAL ASSIGNMENT (Moved up to support Slot Selection)
-    massa_surface.assign_materials(obj, op)
 
     for p in mesh.polygons:
         p.use_smooth = True
