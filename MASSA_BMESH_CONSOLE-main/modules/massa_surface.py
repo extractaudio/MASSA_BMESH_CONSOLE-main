@@ -108,16 +108,23 @@ def assign_materials(obj, op):
         override_mat = None
 
     # 2. Apply to Object
-    # We clear any existing, then forcefully pad to 10
-    obj.data.materials.clear()
+    # [ARCHITECT FIX] Do NOT clear materials, as this clamps face indices to 0.
+    # Instead, ensure we have 10 slots and overwrite them.
     
     # Ensure all debug mats exist
     mat_utils.ensure_default_library()
 
+    # Ensure at least 10 slots
+    placeholder = mat_utils.get_or_create_placeholder_material()
+    while len(obj.data.materials) < 10:
+        obj.data.materials.append(placeholder)
+
     for i in range(10):
+        target_mat = None
+
         if override_mat:
-            # Debug Mode: All slots use the debug shader, preserving index logic
-            obj.data.materials.append(override_mat)
+            # Debug Mode: All slots use the debug shader
+            target_mat = override_mat
         else:
             # Final Mode: Load actual slot material or fallback to Debug Color
             mat_name = getattr(op, f"mat_{i}", "NONE")
@@ -128,12 +135,14 @@ def assign_materials(obj, op):
                 debug_name = mat_utils.get_debug_mat_name(i)
                 mat = mat_utils.load_material_smart(debug_name)
             
-            if mat:
-                obj.data.materials.append(mat)
-            else:
-                # Last resort fallback to prevent index crash
-                placeholder = mat_utils.get_or_create_placeholder_material()
-                obj.data.materials.append(placeholder)
+            target_mat = mat if mat else placeholder
+
+        # Overwrite existing slot
+        obj.data.materials[i] = target_mat
+
+    # Remove excess slots if any (cleanup)
+    while len(obj.data.materials) > 10:
+        obj.data.materials.pop()
 
 
 def write_identity_layers(bm, manifest, op):

@@ -307,6 +307,14 @@ def _generate_output(op, context, bm, socket_data, manifest):
     #        pass
 
     mesh = bpy.data.meshes.new("Massa_Obj")
+
+    # [ARCHITECT FIX] Pre-fill mesh slots to prevent index clamping during to_mesh()
+    # If the mesh has 0 slots, Blender forces all face material indices to 0.
+    placeholder = mat_utils.get_or_create_placeholder_material()
+    if placeholder:
+        for _ in range(10):
+            mesh.materials.append(placeholder)
+
     bm.to_mesh(mesh)
     bm.free()
 

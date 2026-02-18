@@ -501,14 +501,15 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
     layout.label(text="Slot Projection", icon="UV")
 
     for i in range(10):
-        if not getattr(owner, f"expand_{i}", False):
-            continue
-
         box = layout.box()
         s_name = slot_names.get(i, f"Slot {i}")
 
         # Header Row
         row = box.row(align=True)
+        is_expanded = getattr(owner, f"expand_{i}", False)
+        icon = "TRIA_DOWN" if is_expanded else "TRIA_RIGHT"
+        row.prop(owner, f"expand_{i}", icon=icon, text="", emboss=False)
+
         row.label(text=f"{i}: {s_name}", icon="MATERIAL")
 
         # Efficiency Stats (Optional Visual Feedack)
@@ -522,12 +523,13 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
                 pass
 
         # Internal Controls
-        col = box.column(align=True)
-        col.prop(owner, f"uv_mode_{i}", text="Mode")
+        if is_expanded:
+            col = box.column(align=True)
+            col.prop(owner, f"uv_mode_{i}", text="Mode")
 
-        # Only show scale if not Skip/Unwrap/Fit (Fit has no scale)
-        if getattr(owner, f"uv_mode_{i}") not in {"SKIP", "UNWRAP", "FIT"}:
-            col.prop(owner, f"uv_scale_{i}", text="Scale")
+            # Only show scale if not Skip/Unwrap/Fit (Fit has no scale)
+            if getattr(owner, f"uv_mode_{i}") not in {"SKIP", "UNWRAP", "FIT"}:
+                col.prop(owner, f"uv_scale_{i}", text="Scale")
 
 
 def draw_slots_tab(layout, owner, slot_names, stats):
@@ -555,7 +557,3 @@ def draw_slots_tab(layout, owner, slot_names, stats):
             col.separator()
             r = col.row(align=True)
             r.prop(owner, f"off_{i}", text="Inflate", icon="MOD_THICKNESS")
-            r = col.row(align=True)
-            r.prop(owner, f"uv_mode_{i}", text="UV")
-            if getattr(owner, f"uv_mode_{i}") not in {"SKIP", "UNWRAP"}:
-                r.prop(owner, f"uv_scale_{i}", text="Scl")

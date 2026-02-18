@@ -425,7 +425,10 @@ def handle_separation(obj, op, manifest, context):
         bmesh.update_edit_mesh(obj.data)
 
         if found:
-            bpy.ops.mesh.separate(type="SELECTED")
+            try:
+                bpy.ops.mesh.separate(type="SELECTED")
+            except Exception:
+                pass
             bpy.ops.object.mode_set(mode="OBJECT")
             new_parts = [o for o in context.selected_objects if o != obj]
             if new_parts:
