@@ -14,8 +14,12 @@ class MASSA_OT_ShootDispatcher(bpy.types.Operator):
         # [ARCHITECT NEW] Check for Active Target Empty
         # If "Massa_Target" exists, it overrides the console coordinate
         target_obj = context.scene.objects.get("Massa_Target")
+        target_rot = (0.0, 0.0, 0.0)
+
         if target_obj:
-            console.massa_target_coord = target_obj.location[:]
+            # Use World Matrix to handle parenting/constraints
+            console.massa_target_coord = target_obj.matrix_world.translation[:]
+            target_rot = target_obj.matrix_world.to_euler()[:]
 
         # Fix: bpy_prop_array doesn't have .copy(), use slicing to get a tuple/list copy
         target_loc = console.massa_target_coord[:]
@@ -23,9 +27,11 @@ class MASSA_OT_ShootDispatcher(bpy.types.Operator):
         # 2. Save Cursor
         # Scene.cursor.location is a FloatVectorProperty, so slicing is safer here too
         cursor_loc = context.scene.cursor.location[:]
+        cursor_rot = context.scene.cursor.rotation_euler[:]
 
         # 3. Move Cursor to Target
         context.scene.cursor.location = target_loc
+        context.scene.cursor.rotation_euler = target_rot
 
         # 4. Call Operator
         # We construct the operator name dynamically: massa.gen_{cart_id}
@@ -80,22 +86,29 @@ class MASSA_OT_ShootDispatcher(bpy.types.Operator):
                              if hasattr(val, "to_tuple"): val = val.to_tuple()
                              kwargs[key] = val
 
+                # Inject Transform Override (Fixes 0,0,0 Issue)
+                kwargs["obj_location"] = target_loc
+                kwargs["obj_rotation"] = target_rot
+
                 # Call with EXEC_DEFAULT + kwargs to inject parameters
                 getattr(bpy.ops.massa, op_id)('EXEC_DEFAULT', **kwargs)
             else:
                 self.report({'ERROR'}, f"Operator massa.{op_id} not found")
                 # Restore cursor
                 context.scene.cursor.location = cursor_loc
+                context.scene.cursor.rotation_euler = cursor_rot
                 return {'CANCELLED'}
 
         except Exception as e:
             self.report({'ERROR'}, f"Failed to shoot {cart_id}: {e}")
             # Restore cursor
             context.scene.cursor.location = cursor_loc
+            context.scene.cursor.rotation_euler = cursor_rot
             return {'CANCELLED'}
 
         # 5. Restore Cursor
         context.scene.cursor.location = cursor_loc
+        context.scene.cursor.rotation_euler = cursor_rot
 
         # 6. Stay in Point Shoot Mode
         # console.massa_op_mode = 'ACTIVE'
