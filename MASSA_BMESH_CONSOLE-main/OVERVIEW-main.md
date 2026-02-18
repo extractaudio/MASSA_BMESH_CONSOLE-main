@@ -52,7 +52,8 @@ The addon follows a strict separation pattern:
 | Aspect | Description |
 |--------|-------------|
 | **Role** | Stores persistent state and property definitions. |
-| **Key Concept** | `massa_properties.py` is the "DNA" — properties defined here propagate to the Console and ALL Cartridges automatically via `MassaPropertiesMixin`. `massa_cartridge_props.py` handles dynamic property group generation for cartridges. |
+| **Key Concept** | `massa_properties.py` is the "DNA" — properties defined here propagate to the Console and ALL Cartridges automatically via `MassaPropertiesMixin`. `massa_cartridge_props.py` handles dynamic property group generation for cartridges (`MASSA_PG_{id}`). |
+| **Physics** | `collision_shape_{i}` defaults to `MESH` (exact geometry) instead of `BOX`. |
 
 > ⚠️ **Safety Warning:** **NEVER** rename existing properties without a full repository refactor. This will break resurrection and saved presets.
 
@@ -63,8 +64,8 @@ The addon follows a strict separation pattern:
 | Aspect | Description |
 |--------|-------------|
 | **Role** | The Base Operator (`Massa_OT_Base`) that all cartridges inherit. |
-| **Responsibilities** | Handles execution, "Resurrection" (re-running parameter edits), property syncing (`_sync`), and UI Tabs (SHAPE, DATA, POLISH, UVS, SLOTS, EDGES). |
-| **Resurrection** | Uses `rerun_mode` and captures parameters in `MASSA_PARAMS` on the object to restore state during edits. |
+| **Responsibilities** | Handles execution, "Resurrection" (re-running parameter edits), property syncing (`_sync`), and UI Tabs (`SHAPE`, `DATA`, `POLISH`, `UVS`, `SLOTS`, `EDGES`, `COLLISION`, `SOCKETS`). |
+| **Resurrection** | Uses `rerun_mode` and captures parameters in `MASSA_PARAMS` on the object to restore state during edits. Also handles `target_delete_name` for cleanup. |
 
 > ⚠️ **Safety Warning:** Modify `draw` or `execute` here **ONLY** if the change applies to EVERY cartridge.
 
@@ -75,8 +76,9 @@ The addon follows a strict separation pattern:
 | Aspect | Description |
 |--------|-------------|
 | **Role** | The generation pipeline (Pipeline). |
-| **Pipeline Flow** | BMesh creation → Shape → Polish → Surface → Physics (Phase 4) → Output. |
-| **Key Features** | Handles 5 Edge Slots, Data Layers (Strain/Kinematic), and Physics generation (UCX/Joints). |
+| **Pipeline Flow** | BMesh creation → Shape → Polish → Surface → **Phase 3 (Sockets/Sharpness)** → **Phase 4 (Physics/Rigs)** → Output. |
+| **Key Features** | Handles 5 Edge Slots, Data Layers (Strain/Kinematic), Physics generation (UCX/Joints), and **Seam Solvers**. |
+| **Visualization** | `Massa_Edge_Viz` modifier (Geometry Nodes) for non-destructive overlay. |
 
 > ⚠️ **Safety Warning:** This is the critical loop. Changes here affect the fundamental mesh generation logic for ALL cartridges.
 
@@ -96,7 +98,8 @@ The addon follows a strict separation pattern:
 | Aspect | Description |
 |--------|-------------|
 | **Role** | Handles targeted generation without changing selection. |
-| **Mechanism** | Uses `MASSA_OT_ShootDispatcher` to stage a cartridge, target a coordinate (or `Massa_Target` empty), and inject parameters dynamically. |
+| **Mechanism** | Uses `MASSA_OT_ShootDispatcher` to stage a cartridge, target a coordinate (or `Massa_Target` empty), and inject parameters dynamically from `Massa_Console_Props`. |
+| **Priority** | If `Massa_Target` exists, it overrides the console coordinate. |
 
 ### 👁️ Observer (Advanced Analytics)
 
@@ -105,7 +108,7 @@ The addon follows a strict separation pattern:
 | Aspect | Description |
 |--------|-------------|
 | **Role** | The "eyes" of the system. Handles synthetic vision and analysis. |
-| **Components** | **Holo-Projector** (`MCP_Overlay`): 3D viewport drawing.<br>**Visual Cortex** (`capture_analytical`): Segmentation, Depth, Heatmaps.<br>**Deep Analyst**: Mesh auditing and dependency tracing.<br>**Ghost Sim**: Simulating modifier stacks. |
+| **Components** | **Holo-Projector** (`MCP_Overlay`): 3D viewport drawing (Points/Lines/Text).<br>**Visual Cortex** (`capture_analytical`): Segmentation, Depth, Heatmaps.<br>**Deep Analyst**: Mesh auditing and dependency tracing.<br>**Ghost Sim**: Simulating modifier stacks. |
 
 ---
 
@@ -155,7 +158,8 @@ Follow this checklist when creating a new cartridge:
 The system allows users to re-edit meshes.
 - **Capture**: `_capture_operator_params` in `massa_engine.py` saves RNA properties to `obj["MASSA_PARAMS"]`.
 - **Restore**: `Massa_OT_Base.invoke` checks `rerun_mode` or `MASSA_PARAMS` and restores state.
-- **Transforms**: Object location/rotation are preserved during resurrection.
+- **Transforms**: Object location/rotation are preserved during resurrection (`obj_location`, `obj_rotation`).
+- **Cleanup**: `Massa_OT_Base` aggressively removes child objects (`UCX_`, `MASSA_JOINT_`, `SOCKET_`) before regeneration to prevent duplicates.
 
 ### 🖥️ Headless Safety
 
@@ -197,6 +201,8 @@ The system allows users to re-edit meshes.
 | `massa_base.py` | Muscle (Operator) |
 | `massa_shooter.py` | Shooter (Targeting) |
 | `advanced_analytics.py` | Observer (Vision) |
+| `massa_sockets.py` | Socket System |
+| `seam_solvers.py` | UV Seam Logic |
 
 ### Key Classes
 
@@ -230,10 +236,10 @@ New params must exist in:
 ## 🏗️ Execution Pipeline (Phases 1-6)
 
 ### Phase 1-3: Architecture & Build
-Define DNA, inherit `Massa_OT_Base`, implement `build_shape` using `bmesh.ops`.
+Define DNA, inherit `Massa_OT_Base`, implement `build_shape` using `bmesh.ops`. Phase 3 adds `MASSA_SOCKETS` layer and `auto_detect_sharp_edges`.
 
 ### Phase 4: The Artisan (Physics & Slots)
-- **10 Slots**: 0-9.
+- **10 Slots**: 0-9. **Smart Slotting** remaps indices to ensure compact storage.
 - **Physics**: Use valid keys (e.g., `METAL_STEEL`).
 - **Edge Roles**:
   - **1**: Perimeter (Seam/Sharp)
@@ -241,7 +247,9 @@ Define DNA, inherit `Massa_OT_Base`, implement `build_shape` using `bmesh.ops`.
   - **3**: Guide (Seam)
   - **4**: Detail (Bevel)
   - **5**: Special (Custom)
-- **Physics Gen**: `phys_gen_ucx` creates collision hulls; `phys_auto_rig` creates joints for detached parts.
+- **Physics Gen**: `phys_gen_ucx` creates collision hulls (BOX, HULL, SPHERE, CAPSULE, MESH).
+- **Auto-Rig**: `phys_auto_rig` creates joints for detached parts.
+- **Socket Forge**: Generates physical socket constraints (FIXED, HINGE, SLIDER, SPRING).
 
 ### Phase 5-6: Audit & Medic
 Verify with Telemetry. Fix flags.
@@ -303,5 +311,5 @@ edge_slots = bm.edges.layers.int["MASSA_EDGE_SLOTS"]
 - ✅ Passes telemetry (no flags).
 - ✅ Resurrects correctly (params & transforms).
 - ✅ Edge slots (1-5) assigned.
-- ✅ Material slots (0-9) populated.
-- ✅ Physics hulls (UCX) and Joints generate correctly.
+- ✅ Material slots (0-9) populated and remapped correctly.
+- ✅ Physics hulls (UCX), Joints, and Sockets generate correctly.
