@@ -19,6 +19,7 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
             ("UVS", "UVs", "Unwrapping & Seams", "GROUP_UVS", 3),
             ("SLOTS", "Slots", "Material Assignments", "MATERIAL", 4),
             ("EDGES", "Edges", "Edge Role Interpreter", "EDGESEL", 5),
+            ("COLLISION", "Collision", "Physics & Collision", "PHYSICS", 6),
         ],
         default="SHAPE",
     )
