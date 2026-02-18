@@ -392,7 +392,7 @@ def apply_bridge_loops(bm):
 
 
 # --- SEPARATION LOGIC ---
-def handle_separation(obj, op, manifest, context):
+def handle_separation(obj, op, manifest, context, slot_map=None):
     final_sel = [obj]
 
     # [ARCHITECT FIX] Ensure Fuse is baked before separation logic
@@ -408,6 +408,16 @@ def handle_separation(obj, op, manifest, context):
         if not getattr(op, f"sep_{i}", False):
             continue
 
+        # [ARCHITECT FIX] Determine Correct Target Index from Slot Map
+        # If slot_map is None (Legacy/Fallback), assume 1:1 mapping (target = i)
+        target_idx = i
+        if slot_map is not None:
+            target_idx = slot_map.get(i)
+
+        # If target_idx is None, it means this slot was not generated on the mesh. Skip.
+        if target_idx is None:
+            continue
+
         bpy.ops.object.select_all(action="DESELECT")
         context.view_layer.objects.active = obj
         obj.select_set(True)
@@ -419,7 +429,7 @@ def handle_separation(obj, op, manifest, context):
         bm = bmesh.from_edit_mesh(obj.data)
         found = False
         for f in bm.faces:
-            if f.material_index == i:
+            if f.material_index == target_idx:
                 f.select = True
                 found = True
         bmesh.update_edit_mesh(obj.data)

@@ -71,11 +71,12 @@ def calculate_physical_stats(bm, manifest):
     return vol, total_mass
 
 
-def assign_materials(obj, op):
+def assign_materials(obj, op, bm=None):
     """
     Assigns final or debug materials.
-    [ARCHITECT FIX]: Implements 'Law of the Hard 10'.
-    Forces Object to have 10 materials. If user selected NONE, uses Debug Slot Color.
+    [ARCHITECT FIX]: Now implements Smart Slotting.
+    Only generates material slots that are actually used by the geometry.
+    Returns a mapping: {old_slot_index: new_slot_index}
     """
     debug_v = getattr(op, "debug_view", "NONE")
     viz_mode = getattr(op, "viz_edge_mode", "NATIVE")
@@ -107,25 +108,55 @@ def assign_materials(obj, op):
         # Do not override in SLOTS mode (let real mats show through wireframe)
         override_mat = None
 
-    # 2. Apply to Object
+    # 2. Determine Used Slots
+    slot_map = {} # old_idx -> new_idx
+    slots_to_create = [] # List of old indices to create
+
+    if bm:
+        bm.faces.ensure_lookup_table()
+        used_indices = set()
+        for f in bm.faces:
+            used_indices.add(f.material_index)
+
+        # Sort so that Slot 0 comes before Slot 5 (Predictable order)
+        sorted_used = sorted(list(used_indices))
+
+        for new_idx, old_idx in enumerate(sorted_used):
+            slot_map[old_idx] = new_idx
+            slots_to_create.append(old_idx)
+
+        # Remap Faces
+        for f in bm.faces:
+            if f.material_index in slot_map:
+                f.material_index = slot_map[f.material_index]
+            else:
+                # Should not happen if we scanned correctly
+                f.material_index = 0
+    else:
+        # Fallback: Create all 10 slots (Old Behavior)
+        slots_to_create = list(range(10))
+        for i in range(10):
+            slot_map[i] = i
+
+    # 3. Apply to Object
     # We clear any existing, then forcefully pad to 10
     obj.data.materials.clear()
     
     # Ensure all debug mats exist
     mat_utils.ensure_default_library()
 
-    for i in range(10):
+    for old_i in slots_to_create:
         if override_mat:
             # Debug Mode: All slots use the debug shader, preserving index logic
             obj.data.materials.append(override_mat)
         else:
             # Final Mode: Load actual slot material or fallback to Debug Color
-            mat_name = getattr(op, f"mat_{i}", "NONE")
+            mat_name = getattr(op, f"mat_{old_i}", "NONE")
             mat = mat_utils.load_material_smart(mat_name)
             
             if not mat:
                 # If NONE or invalid, use the visual debug slot color (e.g. Red for 1)
-                debug_name = mat_utils.get_debug_mat_name(i)
+                debug_name = mat_utils.get_debug_mat_name(old_i)
                 mat = mat_utils.load_material_smart(debug_name)
             
             if mat:
@@ -134,6 +165,8 @@ def assign_materials(obj, op):
                 # Last resort fallback to prevent index crash
                 placeholder = mat_utils.get_or_create_placeholder_material()
                 obj.data.materials.append(placeholder)
+
+    return slot_map
 
 
 def write_identity_layers(bm, manifest, op):
