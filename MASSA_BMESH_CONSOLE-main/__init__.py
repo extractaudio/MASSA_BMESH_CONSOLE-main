@@ -31,13 +31,21 @@ if "massa_console" in locals():
         importlib.reload(massa_properties)  # <--- CRITICAL: Reload the Mixin Base
 
         # 2. ENGINE SUB-SYSTEMS (Leaf nodes of the Engine)
-        from .modules import massa_polish, massa_surface, massa_sockets, seam_solvers, advanced_analytics
+        from .modules import (
+            massa_polish,
+            massa_surface,
+            massa_sockets,
+            seam_solvers,
+            advanced_analytics,
+            massa_collision,
+        )
 
         importlib.reload(massa_polish)
         importlib.reload(massa_surface)
         importlib.reload(massa_sockets)
         importlib.reload(seam_solvers)
         importlib.reload(advanced_analytics)
+        importlib.reload(massa_collision)
 
         # 3. CORE SYSTEMS
         importlib.reload(massa_console)  # The Brain
@@ -70,6 +78,11 @@ def register():
     # 1. Register Console (Shared Properties)
     massa_console.register()
 
+    # Register Collision Viz
+    from .modules import massa_collision
+
+    massa_collision.register()
+
     # 2. Register Operators
     bpy.utils.register_class(massa_base.Massa_OT_Base)
     bpy.utils.register_class(massa_base.MASSA_OT_ReRun_Active)
@@ -99,6 +112,11 @@ def register():
 
 
 def unregister():
+    # Unregister Collision Viz
+    from .modules import massa_collision
+
+    massa_collision.unregister()
+
     # 1. Unregister Keymaps
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)

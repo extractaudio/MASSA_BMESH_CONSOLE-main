@@ -209,6 +209,7 @@ class MassaPropertiesMixin:
             ("UVS", "UVs", ""),
             ("SLOTS", "Slots", ""),
             ("EDGES", "Edges", ""),
+            ("COLLISION", "Collision", ""),
         ],
         default="SHAPE",
     )
@@ -408,3 +409,28 @@ class MassaPropertiesMixin:
         __annotations__[f"sock_{i}"] = BoolProperty(name="Socket", default=False)
         __annotations__[f"off_{i}"] = FloatProperty(name="Offset", default=0.0)
         __annotations__[f"prot_{i}"] = BoolProperty(name="Protect", default=False)
+
+        # [ARCHITECT NEW] Collision Properties
+        __annotations__[f"collision_shape_{i}"] = EnumProperty(
+            name=f"Shape {i}",
+            items=[
+                ("BOX", "Box", "Axis Aligned Box"),
+                ("HULL", "Convex Hull", "Convex Hull"),
+                ("SPHERE", "Sphere", "Bounding Sphere"),
+                ("CAPSULE", "Capsule", "Vertical Capsule"),
+                ("MESH", "Mesh", "Original Geometry (Slow)"),
+            ],
+            default="BOX",
+        )
+        __annotations__[f"show_coll_{i}"] = BoolProperty(
+            name=f"Show Collision {i}", default=False
+        )
+        __annotations__[f"phys_friction_{i}"] = FloatProperty(
+            name=f"Friction {i}", default=0.5, min=0.0, max=1.0
+        )
+        __annotations__[f"phys_bounce_{i}"] = FloatProperty(
+            name=f"Restitution {i}", default=0.0, min=0.0, max=1.0
+        )
+        __annotations__[f"phys_bond_{i}"] = FloatProperty(
+            name=f"Bond Strength {i}", default=1.0, min=0.0
+        )
