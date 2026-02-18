@@ -450,7 +450,7 @@ class MassaPropertiesMixin:
                 ("CAPSULE", "Capsule", "Vertical Capsule"),
                 ("MESH", "Mesh", "Original Geometry (Slow)"),
             ],
-            default="BOX",
+            default="MESH",
         )
         __annotations__[f"show_coll_{i}"] = BoolProperty(
             name=f"Show Collision {i}", default=False
