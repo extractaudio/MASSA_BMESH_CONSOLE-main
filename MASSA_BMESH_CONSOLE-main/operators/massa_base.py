@@ -28,6 +28,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             ("SLOTS", "Slots", "Material Assignments", "MATERIAL", 4),
             ("EDGES", "Edges", "Edge Role Interpreter", "EDGESEL", 5),
             ("COLLISION", "Collision", "Collision & Physics", "PHYSICS", 6),
+            ("SOCKETS", "Sockets", "Socket Generation", "EMPTY_AXIS", 7),
         ],
         default="SHAPE",
     )
@@ -191,6 +192,10 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                 "phys_kinematic_pin",
                 "phys_auto_rig",
                 "phys_yield_strength",
+                "sock_enable",
+                "sock_constraint_type",
+                "sock_break_strength",
+                "sock_visual_size",
             ]
         )
 
@@ -324,7 +329,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             if clean_obj:
                 # Loop safely over a copy of children
                 for child in list(clean_obj.children):
-                    if child.name.startswith("UCX_") or child.name.startswith("MASSA_JOINT_"):
+                    if child.name.startswith("UCX_") or child.name.startswith("MASSA_JOINT_") or child.name.startswith("SOCKET_"):
                         bpy.data.objects.remove(child, do_unlink=True)
         except Exception as e:
             print(f"Massa Child Cleanup Error: {e}")
@@ -382,6 +387,8 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             ui_shared.draw_slots_tab(col, self, slots, stats)
         elif self.ui_tab == "COLLISION":
             ui_shared.draw_collision_tab(col, self, slots)
+        elif self.ui_tab == "SOCKETS":
+            ui_shared.draw_sockets_ui(col, self)
 
 
 class MASSA_OT_ReRun_Active(Operator):

@@ -1,6 +1,6 @@
 import bpy
 import bmesh
-from mathutils import Euler, Vector
+from mathutils import Euler, Vector, Matrix
 from . import massa_polish, massa_surface, massa_sockets, seam_solvers, massa_nodes
 from ..utils import mat_utils
 import traceback
@@ -70,6 +70,11 @@ def run_pipeline(op, context):
     meta = op._get_cartridge_meta()
     flags = meta.get("flags", {})
     bm = bmesh.new()
+
+    # [ARCHITECT NEW] Phase 3: Socket Layer
+    # This allows Cartridges to tag faces for socket generation using pure math.
+    bm.faces.layers.int.get("MASSA_SOCKETS") or bm.faces.layers.int.new("MASSA_SOCKETS")
+
     try:
         op.build_shape(bm)
 
@@ -319,6 +324,31 @@ def _generate_output(op, context, bm, socket_data, manifest):
     massa_surface.bake_strain_map(bm, op)
     massa_surface.bake_kinematic_anchors(obj, bm, op)
 
+    # [ARCHITECT NEW] Phase 4: Socket Collection (BMesh Based)
+    collected_sockets = []
+    if getattr(op, "sock_enable", False):
+        try:
+            sock_layer = bm.faces.layers.int.get("MASSA_SOCKETS")
+            if sock_layer:
+                socket_faces = {}
+                for f in bm.faces:
+                    sid = f[sock_layer]
+                    if sid > 0:
+                        socket_faces.setdefault(sid, []).append(f)
+
+                for sid, faces in socket_faces.items():
+                    center = Vector((0,0,0))
+                    normal = Vector((0,0,0))
+                    for f in faces:
+                        center += f.calc_center_median()
+                        normal += f.normal
+                    if len(faces) > 0:
+                        center /= len(faces)
+                        normal = normal.normalized()
+                    collected_sockets.append((sid, center, normal))
+        except Exception as e:
+            print(f"Socket Collection Error: {e}")
+
     bm.to_mesh(mesh)
     bm.free()
 
@@ -531,14 +561,84 @@ def _generate_output(op, context, bm, socket_data, manifest):
         if is_debug_override:
             context.space_data.shading.type = "MATERIAL"
 
-    # [ARCHITECT NEW] Phase 4 Protocol: Physics Volumes
+    # [ARCHITECT NEW] Phase 4 Protocol: Physics Volumes & Socket Forge
     try:
         if getattr(op, "phys_gen_ucx", False):
             phys_gen_ucx(obj, op, manifest, slot_map)
         if getattr(op, "phys_auto_rig", False):
             phys_auto_rig(obj, op, manifest)
+
+        # [ARCHITECT NEW] Phase 4: Socket Forge (Physical)
+        if collected_sockets:
+            vis_size = getattr(op, "sock_visual_size", 0.1)
+            con_type = getattr(op, "sock_constraint_type", 'NONE')
+            break_force = getattr(op, "sock_break_strength", 250.0)
+
+            # Map Enum to Blender Types
+            TYPE_MAP = {
+                'FIXED': 'FIXED',
+                'HINGE': 'HINGE',
+                'SLIDER': 'SLIDER',
+                'SPRING': 'GENERIC_SPRING'
+            }
+
+            for sid, center, normal in collected_sockets:
+                s_name = f"SOCKET_{obj.name}_{sid:02d}"
+                sock = bpy.data.objects.new(s_name, None)
+                sock.empty_display_type = 'ARROWS'
+                sock.empty_display_size = vis_size
+
+                # Link
+                if context.collection:
+                    context.collection.objects.link(sock)
+                else:
+                    context.scene.collection.objects.link(sock)
+
+                # Parent First (Establishes Local Space)
+                sock.parent = obj
+
+                # Align Z to Normal
+                z_vec = normal
+                up_vec = Vector((0,0,1))
+                if abs(z_vec.dot(up_vec)) > 0.95:
+                    up_vec = Vector((0,1,0))
+                x_vec = up_vec.cross(z_vec).normalized()
+                y_vec = z_vec.cross(x_vec).normalized()
+
+                rot_mat = Matrix((x_vec, y_vec, z_vec)).transposed()
+
+                # Set Transforms (Local Space)
+                sock.location = center
+                sock.rotation_euler = rot_mat.to_euler()
+
+                # Apply Constraints
+                if con_type != 'NONE' and con_type in TYPE_MAP:
+                    b_type = TYPE_MAP[con_type]
+
+                    # Ensure selection for Operator
+                    bpy.ops.object.select_all(action='DESELECT')
+                    sock.select_set(True)
+                    context.view_layer.objects.active = sock
+
+                    try:
+                        # Add Rigid Body Constraint (Empty becomes a Constraint Object)
+                        bpy.ops.rigidbody.constraint_add(type=b_type)
+                        rbc = sock.rigid_body_constraint
+                        # Object 1 is Main Object (Parent)
+                        rbc.object1 = obj
+                        # Object 2 is left blank (Connecting Piece)
+                        rbc.use_breaking = True
+                        rbc.breaking_threshold = break_force
+                    except Exception as ce:
+                        print(f"Socket Constraint Error ({s_name}): {ce}")
+
+            # Restore Selection to Main Object
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+
     except Exception as e:
-        print(f"Phase 4 Physics Error: {e}")
+        print(f"Phase 4 Physics/Socket Error: {e}")
         traceback.print_exc()
 
 
