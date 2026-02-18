@@ -172,6 +172,8 @@ class MASSA_PT_Main(bpy.types.Panel):
             row = box.row(align=True)
             row.prop(console, "massa_target_coord", text="Target")
             row.operator("massa.pick_coordinate", icon="EYEDROPPER", text="")
+            # [ARCHITECT NEW] Spawn Target Button
+            row.operator("massa.spawn_target", icon="EMPTY_AXIS", text="")
 
             layout.separator()
 
@@ -201,6 +203,37 @@ class MASSA_PT_Main(bpy.types.Panel):
                  col.prop(console, "ui_use_rot", toggle=True)
                  if console.ui_use_rot:
                      col.prop(console, "rotation")
+
+                 # [ARCHITECT NEW] Render Staged Cartridge Parameters
+                 cart_id = console.massa_staged_cartridge
+                 if cart_id:
+                     safe_id = cart_id.replace(".", "_").replace("-", "_")
+                     prop_name = f"props_{safe_id}"
+                     pg = getattr(console, prop_name, None)
+
+                     if pg:
+                         found_mod = None
+                         for mod in MODULES:
+                              if mod.CARTRIDGE_META["id"] == cart_id:
+                                  found_mod = mod
+                                  break
+
+                         if found_mod:
+                             col.separator()
+                             col.label(text=found_mod.CARTRIDGE_META.get("name", "Parameters"), icon="MODIFIER")
+
+                             from ..operators.massa_base import Massa_OT_Base
+                             op_class = None
+                             for name, obj in found_mod.__dict__.items():
+                                if isinstance(obj, type) and issubclass(obj, Massa_OT_Base) and obj != Massa_OT_Base:
+                                    op_class = obj
+                                    break
+
+                             if op_class and hasattr(op_class, "draw_shape_ui"):
+                                 try:
+                                     op_class.draw_shape_ui(pg, col)
+                                 except Exception as e:
+                                     col.label(text=f"UI Error: {e}", icon="ERROR")
 
         elif console.ui_tab == "POLISH":
             ui_shared.draw_polish_tab(col, console)

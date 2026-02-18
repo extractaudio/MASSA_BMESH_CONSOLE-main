@@ -690,10 +690,10 @@ def phys_auto_rig(obj, op, manifest):
                 bpy.context.collection.objects.link(empty)
 
             # Align Empty Matrix
-            # Location in World = Parent.MatrixWorld @ PivotLocal
-            empty.matrix_world = obj.matrix_world @ pivot_local
-            
+            # [ARCHITECT FIX] Set location in local space AFTER parenting.
+            # pivot_local is already in Parent's local space.
             empty.parent = obj
+            empty.location = pivot_local
             
             # Create Rigid Body Constraint
             # We add it to the scene collection but need to enable RB
