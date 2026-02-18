@@ -275,19 +275,20 @@ def _generate_output(op, context, bm, socket_data, manifest):
     }
     is_debug_override = debug_mode in STRICT_DEBUG_MODES
 
-    if viz_mode == "SLOTS":
-        try:
-            edge_slots = bm.edges.layers.int["MASSA_EDGE_SLOTS"]
-            
-            crease_layer = _verify_layer(bm, "crease", "crease_edge")
-            bevel_layer = _verify_layer(bm, "bevel_weight", "bevel_weight_edge")
-            for e in bm.edges:
-                e.seam = False
-                e.smooth = True
-                e[crease_layer] = 0.0
-                e[bevel_layer] = 0.0
-        except KeyError:
-            pass
+    # [ARCHITECT FIX] Removed destructive data clearing for SLOTS mode.
+    # The user wants edge attributes (seams/sharps) to persist on export even when visualizing slots.
+    # if viz_mode == "SLOTS":
+    #    try:
+    #        edge_slots = bm.edges.layers.int["MASSA_EDGE_SLOTS"]
+    #        crease_layer = _verify_layer(bm, "crease", "crease_edge")
+    #        bevel_layer = _verify_layer(bm, "bevel_weight", "bevel_weight_edge")
+    #        for e in bm.edges:
+    #            e.seam = False
+    #            e.smooth = True
+    #            e[crease_layer] = 0.0
+    #            e[bevel_layer] = 0.0
+    #    except KeyError:
+    #        pass
 
     mesh = bpy.data.meshes.new("Massa_Obj")
     bm.to_mesh(mesh)
@@ -407,13 +408,11 @@ def _generate_output(op, context, bm, socket_data, manifest):
     # [ARCHITECT FIX] MATERIAL ASSIGNMENT
     massa_surface.assign_materials(obj, op)
 
-    if viz_mode == "SLOTS":
-        obj.show_wire = False
-        obj.show_all_edges = False
-    elif debug_mode == "SEAM":
+    if debug_mode == "SEAM":
         obj.show_wire = True
         obj.show_all_edges = True
     else:
+        # [ARCHITECT FIX] Respect user wireframe preference even in SLOTS mode
         obj.show_wire = op.show_wireframe
         obj.show_all_edges = op.show_wireframe
 
