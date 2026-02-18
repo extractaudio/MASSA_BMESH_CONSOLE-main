@@ -361,7 +361,37 @@ class MassaPropertiesMixin:
     peak_active: BoolProperty(name="Peaks (A)", default=False)
     peak_show: BoolProperty(name="Show", default=True)
     peak_dist: FloatProperty(name="Dist", default=0.1)
+
     peak_contrast: FloatProperty(name="Contr", default=1.0)
+
+    # --- PHYSICS PIPELINE (Brain) ---
+    phys_gen_ucx: BoolProperty(
+        name="Generate UCX",
+        default=False,
+        description="Generate UE5 UCX Colliders",
+    )
+    phys_bake_strain: BoolProperty(
+        name="Bake Strain",
+        default=False,
+        description="Bake Chaos Strain to Vertex Colors",
+    )
+    phys_kinematic_pin: BoolProperty(
+        name="Kinematic Pin",
+        default=False,
+        description="Generate Kinematic Vertex Weights",
+    )
+    phys_auto_rig: BoolProperty(
+        name="Auto-Rig",
+        default=False,
+        description="Spawn Constraints for Detached Slots",
+    )
+    phys_yield_strength: FloatProperty(
+        name="Yield Strength",
+        default=1.0,
+        min=0.0,
+        max=10.0,
+        description="Strain falloff and constraint breaking limits",
+    )
 
     phys_active: BoolProperty(name="Write Physics IDs", default=True)
     part_active: BoolProperty(name="Write Part IDs", default=True)

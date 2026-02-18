@@ -315,6 +315,10 @@ def _generate_output(op, context, bm, socket_data, manifest):
     # [ARCHITECT FIX] Now returns a slot map for remapped indices
     slot_map = massa_surface.assign_materials(obj, op, bm=bm)
 
+    # [ARCHITECT NEW] Phase 3 Protocol: Data Layers (Chaos / Soft Body)
+    massa_surface.bake_strain_map(bm, op)
+    massa_surface.bake_kinematic_anchors(obj, bm, op)
+
     bm.to_mesh(mesh)
     bm.free()
 
@@ -526,3 +530,179 @@ def _generate_output(op, context, bm, socket_data, manifest):
 
         if is_debug_override:
             context.space_data.shading.type = "MATERIAL"
+
+    # [ARCHITECT NEW] Phase 4 Protocol: Physics Volumes
+    try:
+        phys_gen_ucx(obj, op, manifest, slot_map)
+        phys_auto_rig(obj, op, manifest)
+    except Exception as e:
+        print(f"Phase 4 Physics Error: {e}")
+        traceback.print_exc()
+
+
+def phys_gen_ucx(obj, op, manifest, slot_map):
+    """
+    PHASE 4: UCX CONVEX HULL FORGE
+    Generates optimized collision hulls for Slot 0, 1, 2 (Structural).
+    """
+    target_slots = {0, 1, 2}
+    
+    # Identify all participating geometry (Main + Detached Children)
+    all_objs = [obj] + [c for c in obj.children if c.type == 'MESH']
+    
+    for i in target_slots:
+        # Resolve Material Index
+        mat_idx = i
+        if slot_map is not None:
+            mat_idx = slot_map.get(i)
+        
+        if mat_idx is None:
+            continue
+            
+        faces_co = []
+        
+        # Collect vertices from all parts
+        for part in all_objs:
+            try:
+                me = part.data
+                if not me.vertices:
+                    continue
+                
+                bm_temp = bmesh.new()
+                bm_temp.from_mesh(me)
+                
+                # Transform to Main Object Local Space if needed
+                if part != obj:
+                    bmesh.ops.transform(bm_temp, matrix=part.matrix_local, verts=bm_temp.verts)
+                
+                part_faces = [f for f in bm_temp.faces if f.material_index == mat_idx]
+                
+                for f in part_faces:
+                    for v in f.verts:
+                        faces_co.append(v.co.copy())
+                
+                bm_temp.free()
+            except:
+                pass
+        
+        if not faces_co:
+            continue
+            
+        # Generate Hull
+        try:
+            bm_hull = bmesh.new()
+            for co in faces_co:
+                bm_hull.verts.new(co)
+            
+            bmesh.ops.convex_hull(bm_hull, input=bm_hull.verts[:])
+            
+            # Use only Hull Geometry (Clean remaining loose verts if any)
+            # convex_hull output usually includes all geometry. 
+            # We trust the result is a convex hull.
+            
+            ucx_name = f"UCX_{obj.name}_{i:02d}"
+            
+            # Remove old if exists (Cleanup for iterative workflow)
+            # (User didn't ask for cleanup but good practice for 'Resurrection')
+            # But here we create new data mesh each time.
+            
+            mesh_ucx = bpy.data.meshes.new(f"Mesh_{ucx_name}")
+            bm_hull.to_mesh(mesh_ucx)
+            bm_hull.free()
+            
+            ucx_obj = bpy.data.objects.new(ucx_name, mesh_ucx)
+            
+            # Link to same collection
+            if obj.users_collection:
+                obj.users_collection[0].objects.link(ucx_obj)
+            else:
+                 context.collection.objects.link(ucx_obj)
+            
+            ucx_obj.parent = obj
+            ucx_obj.display_type = 'WIRE'
+            ucx_obj.hide_render = True
+            
+        except Exception as e:
+            print(f"UCX Forge Error (Slot {i}): {e}")
+
+
+def phys_auto_rig(obj, op, manifest):
+    """
+    PHASE 4: AUTO-RIGGER
+    Detects detached parts and auto-rigs them with Hinge Constraints.
+    """
+    children = [c for c in obj.children if c.type == 'MESH']
+    
+    if not children:
+        return
+
+    yield_strength = getattr(op, "phys_yield_strength", 10.0)
+    break_force = yield_strength * 1000.0
+    
+    for child in children:
+        try:
+            # We assume any child mesh is a detached part from our system.
+            # Calculate Boundary Center
+            me = child.data
+            bm_child = bmesh.new()
+            bm_child.from_mesh(me)
+            
+            boundary_edges = [e for e in bm_child.edges if e.is_boundary]
+            
+            center = Vector((0,0,0))
+            if boundary_edges:
+                b_verts = set()
+                for e in boundary_edges:
+                    b_verts.add(e.verts[0])
+                    b_verts.add(e.verts[1])
+                
+                if b_verts:
+                    center = sum((v.co for v in b_verts), Vector()) / len(b_verts)
+            else:
+                # Fallback to BBox Center
+                center = sum((Vector(v) for v in child.bound_box), Vector()) / 8.0
+            
+            bm_child.free()
+            
+            # Convert Center to Parent Local Space logic
+            # Child.matrix_local is transform relative to Parent.
+            # Center is in Child Local Space.
+            # Pivot (in Parent Space) = Child.matrix_local @ Center
+            pivot_local = child.matrix_local @ center
+            
+            # Create Joint Empty
+            joint_name = f"MASSA_JOINT_{child.name}"
+            empty = bpy.data.objects.new(joint_name, None)
+            
+            if obj.users_collection:
+                obj.users_collection[0].objects.link(empty)
+            else:
+                context.collection.objects.link(empty)
+            
+            # Align Empty Matrix
+            # Location in World = Parent.MatrixWorld @ PivotLocal
+            empty.matrix_world = obj.matrix_world @ pivot_local
+            
+            empty.parent = obj
+            
+            # Create Rigid Body Constraint
+            # We add it to the scene collection but need to enable RB 
+            bpy.ops.object.select_all(action='DESELECT')
+            empty.select_set(True)
+            context.view_layer.objects.active = empty
+            
+            # Add Rigid Body Constraint via Operator (Safest)
+            # This ensures physics world is respected/created
+            try:
+                bpy.ops.rigidbody.constraint_add(type='HINGE')
+                rbc = empty.rigid_body_constraint
+                rbc.object1 = obj
+                rbc.object2 = child
+                rbc.use_breaking = True
+                rbc.breaking_threshold = break_force
+            except:
+                # Fallback if ops fail (e.g. no RB world)
+                pass
+                
+        except Exception as e:
+            print(f"Auto-Rig Error ({child.name}): {e}")
