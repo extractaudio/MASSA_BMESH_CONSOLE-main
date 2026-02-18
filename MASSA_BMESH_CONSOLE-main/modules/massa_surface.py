@@ -85,13 +85,15 @@ def assign_materials(obj, op):
     if debug_v != "NONE":
         if debug_v == "UV":
             override_mat = mat_utils.create_debug_uv_material()
-        elif debug_v == "WEAR":
+        elif debug_v == "DATA_LAYERS":
+            override_mat = mat_utils.create_debug_data_layers_material()
+        elif debug_v == "WEAR": # Legacy/Fallback
             override_mat = mat_utils.create_debug_channel_material(0)
-        elif debug_v == "THICK":
+        elif debug_v == "THICK": # Legacy/Fallback
             override_mat = mat_utils.create_debug_channel_material(1)
-        elif debug_v == "GRAV":
+        elif debug_v == "GRAV": # Legacy/Fallback
             override_mat = mat_utils.create_debug_channel_material(2)
-        elif debug_v == "CAVITY":
+        elif debug_v == "CAVITY": # Legacy/Fallback
             override_mat = mat_utils.create_debug_channel_material(3)
         elif debug_v == "PHYS":
             override_mat = mat_utils.create_debug_physics_material()
@@ -422,39 +424,43 @@ def tag_structure_edges(bm, op):
 
 def generate_surface_maps(bm, op, convex, concave):
     """
-    Calculates Wear, Thickness, etc. and writes to "Massa_Surface".
+    Calculates Wear, Thickness, etc. and writes to "Data_Colors_1" and "Data_Colors_2".
     """
     debug_view = getattr(op, "debug_view", "NONE")
 
+    # --- SET 1 LOGIC (RGBW) ---
     thick_enabled = getattr(op, "thick_active", True)
-    if debug_view == "THICK":
-        thick_enabled = True
-
     thick_mode = getattr(op, "data_green_mode", "THICKNESS") == "THICKNESS"
     thick_on = thick_mode and thick_enabled
     flow_on = getattr(op, "data_green_mode", "THICKNESS") == "FLOW"
 
-    if debug_view == "THICK" and not thick_mode:
-        flow_on = True
+    if debug_view == "DATA_LAYERS":
+        # Force calculate if debugging combined layers
+        # Optimization: Only calculate active ones, but for now we trust the "active" flags
+        pass
 
     grav_on = getattr(op, "grav_active", False)
-    if debug_view == "GRAV":
-        grav_on = True
-
     cavity_on = getattr(op, "cavity_active", False)
-    if debug_view == "CAVITY":
-        cavity_on = True
 
-    bvh = BVHTree.FromBMesh(bm) if (thick_on or grav_on or cavity_on) else None
+    # --- SET 2 LOGIC (O/B/P/B) ---
+    wear2_on = getattr(op, "wear2_active", False)
+    flow2_on = getattr(op, "flow2_active", False)
+    cover_on = getattr(op, "cover_active", False)
+    peak_on = getattr(op, "peak_active", False)
 
-    mw, mt, mg, mc = {}, {}, {}, {}
+    need_bvh = (thick_on or grav_on or cavity_on or cover_on or peak_on)
+    bvh = BVHTree.FromBMesh(bm) if need_bvh else None
+
+    # Maps: 1 = R, G, B, A; 2 = R, G, B, A
+    m1_r, m1_g, m1_b, m1_a = {}, {}, {}, {}
+    m2_r, m2_g, m2_b, m2_a = {}, {}, {}, {}
+
     gs = getattr(op, "global_scale", 1.0)
 
-    wear_active = getattr(op, "wear_active", False)
-    if debug_view == "WEAR":
-        wear_active = True
+    # --- SET 1 CALCULATION ---
 
-    if wear_active:
+    # 1. Wear (R)
+    if getattr(op, "wear_active", False):
         scl = getattr(op, "wear_scale", 1.0)
         er = (0.05 / max(0.1, scl)) * gs
         me = _calc_prox(bm, convex, er)
@@ -463,13 +469,12 @@ def generate_surface_maps(bm, op, convex, concave):
         for v in bm.verts:
             b = me.get(v, 0.0)
             if b > 0.01:
-                mw[v] = min(
-                    1.0,
-                    b * (1.0 - (rough * noise.noise(v.co * scl * 5) * 0.8)) * amt * 2,
-                )
+                val = b * (1.0 - (rough * noise.noise(v.co * scl * 5) * 0.8)) * amt * 2
+                m1_r[v] = min(1.0, val)
 
+    # 2. Thick/Flow (G)
     if thick_on and bvh:
-        mt = _calculate_mesh_thickness(
+        m1_g = _calculate_mesh_thickness(
             bm,
             bvh,
             getattr(op, "thick_dist", 0.2) * gs,
@@ -477,20 +482,23 @@ def generate_surface_maps(bm, op, convex, concave):
             getattr(op, "thick_contrast", 1.0),
         )
     elif flow_on:
-        mt = _calculate_hydraulic_flow(
+        m1_g = _calculate_hydraulic_flow(
             bm,
             iterations=getattr(op, "flow_steps", 1),
             rain=getattr(op, "flow_rain", 0.5),
             streak=getattr(op, "flow_streak", 0.9),
         )
 
+    # 3. Gravity (B)
     if grav_on and bvh:
-        mg = _calculate_gravity_flow(
+        m1_g_res = _calculate_gravity_flow(
             bm, bvh, 8, 5.0 * gs, getattr(op, "grav_amount", 0.5)
         )
+        m1_b = m1_g_res # Rename to match slot B
 
+    # 4. Cavity (A)
     if cavity_on and bvh:
-        mc = _calculate_cavity_ao(
+        m1_a = _calculate_cavity_ao(
             bm,
             bvh,
             getattr(op, "cavity_dist", 0.1) * gs,
@@ -498,19 +506,80 @@ def generate_surface_maps(bm, op, convex, concave):
             getattr(op, "cavity_contrast", 1.0),
         )
 
-    try:
-        cl = bm.loops.layers.float_color.get("Massa_Surface")
-        if not cl:
-            cl = bm.loops.layers.float_color.new("Massa_Surface")
-    except:
-        cl = bm.loops.layers.color.get("Massa_Surface") or bm.loops.layers.color.new(
-            "Massa_Surface"
+    # --- SET 2 CALCULATION ---
+
+    # 1. Edge Wear (R)
+    if wear2_on:
+        # Re-use prox on convex but simplified logic
+        er = 0.02 * gs
+        me = _calc_prox(bm, convex, er)
+        amt = getattr(op, "wear2_amount", 1.0)
+        contr = getattr(op, "wear2_contrast", 2.0)
+        for v in bm.verts:
+            b = me.get(v, 0.0)
+            if b > 0.001:
+                m2_r[v] = min(1.0, pow(b, contr) * amt)
+
+    # 2. Flow 2 (Wind) (G)
+    if flow2_on:
+        m2_g = _calculate_directional_flow(
+            bm,
+            iterations=4,
+            rain=getattr(op, "flow2_rain", 0.8),
+            wind=Vector(getattr(op, "flow2_wind_dir", (1,0,0))).normalized()
         )
+
+    # 3. Cover (Snow) (B)
+    if cover_on and bvh:
+        m2_b = _calculate_covering(
+            bm, bvh,
+            getattr(op, "cover_amount", 1.0),
+            getattr(op, "cover_contrast", 1.0)
+        )
+
+    # 4. Peaks (Inv Cavity) (A)
+    if peak_on and bvh:
+        m2_a = _calculate_peaks(
+            bm, bvh,
+            getattr(op, "peak_dist", 0.1) * gs,
+            getattr(op, "peak_contrast", 1.0)
+        )
+
+    # --- WRITE LAYERS ---
+
+    # Layer 1
+    try:
+        cl1 = bm.loops.layers.float_color.get("Data_Colors_1")
+        if not cl1: cl1 = bm.loops.layers.float_color.new("Data_Colors_1")
+    except:
+        cl1 = bm.loops.layers.color.get("Data_Colors_1") or bm.loops.layers.color.new("Data_Colors_1")
+
+    # Layer 2
+    try:
+        cl2 = bm.loops.layers.float_color.get("Data_Colors_2")
+        if not cl2: cl2 = bm.loops.layers.float_color.new("Data_Colors_2")
+    except:
+        cl2 = bm.loops.layers.color.get("Data_Colors_2") or bm.loops.layers.color.new("Data_Colors_2")
+
+    # Delete old "Massa_Surface" if it exists to avoid confusion
+    old_l = bm.loops.layers.float_color.get("Massa_Surface")
+    if old_l: bm.loops.layers.float_color.remove(old_l)
 
     for f in bm.faces:
         for l in f.loops:
             v = l.vert
-            l[cl] = (mw.get(v, 0.0), mt.get(v, 0.0), mg.get(v, 0.0), mc.get(v, 0.0))
+            l[cl1] = (
+                m1_r.get(v, 0.0),
+                m1_g.get(v, 0.0),
+                m1_b.get(v, 0.0),
+                m1_a.get(v, 0.0)
+            )
+            l[cl2] = (
+                m2_r.get(v, 0.0),
+                m2_g.get(v, 0.0),
+                m2_b.get(v, 0.0),
+                m2_a.get(v, 0.0)
+            )
 
 
 def _calc_prox(bm, edges, radius, resolution=0.05):
@@ -623,3 +692,120 @@ def _calculate_hydraulic_flow(bm, iterations, rain, streak):
     for v, val in water.items():
         result[v] = min(1.0, val)
     return result
+
+
+def _calculate_directional_flow(bm, iterations, rain, wind):
+    """
+    Hydraulic flow but gravity is skewed by wind direction.
+    """
+    water = {}
+    # Upness is alignment with wind (rain coming FROM wind direction)
+    # Actually rain usually falls down (-Z) but wind pushes it.
+    # Let's say effective "Gravity" is (0,0,-1) + Wind.
+    # So "Down" is (0,0,-1) + WindDir * Strength?
+    # No, let's keep it simple. User sets "Wind Dir".
+    # We treat Wind Dir as the "Rain Source".
+
+    source_dir = -wind
+
+    for v in bm.verts:
+        # Exposure to source
+        exposure = max(0.0, v.normal.dot(source_dir))
+        water[v] = exposure * rain
+
+    # Sort by projection along wind
+    sorted_verts = sorted(bm.verts, key=lambda v: v.co.dot(source_dir), reverse=True)
+
+    # Flow direction is roughly Down (-Z) + Wind
+    # But for hydraulic algo, we just need to know "Downhill".
+    # Downhill is along the "Gravity" vector.
+    # Let's assume standard gravity (-Z) for flow, but initial deposit is wind-based.
+
+    for _ in range(iterations):
+        for v in sorted_verts:
+            current_water = water[v]
+            if current_water < 0.01: continue
+
+            lower_neighbors = []
+            total_drop = 0.0
+            for e in v.link_edges:
+                other = e.other_vert(v)
+                # Standard Gravity Flow logic
+                if other.co.z < v.co.z:
+                    drop = v.co.z - other.co.z
+                    lower_neighbors.append((other, drop))
+                    total_drop += drop
+
+            if lower_neighbors and total_drop > 0:
+                moving_water = current_water * 0.9
+                for neighbor, drop in lower_neighbors:
+                    ratio = drop / total_drop
+                    water[neighbor] += moving_water * ratio
+                water[v] = current_water * 0.1
+            else:
+                water[v] = min(2.0, current_water)
+
+    result = {}
+    for v, val in water.items():
+        result[v] = min(1.0, val)
+    return result
+
+
+def _calculate_covering(bm, bvh, amount, contrast):
+    """
+    Simulates Snow/Dust (Up-facing + Occlusion).
+    """
+    data, eps = {}, 0.01
+    up = Vector((0, 0, 1))
+
+    for v in bm.verts:
+        # 1. Normal alignment
+        dot = v.normal.dot(up)
+        if dot <= 0.0:
+            data[v] = 0.0
+            continue
+
+        # 2. Occlusion check (Raycast UP)
+        start = v.co + (v.normal * eps)
+        # Check if something is above
+        if bvh.ray_cast(start, up, 100.0)[0]:
+            # Occluded (Under roof)
+            data[v] = 0.0
+        else:
+            # Exposed
+            val = dot # Base on flatness
+            if contrast != 1.0:
+                 val = pow(val, contrast)
+            data[v] = min(1.0, val * amount)
+
+    return data
+
+
+def _calculate_peaks(bm, bvh, dist, contrast):
+    """
+    Inverse Cavity / Peaks.
+    Rays cast OUTWARD. If they hit nothing, it's a peak.
+    If they hit something immediately, it's a valley/crevice.
+    """
+    data, eps = {}, 0.002
+
+    for v in bm.verts:
+        start = v.co + (v.normal * eps)
+        # Raycast in normal direction
+        hit_loc, _, _, _ = bvh.ray_cast(start, v.normal, dist)
+
+        if hit_loc:
+            # Hit something: Enclosed/Concave
+            # Measure distance
+            d = (hit_loc - start).length
+            val = d / dist # 0.0 (Close hit) to 1.0 (Far hit)
+        else:
+            # Hit nothing: Open/Convex
+            val = 1.0
+
+        if contrast != 1.0:
+            val = pow(val, contrast)
+
+        data[v] = min(1.0, val)
+
+    return data
