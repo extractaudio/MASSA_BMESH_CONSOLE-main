@@ -529,6 +529,8 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
         if getattr(owner, f"uv_mode_{i}") not in {"SKIP", "UNWRAP", "FIT"}:
             col.prop(owner, f"uv_scale_{i}", text="Scale")
 
+        col.prop(owner, f"off_{i}", text="Inflate", icon="MOD_THICKNESS")
+
 
 def draw_slots_tab(layout, owner, slot_names, stats):
     """
@@ -552,10 +554,3 @@ def draw_slots_tab(layout, owner, slot_names, stats):
             col = box.column(align=True)
             col.prop(owner, f"mat_{i}", text="Visual")
             col.prop(owner, f"phys_mat_{i}", text="Physics")
-            col.separator()
-            r = col.row(align=True)
-            r.prop(owner, f"off_{i}", text="Inflate", icon="MOD_THICKNESS")
-            r = col.row(align=True)
-            r.prop(owner, f"uv_mode_{i}", text="UV")
-            if getattr(owner, f"uv_mode_{i}") not in {"SKIP", "UNWRAP"}:
-                r.prop(owner, f"uv_scale_{i}", text="Scl")
