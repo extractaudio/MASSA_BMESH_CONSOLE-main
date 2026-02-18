@@ -95,6 +95,18 @@ def draw_edge_slots_tab(layout, owner):
     row = layout.row()
     row.prop(owner, "edge_auto_detect", toggle=True, icon="AUTO")
 
+    # [ARCHITECT NEW] Auto-Detect Sharp (Convex/Concave)
+    # Additive Pass - Runs after Auto-Detect
+    row = layout.row(align=True)
+    row.prop(owner, "edge_sharp_convex_active", toggle=True, icon="MOD_EDGESPLIT")
+    if owner.edge_sharp_convex_active:
+        row.prop(owner, "edge_sharp_convex_angle", text="")
+
+    row = layout.row(align=True)
+    row.prop(owner, "edge_sharp_concave_active", toggle=True, icon="MOD_BEVEL")
+    if owner.edge_sharp_concave_active:
+        row.prop(owner, "edge_sharp_concave_angle", text="")
+
     box = layout.box()
     box.label(text="Role Mappings", icon="PREFERENCES")
 

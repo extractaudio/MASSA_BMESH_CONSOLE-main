@@ -350,6 +350,83 @@ def auto_detect_edge_slots(bm):
     print(f"MASSA DEBUG: auto_detect_edge_slots -> Edges: {total_edges}, Boundaries Found: {total_boundaries}")
 
 
+def auto_detect_sharp_edges(bm, op):
+    """
+    Additive pass to detect sharp edges based on angle and convexity.
+    Skipps edges with existing Slot Data.
+    """
+
+    use_cvx = getattr(op, "edge_sharp_convex_active", False)
+    use_cnv = getattr(op, "edge_sharp_concave_active", False)
+
+    if not (use_cvx or use_cnv):
+        return
+
+    ang_cvx = getattr(op, "edge_sharp_convex_angle", 0.52)
+    ang_cnv = getattr(op, "edge_sharp_concave_angle", 0.52)
+
+    try:
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+    except:
+        edge_slots = None
+
+    bm.edges.ensure_lookup_table()
+
+    count = 0
+
+    for e in bm.edges:
+        # 1. Skip if already processed (Slot Data)
+        if edge_slots and e[edge_slots] != 0:
+            continue
+
+        # 2. Skip if already sharp (Additive only)
+        if not e.smooth:
+            continue
+
+        # 3. Geometry Check
+        if not e.is_manifold or len(e.link_faces) != 2:
+            continue
+
+        # Calculate Angle (Unsigned)
+        # 0 = Flat, PI = Folded back
+        angle = e.calc_face_angle()
+
+        # Optimization: Early exit if angle is tiny
+        if angle < 0.001:
+            continue
+
+        # Determine Concavity
+        is_concave = False
+        f0 = e.link_faces[0]
+        f1 = e.link_faces[1]
+
+        # Use simple dot product of face center vector vs normal
+        # Vector from F0 center to F1 center
+        c0 = f0.calc_center_median()
+        c1 = f1.calc_center_median()
+        vec = c1 - c0
+
+        # Convex (Ridge) = Neighbor center is below plane (Negative Dot)
+        # Concave (Valley) = Neighbor center is above plane (Positive Dot)
+        if vec.dot(f0.normal) > 0.0001:
+            is_concave = True
+
+        marked = False
+
+        if is_concave:
+            if use_cnv and angle >= ang_cnv:
+                marked = True
+        else: # Convex
+            if use_cvx and angle >= ang_cvx:
+                marked = True
+
+        if marked:
+            e.smooth = False
+            count += 1
+
+    print(f"MASSA DEBUG: Auto-Detect Sharp -> Marked {count} edges.")
+
+
 def tag_structure_edges(bm, op):
     """
     Writes edge data to 'Massa_Viz_ID' (Edge Int Layer) for GN Visualization.
