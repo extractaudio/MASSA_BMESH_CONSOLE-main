@@ -81,6 +81,10 @@ def run_pipeline(op, context):
             massa_surface.auto_detect_edge_slots(bm)
 
         process_edge_slots(bm, op)
+
+        # [ARCHITECT NEW] Additive Sharp Detection (Runs after slots)
+        massa_surface.auto_detect_sharp_edges(bm, op)
+
         if abs(op.global_scale - 1.0) > 0.001:
             bmesh.ops.scale(bm, vec=(op.global_scale,) * 3, verts=bm.verts)
         if not flags.get("LOCK_PIVOT", False):
