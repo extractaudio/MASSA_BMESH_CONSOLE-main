@@ -418,6 +418,38 @@ class MassaPropertiesMixin:
     ui_expand_builds: BoolProperty(default=True)
     ui_expand_arch: BoolProperty(default=True)
 
+    # --- SOCKET GENERATOR (Phase 1) ---
+    sock_enable: BoolProperty(
+        name="Generate Sockets",
+        default=False,
+        description="Enable procedural socket generation via BMesh layer",
+    )
+    sock_constraint_type: EnumProperty(
+        name="Type",
+        items=[
+            ("NONE", "None", "Visual Empty Only"),
+            ("FIXED", "Fixed", "Rigid Link"),
+            ("HINGE", "Hinge", "Rotation on Z"),
+            ("SLIDER", "Slider", "Linear Motion on Z"),
+            ("SPRING", "Spring", "Elastic Connection"),
+        ],
+        default="NONE",
+    )
+    sock_break_strength: FloatProperty(
+        name="Break Force",
+        default=250.0,
+        min=0.0,
+        max=10000.0,
+        description="Force limit before constraint breaks",
+    )
+    sock_visual_size: FloatProperty(
+        name="Size",
+        default=0.1,
+        min=0.01,
+        max=5.0,
+        description="Viewport display size of the socket",
+    )
+
     # --- SLOT GENERATOR (0-9) ---
     if not "__annotations__" in locals():
         __annotations__ = {}
