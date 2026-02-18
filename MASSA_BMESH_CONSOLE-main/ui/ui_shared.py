@@ -629,21 +629,6 @@ def draw_sockets_ui(layout, owner, slot_names):
     row.prop(owner, "sock_enable", text="Enable Sockets", icon="CHECKBOX_HLT", toggle=True)
 
     if owner.sock_enable:
-        box.separator()
-
-        # Visual Settings
-        box.label(text="Visuals", icon="RESTRICT_VIEW_OFF")
-        box.prop(owner, "sock_visual_size")
-
-        box.separator()
-
-        # Constraints
-        box.label(text="Mechanics (Constraints)", icon="CONSTRAINT")
-        box.prop(owner, "sock_constraint_type")
-
-        if owner.sock_constraint_type != 'NONE':
-            box.prop(owner, "sock_break_strength")
-
         layout.separator()
         layout.label(text="Per-Slot Configuration", icon="MATERIAL")
 
@@ -668,4 +653,10 @@ def draw_sockets_ui(layout, owner, slot_names):
             if is_expanded:
                 col = box.column(align=True)
                 col.label(text="Socket Properties", icon="INFO")
-                # Placeholder for future per-slot socket settings
+
+                col.prop(owner, f"sock_visual_size_{i}", text="Size")
+                col.prop(owner, f"sock_constraint_type_{i}", text="Type")
+
+                type_val = getattr(owner, f"sock_constraint_type_{i}", "NONE")
+                if type_val != "NONE":
+                    col.prop(owner, f"sock_break_strength_{i}", text="Break Force")

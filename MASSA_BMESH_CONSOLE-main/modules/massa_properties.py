@@ -424,35 +424,22 @@ class MassaPropertiesMixin:
         default=False,
         description="Enable procedural socket generation via BMesh layer",
     )
-    sock_constraint_type: EnumProperty(
-        name="Type",
-        items=[
-            ("NONE", "None", "Visual Empty Only"),
-            ("FIXED", "Fixed", "Rigid Link"),
-            ("HINGE", "Hinge", "Rotation on Z"),
-            ("SLIDER", "Slider", "Linear Motion on Z"),
-            ("SPRING", "Spring", "Elastic Connection"),
-        ],
-        default="NONE",
-    )
-    sock_break_strength: FloatProperty(
-        name="Break Force",
-        default=250.0,
-        min=0.0,
-        max=10000.0,
-        description="Force limit before constraint breaks",
-    )
-    sock_visual_size: FloatProperty(
-        name="Size",
-        default=0.1,
-        min=0.01,
-        max=5.0,
-        description="Viewport display size of the socket",
-    )
+    # [ARCHITECT DEPRECATED] Global Socket Properties replaced by Per-Slot Properties
+    # sock_constraint_type: EnumProperty(...)
+    # sock_break_strength: FloatProperty(...)
+    # sock_visual_size: FloatProperty(...)
 
     # --- SLOT GENERATOR (0-9) ---
     if not "__annotations__" in locals():
         __annotations__ = {}
+
+    SOCKET_CONSTRAINT_ITEMS = [
+        ("NONE", "None", "Visual Empty Only"),
+        ("FIXED", "Fixed", "Rigid Link"),
+        ("HINGE", "Hinge", "Rotation on Z"),
+        ("SLIDER", "Slider", "Linear Motion on Z"),
+        ("SPRING", "Spring", "Elastic Connection"),
+    ]
 
     for i in range(10):
         __annotations__[f"expand_{i}"] = BoolProperty(default=(i == 0))
@@ -472,6 +459,27 @@ class MassaPropertiesMixin:
         __annotations__[f"sock_{i}"] = BoolProperty(name="Socket", default=False)
         __annotations__[f"off_{i}"] = FloatProperty(name="Offset", default=0.0)
         __annotations__[f"prot_{i}"] = BoolProperty(name="Protect", default=False)
+
+        # [ARCHITECT NEW] Socket Properties (Per-Slot)
+        __annotations__[f"sock_visual_size_{i}"] = FloatProperty(
+            name=f"Size {i}",
+            default=0.1,
+            min=0.01,
+            max=5.0,
+            description="Viewport display size of the socket",
+        )
+        __annotations__[f"sock_constraint_type_{i}"] = EnumProperty(
+            name=f"Type {i}",
+            items=SOCKET_CONSTRAINT_ITEMS,
+            default="NONE",
+        )
+        __annotations__[f"sock_break_strength_{i}"] = FloatProperty(
+            name=f"Break Force {i}",
+            default=250.0,
+            min=0.0,
+            max=10000.0,
+            description="Force limit before constraint breaks",
+        )
 
         # [ARCHITECT NEW] Collision Properties
         __annotations__[f"collision_shape_{i}"] = EnumProperty(

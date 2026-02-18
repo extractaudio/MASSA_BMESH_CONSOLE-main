@@ -92,10 +92,23 @@ def spawn_socket_objects(
 ):
     """
     Spawns Empty objects based on the calculated matrices.
+    [ARCHITECT UPDATE] Supports Per-Slot Visuals and Constraints.
     """
+    TYPE_MAP = {
+        'FIXED': 'FIXED',
+        'HINGE': 'HINGE',
+        'SLIDER': 'SLIDER',
+        'SPRING': 'GENERIC_SPRING'
+    }
+
     for s_idx, data_list in socket_data.items():
         name = manifest[s_idx]["name"]
         safe = "".join(c for c in name if c.isalnum() or c in (" ", "_", "-")).strip()
+
+        # [ARCHITECT NEW] Fetch Per-Slot Properties
+        vis_size = manifest[s_idx].get("sock_size", 0.1)
+        con_type = manifest[s_idx].get("sock_type", "NONE")
+        break_force = manifest[s_idx].get("sock_strength", 250.0)
 
         for i, (loc, rot_mat) in enumerate(data_list):
             sock_name = f"SOCKET_{safe}_{i}"
@@ -103,7 +116,7 @@ def spawn_socket_objects(
 
             # Setup Visuals
             sock.empty_display_type = "SINGLE_ARROW"
-            sock.empty_display_size = 0.2 * global_scale
+            sock.empty_display_size = vis_size * global_scale
 
             # 1. Apply Local Transform
             # Convert 3x3 Rot Matrix to 4x4 for placement
@@ -125,5 +138,36 @@ def spawn_socket_objects(
                 sock.rotation_euler = (global_rot @ sock.matrix_world).to_euler()
 
             # Link and Parent
-            bpy.context.collection.objects.link(sock)
+            # Check context collection
+            if bpy.context.collection:
+                bpy.context.collection.objects.link(sock)
+            else:
+                bpy.context.scene.collection.objects.link(sock)
+
             sock.parent = parent_obj
+
+            # [ARCHITECT NEW] Apply Constraints
+            if con_type != 'NONE' and con_type in TYPE_MAP:
+                b_type = TYPE_MAP[con_type]
+
+                # Ensure selection for Operator
+                bpy.ops.object.select_all(action='DESELECT')
+                sock.select_set(True)
+                bpy.context.view_layer.objects.active = sock
+
+                try:
+                    # Add Rigid Body Constraint (Empty becomes a Constraint Object)
+                    bpy.ops.rigidbody.constraint_add(type=b_type)
+                    rbc = sock.rigid_body_constraint
+                    # Object 1 is Main Object (Parent)
+                    rbc.object1 = parent_obj
+                    # Object 2 is left blank (Connecting Piece)
+                    rbc.use_breaking = True
+                    rbc.breaking_threshold = break_force
+                except Exception as ce:
+                    print(f"Socket Constraint Error ({sock_name}): {ce}")
+
+            # Restore context to parent
+            bpy.ops.object.select_all(action='DESELECT')
+            parent_obj.select_set(True)
+            bpy.context.view_layer.objects.active = parent_obj

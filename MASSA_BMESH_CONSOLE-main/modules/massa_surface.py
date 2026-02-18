@@ -23,6 +23,10 @@ def gather_manifest(op):
             "uv_scale": getattr(op, f"uv_scale_{i}", 1.0),
             "phys": getattr(op, f"phys_mat_{i}", "GENERIC"),
             "prot": getattr(op, f"prot_{i}", False),
+            # [ARCHITECT NEW] Per-Slot Socket Properties
+            "sock_size": getattr(op, f"sock_visual_size_{i}", 0.1),
+            "sock_type": getattr(op, f"sock_constraint_type_{i}", "NONE"),
+            "sock_strength": getattr(op, f"sock_break_strength_{i}", 250.0),
         }
         if getattr(op, f"sock_{i}", False):
             active_sockets.append(i)

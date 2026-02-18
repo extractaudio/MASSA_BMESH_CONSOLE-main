@@ -570,10 +570,6 @@ def _generate_output(op, context, bm, socket_data, manifest):
 
         # [ARCHITECT NEW] Phase 4: Socket Forge (Physical)
         if collected_sockets:
-            vis_size = getattr(op, "sock_visual_size", 0.1)
-            con_type = getattr(op, "sock_constraint_type", 'NONE')
-            break_force = getattr(op, "sock_break_strength", 250.0)
-
             # Map Enum to Blender Types
             TYPE_MAP = {
                 'FIXED': 'FIXED',
@@ -583,6 +579,11 @@ def _generate_output(op, context, bm, socket_data, manifest):
             }
 
             for sid, center, normal in collected_sockets:
+                # [ARCHITECT NEW] Fetch Per-Slot Properties
+                vis_size = getattr(op, f"sock_visual_size_{sid}", 0.1)
+                con_type = getattr(op, f"sock_constraint_type_{sid}", 'NONE')
+                break_force = getattr(op, f"sock_break_strength_{sid}", 250.0)
+
                 s_name = f"SOCKET_{obj.name}_{sid:02d}"
                 sock = bpy.data.objects.new(s_name, None)
                 sock.empty_display_type = 'ARROWS'
