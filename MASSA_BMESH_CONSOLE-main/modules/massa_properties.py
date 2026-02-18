@@ -206,6 +206,17 @@ class MassaPropertiesMixin:
         ],
         default="POS_X",
     )
+    pol_symmetrize_offset: FloatProperty(name="Offset", default=0.0)
+
+    pol_bend_active: BoolProperty(name="Bend", default=False)
+    pol_bend_angle: FloatProperty(
+        name="Angle", default=0.0, min=-3.14159, max=3.14159, subtype="ANGLE"
+    )
+    pol_bend_axis: EnumProperty(
+        name="Axis",
+        items=[("X", "X", ""), ("Y", "Y", ""), ("Z", "Z", "")],
+        default="X",
+    )
 
     # --- POLISH: REFINEMENT ---
     pol_merge_mode: EnumProperty(
@@ -224,24 +235,36 @@ class MassaPropertiesMixin:
     pol_fuse_square: BoolProperty(name="Square Profile", default=False)
 
     pol_chamfer_active: BoolProperty(name="Chamfer", default=False)
-    pol_chamfer_width: FloatProperty(name="Width", default=0.005, min=0.0, step=0.001)
-    pol_chamfer_segs: IntProperty(name="Segs", default=1)
+    pol_chamfer_width: FloatProperty(
+        name="Width", default=0.005, min=0.0, max=1.0, soft_max=0.1, step=0.001
+    )
+    pol_chamfer_segs: IntProperty(name="Segs", default=1, min=1, max=10)
     pol_chamfer_square: BoolProperty(name="Square Profile", default=False)
+    pol_chamfer_angle_min: FloatProperty(
+        name="Min Angle", default=0.05, min=0.0, max=3.14, subtype="ANGLE"
+    )
 
     pol_taper_active: BoolProperty(name="Taper", default=False)
-    pol_taper_x: FloatProperty(name="X")
-    pol_taper_y: FloatProperty(name="Y")
+    pol_taper_x: FloatProperty(name="X", min=-2.0, max=2.0)
+    pol_taper_y: FloatProperty(name="Y", min=-2.0, max=2.0)
+    pol_taper_curve: FloatProperty(
+        name="Curve", default=1.0, min=0.1, max=10.0, soft_max=5.0
+    )
+    pol_taper_mirror: BoolProperty(name="Mirror", default=False)
+    pol_taper_invert: BoolProperty(name="Invert", default=False)
 
     pol_noise_active: BoolProperty(name="Noise", default=False)
-    pol_noise_str: FloatProperty(name="Str")
+    pol_noise_str: FloatProperty(name="Str", min=0.0, max=10.0, soft_max=2.0)
     pol_noise_scl: FloatProperty(name="Scl")
 
     pol_smooth_active: BoolProperty(name="Smooth", default=False)
-    pol_smooth_iter: IntProperty(name="Iter")
-    pol_smooth_fac: FloatProperty(name="Fac")
+    pol_smooth_iter: IntProperty(name="Iter", min=1, max=100, soft_max=20)
+    pol_smooth_fac: FloatProperty(name="Fac", min=0.0, max=1.0)
 
     pol_plate_active: BoolProperty(name="Plating", default=False)
-    pol_plate_thick: FloatProperty(name="Gap", default=0.01)
+    pol_plate_thick: FloatProperty(
+        name="Gap", default=0.01, min=0.0, max=0.5, soft_max=0.1
+    )
     pol_plate_depth: FloatProperty(name="Depth", default=-0.005)
 
     pol_decay_active: BoolProperty(name="Decay", default=False)

@@ -222,9 +222,20 @@ def _run_polish_stack(bm, op, flags, manifest):
     if op.pol_holes_active:
         massa_polish.apply_fill_holes(bm, op.pol_holes_sides)
     if op.pol_symmetrize_active:
-        massa_polish.apply_symmetrize(bm, op.pol_symmetrize_dir)
+        massa_polish.apply_symmetrize(
+            bm, op.pol_symmetrize_dir, op.pol_symmetrize_offset
+        )
     if op.pol_taper_active:
-        massa_polish.apply_taper(bm, op.pol_taper_x, op.pol_taper_y)
+        massa_polish.apply_taper(
+            bm,
+            op.pol_taper_x,
+            op.pol_taper_y,
+            op.pol_taper_curve,
+            op.pol_taper_mirror,
+            op.pol_taper_invert,
+        )
+    if hasattr(op, "pol_bend_active") and op.pol_bend_active:
+        massa_polish.apply_bend(bm, op.pol_bend_angle, op.pol_bend_axis)
     if hasattr(op, "pol_plate_active") and op.pol_plate_active:
         massa_polish.apply_plating(
             bm,
@@ -249,6 +260,7 @@ def _run_polish_stack(bm, op, flags, manifest):
             op.pol_chamfer_width * op.global_scale,
             op.pol_chamfer_segs,
             op.pol_chamfer_square,
+            getattr(op, "pol_chamfer_angle_min", 0.05),
         )
 
 
