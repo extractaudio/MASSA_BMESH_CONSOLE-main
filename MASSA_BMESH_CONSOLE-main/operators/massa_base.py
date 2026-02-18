@@ -27,6 +27,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             ("UVS", "UVs", "Unwrapping & Seams", "GROUP_UVS", 3),
             ("SLOTS", "Slots", "Material Assignments", "MATERIAL", 4),
             ("EDGES", "Edges", "Edge Role Interpreter", "EDGESEL", 5),
+            ("COLLISION", "Collision", "Collision & Physics", "PHYSICS", 6),
         ],
         default="SHAPE",
     )
@@ -164,6 +165,11 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     f"sock_{i}",
                     f"off_{i}",
                     f"prot_{i}",
+                    f"collision_shape_{i}",
+                    f"show_coll_{i}",
+                    f"phys_friction_{i}",
+                    f"phys_bounce_{i}",
+                    f"phys_bond_{i}",
                 ]
             )
         all_keys.extend(
@@ -376,6 +382,8 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             ui_shared.draw_uvs_tab(col, self, slot_names=slots, stats=stats)
         elif self.ui_tab == "SLOTS":
             ui_shared.draw_slots_tab(col, self, slots, stats)
+        elif self.ui_tab == "COLLISION":
+            ui_shared.draw_collision_tab(col, self, slots)
 
 
 class MASSA_OT_ReRun_Active(Operator):
