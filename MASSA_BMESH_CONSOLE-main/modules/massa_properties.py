@@ -249,8 +249,13 @@ class MassaPropertiesMixin:
     pol_decay_seed: IntProperty(name="Seed", default=0)
 
     # --- DATA LAYER ---
-    # [ARCHITECT UPDATE] Defaults set to False
+    # Global Visibility
+    show_data_set_1: BoolProperty(name="Show Set 1 (RGBW)", default=True)
+    show_data_set_2: BoolProperty(name="Show Set 2 (O/B/P/B)", default=True)
+
+    # --- SET 1 (Legacy) ---
     wear_active: BoolProperty(name="Wear (R)", default=False)
+    wear_show: BoolProperty(name="Show", default=True)
     wear_amount: FloatProperty(name="Amt", default=0.5)
     wear_scale: FloatProperty(name="Scl", default=2.0)
     wear_rough: FloatProperty(name="Var", default=0.5)
@@ -263,6 +268,7 @@ class MassaPropertiesMixin:
 
     # [ARCHITECT UPDATE] Defaults set to False
     thick_active: BoolProperty(name="Enable Thickness", default=False)
+    thick_show: BoolProperty(name="Show", default=True)
     thick_amount: FloatProperty(name="Amt", default=1.0)
     thick_dist: FloatProperty(name="Depth", default=0.2)
     thick_contrast: FloatProperty(name="Contr", default=1.0)
@@ -272,14 +278,37 @@ class MassaPropertiesMixin:
     flow_streak: FloatProperty(name="Streak", default=0.9)
 
     grav_active: BoolProperty(name="Gravity (B)", default=False)
+    grav_show: BoolProperty(name="Show", default=True)
     grav_amount: FloatProperty(name="Amt", default=0.5)
     grav_scale: FloatProperty(name="Streak", default=1.5)
     grav_bias: FloatProperty(name="Bias", default=0.5)
 
     cavity_active: BoolProperty(name="Cavity (A)", default=False)
+    cavity_show: BoolProperty(name="Show", default=True)
     cavity_dist: FloatProperty(name="Dist", default=0.1)
     cavity_samples: IntProperty(name="Samples", default=16)
     cavity_contrast: FloatProperty(name="Contr", default=1.0)
+
+    # --- SET 2 (New) ---
+    wear2_active: BoolProperty(name="Edge Wear (R)", default=False)
+    wear2_show: BoolProperty(name="Show", default=True)
+    wear2_amount: FloatProperty(name="Amt", default=1.0)
+    wear2_contrast: FloatProperty(name="Contr", default=2.0)
+
+    flow2_active: BoolProperty(name="Flow (G)", default=False)
+    flow2_show: BoolProperty(name="Show", default=True)
+    flow2_rain: FloatProperty(name="Rain", default=0.8)
+    flow2_wind_dir: FloatVectorProperty(name="Wind Dir", default=(1.0, 0.0, 0.0), size=3, subtype='DIRECTION')
+
+    cover_active: BoolProperty(name="Covered (B)", default=False)
+    cover_show: BoolProperty(name="Show", default=True)
+    cover_amount: FloatProperty(name="Amt", default=1.0)
+    cover_contrast: FloatProperty(name="Contr", default=1.0)
+
+    peak_active: BoolProperty(name="Peaks (A)", default=False)
+    peak_show: BoolProperty(name="Show", default=True)
+    peak_dist: FloatProperty(name="Dist", default=0.1)
+    peak_contrast: FloatProperty(name="Contr", default=1.0)
 
     phys_active: BoolProperty(name="Write Physics IDs", default=True)
     part_active: BoolProperty(name="Write Part IDs", default=True)
@@ -289,10 +318,7 @@ class MassaPropertiesMixin:
         items=[
             ("NONE", "Final", ""),
             ("UV", "UV Check", ""),
-            ("WEAR", "Wear (R)", ""),
-            ("THICK", "Thick (G)", ""),
-            ("GRAV", "Gravity (B)", ""),
-            ("CAVITY", "Cavity (A)", ""),
+            ("DATA_LAYERS", "Data Layers", "Show combined data layers"),
             ("PHYS", "Physics", ""),
             ("PARTS", "Part IDs", "Show slot indices"),
             ("PROTECT", "Protection", "Show noise masks"),

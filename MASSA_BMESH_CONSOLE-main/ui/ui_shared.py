@@ -233,8 +233,45 @@ def draw_polish_tab(layout, owner):
 
 
 def draw_data_tab(layout, owner, slot_names):
-    layout.label(text="Surface Data Channels", icon="BRUSH_DATA")
+    # --- 0. VISIBILITY CONTROL ---
+    layout.label(text="Data Layer Visibility", icon="RESTRICT_VIEW_OFF")
+    box = layout.box()
 
+    # Global Set Toggles
+    row = box.row(align=True)
+    row.prop(owner, "show_data_set_1", text="Set 1 (RGBW)", toggle=True)
+    row.prop(owner, "show_data_set_2", text="Set 2 (Alt)", toggle=True)
+
+    box.separator()
+
+    # Individual Toggles (Grid)
+    # Row 1: Set 1
+    if owner.show_data_set_1:
+        col = box.column(align=True)
+        col.label(text="Set 1 Channels:", icon="BRUSH_DATA")
+        row = col.row(align=True)
+        row.prop(owner, "wear_show", text="Wear", icon="COLOR_RED", toggle=True)
+        row.prop(owner, "thick_show", text="Thick", icon="COLOR_GREEN", toggle=True)
+        row.prop(owner, "grav_show", text="Grav", icon="COLOR_BLUE", toggle=True)
+        row.prop(owner, "cavity_show", text="Cavity", icon="IMAGE_ALPHA", toggle=True)
+        box.separator()
+
+    # Row 2: Set 2
+    if owner.show_data_set_2:
+        col = box.column(align=True)
+        col.label(text="Set 2 Channels:", icon="BRUSH_DATA")
+        row = col.row(align=True)
+        row.prop(owner, "wear2_show", text="Edge", icon="COLOR_RED", toggle=True)
+        row.prop(owner, "flow2_show", text="Flow", icon="COLOR_GREEN", toggle=True)
+        row.prop(owner, "cover_show", text="Cover", icon="COLOR_BLUE", toggle=True)
+        row.prop(owner, "peak_show", text="Peak", icon="IMAGE_ALPHA", toggle=True)
+
+    layout.separator()
+
+    # --- 1. SET 1 CONTROLS ---
+    layout.label(text="Set 1: Surface Data", icon="BRUSH_DATA")
+
+    # Wear (R)
     box = layout.box()
     row = box.row()
     row.prop(owner, "wear_active", icon="COLOR_RED", toggle=True)
@@ -244,6 +281,7 @@ def draw_data_tab(layout, owner, slot_names):
         col.prop(owner, "wear_scale", text="Scale")
         col.prop(owner, "wear_rough", text="Roughness")
 
+    # Thick/Flow (G)
     box = layout.box()
     row = box.row()
     row.prop(owner, "thick_active", icon="COLOR_GREEN", toggle=True)
@@ -259,6 +297,7 @@ def draw_data_tab(layout, owner, slot_names):
             col.prop(owner, "flow_steps")
             col.prop(owner, "flow_streak")
 
+    # Gravity (B)
     box = layout.box()
     row = box.row()
     row.prop(owner, "grav_active", icon="COLOR_BLUE", toggle=True)
@@ -267,6 +306,7 @@ def draw_data_tab(layout, owner, slot_names):
         col.prop(owner, "grav_amount")
         col.prop(owner, "grav_bias")
 
+    # Cavity (A)
     box = layout.box()
     row = box.row()
     row.prop(owner, "cavity_active", icon="IMAGE_ALPHA", toggle=True)
@@ -275,6 +315,47 @@ def draw_data_tab(layout, owner, slot_names):
         col.prop(owner, "cavity_dist")
         col.prop(owner, "cavity_samples")
         col.prop(owner, "cavity_contrast")
+
+    layout.separator()
+
+    # --- 2. SET 2 CONTROLS ---
+    layout.label(text="Set 2: Advanced Data", icon="BRUSH_DATA")
+
+    # Edge Wear (R)
+    box = layout.box()
+    row = box.row()
+    row.prop(owner, "wear2_active", icon="COLOR_RED", toggle=True)
+    if owner.wear2_active:
+        col = box.column(align=True)
+        col.prop(owner, "wear2_amount")
+        col.prop(owner, "wear2_contrast")
+
+    # Flow (G)
+    box = layout.box()
+    row = box.row()
+    row.prop(owner, "flow2_active", icon="COLOR_GREEN", toggle=True)
+    if owner.flow2_active:
+        col = box.column(align=True)
+        col.prop(owner, "flow2_rain")
+        col.prop(owner, "flow2_wind_dir")
+
+    # Cover (B)
+    box = layout.box()
+    row = box.row()
+    row.prop(owner, "cover_active", icon="COLOR_BLUE", toggle=True)
+    if owner.cover_active:
+        col = box.column(align=True)
+        col.prop(owner, "cover_amount")
+        col.prop(owner, "cover_contrast")
+
+    # Peak (A)
+    box = layout.box()
+    row = box.row()
+    row.prop(owner, "peak_active", icon="IMAGE_ALPHA", toggle=True)
+    if owner.peak_active:
+        col = box.column(align=True)
+        col.prop(owner, "peak_dist")
+        col.prop(owner, "peak_contrast")
 
     layout.separator()
     layout.label(text="Identity", icon="TAG")
