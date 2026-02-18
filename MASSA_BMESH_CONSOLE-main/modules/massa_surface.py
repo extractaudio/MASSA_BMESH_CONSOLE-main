@@ -86,16 +86,10 @@ def assign_materials(obj, op, bm=None):
     if debug_v != "NONE":
         if debug_v == "UV":
             override_mat = mat_utils.create_debug_uv_material()
-        elif debug_v == "DATA_LAYERS":
-            override_mat = mat_utils.create_debug_data_layers_material()
-        elif debug_v == "WEAR": # Legacy/Fallback
-            override_mat = mat_utils.create_debug_channel_material(0)
-        elif debug_v == "THICK": # Legacy/Fallback
-            override_mat = mat_utils.create_debug_channel_material(1)
-        elif debug_v == "GRAV": # Legacy/Fallback
-            override_mat = mat_utils.create_debug_channel_material(2)
-        elif debug_v == "CAVITY": # Legacy/Fallback
-            override_mat = mat_utils.create_debug_channel_material(3)
+        elif debug_v == "DATA_SET_1":
+            override_mat = mat_utils.create_debug_set1_material()
+        elif debug_v == "DATA_SET_2":
+            override_mat = mat_utils.create_debug_set2_material()
         elif debug_v == "PHYS":
             override_mat = mat_utils.create_debug_physics_material()
         elif debug_v == "PARTS":
@@ -544,7 +538,7 @@ def generate_surface_maps(bm, op, convex, concave):
     thick_on = thick_mode and thick_enabled
     flow_on = getattr(op, "data_green_mode", "THICKNESS") == "FLOW"
 
-    if debug_view == "DATA_LAYERS":
+    if debug_view in {"DATA_SET_1", "DATA_SET_2"}:
         # Force calculate if debugging combined layers
         # Optimization: Only calculate active ones, but for now we trust the "active" flags
         pass

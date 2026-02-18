@@ -401,7 +401,8 @@ class MassaPropertiesMixin:
         items=[
             ("NONE", "Final", ""),
             ("UV", "UV Check", ""),
-            ("DATA_LAYERS", "Data Layers", "Show combined data layers"),
+            ("DATA_SET_1", "Set 1 (RGBW)", "Show Set 1 Channels (Wear, Thick, Grav, Cavity)"),
+            ("DATA_SET_2", "Set 2 (Alt)", "Show Set 2 Channels (Edge, Flow, Cover, Peak)"),
             ("PHYS", "Physics", ""),
             ("PARTS", "Part IDs", "Show slot indices"),
             ("PROTECT", "Protection", "Show noise masks"),
