@@ -304,13 +304,13 @@ def auto_detect_edge_slots(bm):
     Populates MASSA_EDGE_SLOTS based on Material Boundaries.
     Slot ID = max(mat_index_A, mat_index_B)
     """
-    print("MASSA DEBUG: auto_detect_edge_slots START")
+    # print("MASSA DEBUG: auto_detect_edge_slots START")
     try:
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
     except:
-        print("MASSA DEBUG: Failed to get/create MASSA_EDGE_SLOTS")
+        # print("MASSA DEBUG: Failed to get/create MASSA_EDGE_SLOTS")
         return
 
     bm.edges.ensure_lookup_table()
@@ -380,7 +380,7 @@ def auto_detect_edge_slots(bm):
                 e[edge_slots] = max_slot
             # print(f"MASSA DEBUG: Edge {e.index} -> Slot {max_slot} (Mats: {checked_mats})")
 
-    print(f"MASSA DEBUG: auto_detect_edge_slots -> Edges: {total_edges}, Boundaries Found: {total_boundaries}")
+    # print(f"MASSA DEBUG: auto_detect_edge_slots -> Edges: {total_edges}, Boundaries Found: {total_boundaries}")
 
 
 def auto_detect_sharp_edges(bm, op):
@@ -457,7 +457,7 @@ def auto_detect_sharp_edges(bm, op):
             e.smooth = False
             count += 1
 
-    print(f"MASSA DEBUG: Auto-Detect Sharp -> Marked {count} edges.")
+    # print(f"MASSA DEBUG: Auto-Detect Sharp -> Marked {count} edges.")
 
 
 def tag_structure_edges(bm, op):
@@ -522,12 +522,12 @@ def tag_structure_edges(bm, op):
 
     
     # [ARCHITECT DEBUG]
-    viz_counts = {}
-    for e in bm.edges:
-        val = e[viz_layer]
-        if val > 0:
-            viz_counts[val] = viz_counts.get(val, 0) + 1
-    print(f"MASSA DEBUG: tag_structure_edges -> Counts: {viz_counts}")
+    # viz_counts = {}
+    # for e in bm.edges:
+    #     val = e[viz_layer]
+    #     if val > 0:
+    #         viz_counts[val] = viz_counts.get(val, 0) + 1
+    # print(f"MASSA DEBUG: tag_structure_edges -> Counts: {viz_counts}")
 
     return cvx, cnv
 
