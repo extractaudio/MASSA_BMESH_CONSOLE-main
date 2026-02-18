@@ -223,6 +223,16 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                         # Skip materials to allow Console override
                         if k.startswith("mat_") or k.startswith("phys_mat_"):
                             continue
+
+                        # [ARCHITECT FIX] Skip UV/Seam properties to allow Console override
+                        # This ensures global UV settings (N-Panel) take precedence over stored object params.
+                        if k.startswith("uv_mode_") or k.startswith("uv_scale_"):
+                            continue
+                        if k in {"auto_unwrap", "auto_unwrap_margin"}:
+                            continue
+                        if k.startswith("seam_"):
+                            continue
+
                         # [ARCHITECT FIX] Skip transform properties to prevent overwriting with stale data
                         if k in {"obj_location", "obj_rotation"}:
                             continue
