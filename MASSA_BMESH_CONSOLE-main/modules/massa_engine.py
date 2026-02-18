@@ -312,7 +312,8 @@ def _generate_output(op, context, bm, socket_data, manifest):
     # [ARCHITECT FIX] MATERIAL ASSIGNMENT (Moved up to support Slot Selection)
     # Must be done BEFORE bm.to_mesh() to preserve face material indices (0-9).
     # If slots are missing on the target mesh, to_mesh() clamps indices to 0.
-    massa_surface.assign_materials(obj, op)
+    # [ARCHITECT FIX] Now returns a slot map for remapped indices
+    slot_map = massa_surface.assign_materials(obj, op, bm=bm)
 
     bm.to_mesh(mesh)
     bm.free()
@@ -392,8 +393,13 @@ def _generate_output(op, context, bm, socket_data, manifest):
                 if is_debug_override:
                     bpy.ops.mesh.select_all(action="SELECT")
                 else:
-                    obj.active_material_index = i
-                    bpy.ops.object.material_slot_select()
+                    # [ARCHITECT FIX] Use Remapped Slot Index
+                    # If this slot (i) was not used, it won't be in the map.
+                    if i in slot_map:
+                        obj.active_material_index = slot_map[i]
+                        bpy.ops.object.material_slot_select()
+                    else:
+                        continue # Skip unwrapping if no geometry uses this slot
 
                 # [ARCHITECT LOGIC] Decide Strategy
                 # If Auto-Unwrap is ON and NO Seams are active, use Smart Project.
@@ -497,7 +503,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
         except Exception as e:
             print(f"Massa Viz Error: {e}")
 
-    massa_polish.handle_separation(obj, op, manifest, context)
+    massa_polish.handle_separation(obj, op, manifest, context, slot_map=slot_map)
 
     context.view_layer.objects.active = obj
     if is_debug_override:
