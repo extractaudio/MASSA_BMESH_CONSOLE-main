@@ -130,7 +130,7 @@ def draw_edge_slots_tab(layout, owner):
         r.label(text="2:Blu", icon="COLOR_BLUE")  # Blue
         r.label(text="3:Red", icon="COLOR_RED")  # Red
         r.label(text="4:Grn", icon="COLOR_GREEN")  # Green
-        r.label(text="5:Pur", icon="COLOR_MAGENTA")  # Purple
+        r.label(text="5:Pur", icon="COLLECTION_COLOR_06")  # Purple
 
 
 def draw_polish_tab(layout, owner):
