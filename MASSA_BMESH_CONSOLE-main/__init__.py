@@ -92,6 +92,7 @@ def register():
     bpy.utils.register_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
     bpy.utils.register_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.register_class(massa_shooter.MASSA_OT_ShootDispatcher)
+    bpy.utils.register_class(massa_shooter.MASSA_OT_SpawnTarget)
 
     # 3. Register Cartridges
     cartridges.register()
@@ -139,6 +140,7 @@ def unregister():
     cartridges.unregister()
 
     # 3. Unregister Operators
+    bpy.utils.unregister_class(massa_shooter.MASSA_OT_SpawnTarget)
     bpy.utils.unregister_class(massa_shooter.MASSA_OT_ShootDispatcher)
     bpy.utils.unregister_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Condemn)

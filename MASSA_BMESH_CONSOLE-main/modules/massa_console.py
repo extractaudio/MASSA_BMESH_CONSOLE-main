@@ -120,6 +120,17 @@ class Massa_Console_Props(bpy.types.PropertyGroup, MassaPropertiesMixin):
 
 
 def register():
+    # Dynamic Property Generation
+    from .massa_cartridge_props import register_cartridge_props, CARTRIDGE_PROP_CLASSES
+    register_cartridge_props()
+
+    # Inject PointerProperties into Console Props
+    # This allows persistent storage of per-cartridge parameters
+    for cart_id, cls in CARTRIDGE_PROP_CLASSES.items():
+        safe_id = cart_id.replace(".", "_").replace("-", "_")
+        prop_name = f"props_{safe_id}"
+        Massa_Console_Props.__annotations__[prop_name] = PointerProperty(type=cls)
+
     bpy.utils.register_class(Massa_Console_Props)
     bpy.types.Scene.massa_console = PointerProperty(type=Massa_Console_Props)
 
@@ -128,3 +139,6 @@ def unregister():
     if hasattr(bpy.types.Scene, "massa_console"):
         del bpy.types.Scene.massa_console
     bpy.utils.unregister_class(Massa_Console_Props)
+
+    from .massa_cartridge_props import unregister_cartridge_props
+    unregister_cartridge_props()
