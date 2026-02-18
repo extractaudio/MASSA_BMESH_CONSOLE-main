@@ -175,7 +175,10 @@ def draw_polish_tab(layout, owner):
         r = b.row(align=True)
         r.prop(owner, "pol_chamfer_width", text="W")
         r.prop(owner, "pol_chamfer_segs", text="S")
-        b.prop(owner, "pol_chamfer_square", text="Square")
+        r2 = b.row(align=True)
+        r2.prop(owner, "pol_chamfer_square", text="Square")
+        if hasattr(owner, "pol_chamfer_angle_min"):
+            r2.prop(owner, "pol_chamfer_angle_min", text="Limit")
 
     if hasattr(owner, "pol_plate_active"):
         b = layout.box()
@@ -224,12 +227,33 @@ def draw_polish_tab(layout, owner):
         owner, "pol_symmetrize_active", text="Mirror", toggle=True, icon="MOD_MIRROR"
     )
     r.prop(owner, "pol_taper_active", text="Taper", toggle=True, icon="MOD_LATTICE")
+    if hasattr(owner, "pol_bend_active"):
+        r.prop(owner, "pol_bend_active", text="Bend", toggle=True, icon="MOD_SIMPLEDEFORM")
+
     if owner.pol_symmetrize_active:
         b.prop(owner, "pol_symmetrize_dir", text="Direction", expand=True)
+        if hasattr(owner, "pol_symmetrize_offset"):
+            b.prop(owner, "pol_symmetrize_offset", text="Mirror Offset")
+
     if owner.pol_taper_active:
-        row = b.row(align=True)
+        col = b.column(align=True)
+        row = col.row(align=True)
         row.prop(owner, "pol_taper_x", text="X")
         row.prop(owner, "pol_taper_y", text="Y")
+
+        if hasattr(owner, "pol_taper_curve"):
+            row = col.row(align=True)
+            row.prop(owner, "pol_taper_curve", text="Curve")
+
+            row = col.row(align=True)
+            row.prop(owner, "pol_taper_mirror", text="Sym", toggle=True)
+            row.prop(owner, "pol_taper_invert", text="Inv", toggle=True)
+
+    if hasattr(owner, "pol_bend_active") and owner.pol_bend_active:
+        col = b.column(align=True)
+        row = col.row(align=True)
+        row.prop(owner, "pol_bend_angle", text="Angle")
+        row.prop(owner, "pol_bend_axis", text="Axis", expand=True)
 
 
 def draw_data_tab(layout, owner, slot_names):
