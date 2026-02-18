@@ -338,6 +338,9 @@ def _generate_output(op, context, bm, socket_data, manifest):
     except Exception as e:
         print(f"Massa Save Error: {e}")
 
+    # [ARCHITECT FIX] MATERIAL ASSIGNMENT (Moved up to support Slot Selection)
+    massa_surface.assign_materials(obj, op)
+
     for p in mesh.polygons:
         p.use_smooth = True
 
@@ -348,18 +351,23 @@ def _generate_output(op, context, bm, socket_data, manifest):
         mod.segments = 2
         mod.profile = 0.7
 
+    force_auto_unwrap = getattr(op, "auto_unwrap", False)
+
     needs_unwrap = False
     for i in range(10):
         if manifest[i]["uv"] == "UNWRAP":
             needs_unwrap = True
             break
 
+    if force_auto_unwrap:
+        needs_unwrap = True
+
     allow_unwrap = (viz_mode != "SLOTS") or (debug_mode == "UV")
 
     allow_unwrap = (viz_mode != "SLOTS") or (debug_mode == "UV")
     
     # [ARCHITECT FIX] Force Unwrap if user explicitly requests Auto-Unwrap
-    if getattr(op, "auto_unwrap", False):
+    if force_auto_unwrap:
         allow_unwrap = True
 
     # 1. Standard Per-Slot Unwrap (LSCM / Conformal)
@@ -368,20 +376,24 @@ def _generate_output(op, context, bm, socket_data, manifest):
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="DESELECT")
         for i in range(10):
-            if manifest[i]["uv"] == "UNWRAP":
+            # [ARCHITECT FIX] Treat SKIP as UNWRAP if Auto-Unwrap is ON
+            should_unwrap = (manifest[i]["uv"] == "UNWRAP")
+            if force_auto_unwrap and manifest[i]["uv"] == "SKIP":
+                should_unwrap = True
+
+            if should_unwrap:
                 if is_debug_override:
                     bpy.ops.mesh.select_all(action="SELECT")
                 else:
                     obj.active_material_index = i
                     bpy.ops.object.material_slot_select()
-                try:
-                    bpy.ops.uv.unwrap(
-                        method="ANGLE_BASED", margin=0.001, correct_aspect=True
-                    )
-                except Exception as e:
-                    # [ARCHITECT HYBRID] Fallback to Smart Project if LSCM fails
-                    # This prevents "Unwrap failed to solve" errors on closed meshes
-                    print(f"Massa UV Fallback (Slot {i}): {e}")
+
+                # [ARCHITECT LOGIC] Decide Strategy
+                # If Auto-Unwrap is ON and NO Seams are active, use Smart Project.
+                # If Seams are active, trust them (LSCM).
+                use_smart = (force_auto_unwrap and not getattr(op, "seam_active", False))
+
+                if use_smart:
                     try:
                         bpy.ops.uv.smart_project(
                             angle_limit=66.0,
@@ -392,6 +404,25 @@ def _generate_output(op, context, bm, socket_data, manifest):
                         )
                     except:
                         pass
+                else:
+                    try:
+                        bpy.ops.uv.unwrap(
+                            method="ANGLE_BASED", margin=0.001, correct_aspect=True
+                        )
+                    except Exception as e:
+                        # [ARCHITECT HYBRID] Fallback to Smart Project if LSCM fails
+                        # This prevents "Unwrap failed to solve" errors on closed meshes
+                        print(f"Massa UV Fallback (Slot {i}): {e}")
+                        try:
+                            bpy.ops.uv.smart_project(
+                                angle_limit=66.0,
+                                island_margin=0.0,
+                                area_weight=0.0,
+                                correct_aspect=True,
+                                scale_to_bounds=False,
+                            )
+                        except:
+                            pass
                 bpy.ops.mesh.select_all(action="DESELECT")
                 if is_debug_override:
                     break
@@ -416,9 +447,6 @@ def _generate_output(op, context, bm, socket_data, manifest):
     massa_sockets.spawn_socket_objects(
         obj, socket_data, manifest, op.global_scale, op.ui_use_rot, op.rotation
     )
-    
-    # [ARCHITECT FIX] MATERIAL ASSIGNMENT
-    massa_surface.assign_materials(obj, op)
 
     if debug_mode == "SEAM":
         obj.show_wire = True
