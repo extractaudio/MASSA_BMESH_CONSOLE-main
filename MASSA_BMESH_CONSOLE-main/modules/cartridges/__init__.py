@@ -103,6 +103,11 @@ from . import cart_asm_12_fire_escape
 from . import cart_asm_13_cloister
 from . import cart_asm_14_loading_dock
 from . import cart_asm_15_elevator_shaft
+from . import cart_asm_16_quantum_server
+from . import cart_asm_17_iris_door
+from . import cart_asm_18_radar_array
+from . import cart_asm_19_cryo_pod
+from . import cart_asm_20_robotic_arm
 
 
 # -------------------------------------------------------------------
@@ -202,6 +207,11 @@ MODULES = [
     cart_asm_13_cloister,
     cart_asm_14_loading_dock,
     cart_asm_15_elevator_shaft,
+    cart_asm_16_quantum_server,
+    cart_asm_17_iris_door,
+    cart_asm_18_radar_array,
+    cart_asm_19_cryo_pod,
+    cart_asm_20_robotic_arm,
 ]
 
 # List of Operator Classes (Used for Registration)
@@ -297,6 +307,11 @@ CLASSES = [
     cart_asm_13_cloister.MASSA_OT_AsmCloister,
     cart_asm_14_loading_dock.MASSA_OT_AsmLoadingDock,
     cart_asm_15_elevator_shaft.MASSA_OT_AsmElevatorShaft,
+    cart_asm_16_quantum_server.MASSA_OT_AsmQuantumServer,
+    cart_asm_17_iris_door.MASSA_OT_AsmIrisDoor,
+    cart_asm_18_radar_array.MASSA_OT_AsmRadarArray,
+    cart_asm_19_cryo_pod.MASSA_OT_AsmCryoPod,
+    cart_asm_20_robotic_arm.MASSA_OT_AsmRoboticArm,
 ]
 
 # -------------------------------------------------------------------
