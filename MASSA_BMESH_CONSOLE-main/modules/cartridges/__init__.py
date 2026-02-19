@@ -93,6 +93,11 @@ from . import cart_cables
 from . import cart_parts_handrail
 from . import cart_arch_tiny_home
 from . import cart_arch_mobile_home
+from . import cart_asm_06_transit
+from . import cart_asm_07_vending
+from . import cart_asm_08_signage
+from . import cart_asm_09_checkpoint
+from . import cart_asm_10_tower
 
 
 # -------------------------------------------------------------------
@@ -182,6 +187,11 @@ MODULES = [
     cart_parts_handrail,
     cart_arch_tiny_home,
     cart_arch_mobile_home,
+    cart_asm_06_transit,
+    cart_asm_07_vending,
+    cart_asm_08_signage,
+    cart_asm_09_checkpoint,
+    cart_asm_10_tower,
 ]
 
 # List of Operator Classes (Used for Registration)
@@ -267,6 +277,11 @@ CLASSES = [
     cart_parts_handrail.MASSA_OT_PartsHandrail,
     cart_arch_tiny_home.MASSA_OT_ArchTinyHome,
     cart_arch_mobile_home.MASSA_OT_ArchMobileHome,
+    cart_asm_06_transit.MASSA_OT_AsmTransit,
+    cart_asm_07_vending.MASSA_OT_AsmVending,
+    cart_asm_08_signage.MASSA_OT_AsmSignage,
+    cart_asm_09_checkpoint.MASSA_OT_AsmCheckpoint,
+    cart_asm_10_tower.MASSA_OT_AsmTower,
 ]
 
 # -------------------------------------------------------------------
