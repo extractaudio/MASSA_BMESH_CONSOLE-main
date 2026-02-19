@@ -140,6 +140,27 @@ class MASSA_OT_PrimArch(Massa_OT_Base):
 
             all_faces = [f_bot, f_top, f_front, f_right, f_back, f_left]
 
+            # --- D. MARK EDGE SLOTS ---
+            edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+            if not edge_slots:
+                edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+            def mark_edge(v1_idx, v2_idx, slot_val):
+                e = bm.edges.get((new_verts[v1_idx], new_verts[v2_idx]))
+                if e:
+                    e[edge_slots] = slot_val
+
+            # Slot 1: Inner and Outer Loops (Perimeter of Arch Blocks)
+            # Front Face (-Y local)
+            mark_edge(0, 1, 1)  # Inner Arc
+            mark_edge(4, 5, 1)  # Outer Arc
+            # Back Face (+Y local)
+            mark_edge(2, 3, 1)  # Inner Arc
+            mark_edge(6, 7, 1)  # Outer Arc
+
+            # Slot 3: Singular Guide (Connecting Perimeter Loops)
+            mark_edge(0, 3, 3)
+
             # Material
             mat_idx = 1 if i == keystone_idx else 0
             for f in all_faces:

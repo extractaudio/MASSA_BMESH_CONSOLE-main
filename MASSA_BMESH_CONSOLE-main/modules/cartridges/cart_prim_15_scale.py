@@ -107,12 +107,19 @@ class MASSA_OT_PrimScale(Massa_OT_Base):
         start_x = -total_w / 2
         start_y = -total_l / 2
 
+
+
         uv_layer = bm.loops.layers.uv.verify()
 
         # Noise Mask Layer
         noise_layer = bm.verts.layers.float.get("massa_noise_mask")
         if not noise_layer:
             noise_layer = bm.verts.layers.float.new("massa_noise_mask")
+
+        # Edge Slots Layer
+        edge_slots_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots_layer:
+            edge_slots_layer = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
         # 2. GENERATION LOOP
         for r in range(self.rows):
@@ -126,6 +133,33 @@ class MASSA_OT_PrimScale(Massa_OT_Base):
                 # A. CREATE SINGLE TILE AT ORIGIN
                 res = bmesh.ops.create_cube(bm, size=1.0)
                 verts = res["verts"]
+                
+                # Derive edges for slot assignment
+                # Since we just created a cube at (0,0,0) locally, we can identify edges easily.
+                edges = list({e for v in verts for e in v.link_edges})
+                
+                # Assign Slots before scaling makes relative checks harder (though scale preserves sign)
+                # Cube size 1.0 -> +/- 0.5
+                for e in edges:
+                    v1, v2 = e.verts
+                    
+                    # Check Z coordinates (allow tolerance)
+                    z1 = v1.co.z
+                    z2 = v2.co.z
+                    
+                    is_top = z1 > 0.1 and z2 > 0.1
+                    is_bottom = z1 < -0.1 and z2 < -0.1
+                    is_vertical = (z1 > 0.1 and z2 < -0.1) or (z1 < -0.1 and z2 > 0.1)
+                    
+                    if is_top or is_bottom:
+                        e[edge_slots_layer] = 1 # Perimeter
+                        e.seam = True
+                    elif is_vertical:
+                        # Check X/Y to pick ONE corner (+X, +Y)
+                        # Both verts should be generally in the +X, +Y quadrant
+                        if v1.co.x > 0.1 and v1.co.y > 0.1:
+                            e[edge_slots_layer] = 3 # Guide
+                            e.seam = True
 
                 # Derive faces from verts (FIX FOR KEYERROR)
                 new_faces = list({f for v in verts for f in v.link_faces})
@@ -208,20 +242,8 @@ class MASSA_OT_PrimScale(Massa_OT_Base):
                 for v in verts:
                     v[noise_layer] = tile_noise_seed
 
-        # 3. MARK SEAMS
-        # ----------------------------------------------------------------------
-        for e in bm.edges:
-            if len(e.link_faces) >= 2:
-                mats = {f.material_index for f in e.link_faces}
-                if len(mats) > 1:
-                    e.seam = True
-                    continue
-                
-                # Sharp Edges (Tiles are cubes, so 90 deg is sharp)
-                n1 = e.link_faces[0].normal
-                n2 = e.link_faces[1].normal
-                if n1.dot(n2) < 0.5:
-                    e.seam = True
+        # 3. REMOVED LEGACY SEAM LOGIC (Replaced by Slot Logic)
+        
 
         # 4. FINAL CLEANUP
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)

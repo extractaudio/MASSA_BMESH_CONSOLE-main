@@ -195,11 +195,43 @@ class MASSA_OT_PrimChain(Massa_OT_Base):
                     ring.append((v, u_coord, pt_dist))
                 grid_verts.append(ring)
 
-            # --- D. CREATE FACES & SEAMS ---
+            # --- D. CREATE FACES & SEAMS & EDGE SLOTS ---
             bm.verts.ensure_lookup_table()
+            
+            # Create Edge Slot Layer
+            edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+            if not edge_slots:
+                edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
             num_rings = len(grid_verts)
             num_rad = self.segments_radial
+
+            # Pre-calculate indices for specific edge slots
+            # 0 is "Outer" (Left/Right depending on rotation, but it's the start of the circle)
+            # Standard circle param: 0=Right, 90=Top, 180=Left, 270=Bottom (math convention)
+            # BUT raw_path logic generates point, then circle is in plane.
+            # Local X is Normal, Local Y is Binormal.
+            # Let's trace the indices.
+            # theta = (r_idx / num_rad) * 2pi
+            # r_idx = 0 -> theta=0 -> cos=1, sin=0 -> +Normal direction.
+            # For the chain link, the Normal points OUTWARDS from the loop center (generally).
+            # Wait, path generation:
+            #   Left Straight: (-bend_r, -straight_l), Norm: (-1,0,0) -> Points Left (Outwards)
+            #   Top Arc: Center (0, straight_l), Points Radial Outwards
+            #   Right Straight: (bend_r, -straight_l), Norm: (1,0) -> Points Right (Outwards)
+            #   Bottom Arc: Center (0, -straight_l), Points Radial Outwards
+            # So Norm always points OUTWARDS from the chain link center hole.
+            
+            # Therefore:
+            # r_idx 0 (theta 0) -> +Norm -> OUTER PERIMETER
+            # r_idx 0.25 (theta 90) -> +Binormal -> UP (Z+) -> TOP VERTICAL GUIDE
+            # r_idx 0.5 (theta 180) -> -Norm -> INNER LOOP
+            # r_idx 0.75 (theta 270) -> -Binormal -> DOWN (Z-) -> BOTTOM VERTICAL GUIDE
+            
+            idx_outer = 0
+            idx_top = int(num_rad * 0.25)
+            idx_inner = int(num_rad * 0.5)
+            idx_bottom = int(num_rad * 0.75)
 
             for i in range(num_rings):
                 next_i = (i + 1) % num_rings
@@ -247,6 +279,40 @@ class MASSA_OT_PrimChain(Massa_OT_Base):
                                 u_val += 1.0
 
                             l[uv_layer].uv = (u_val * su, v_dist * v_mult)
+                            
+                        # --- ASSIGN EDGE SLOTS ---
+                        # Edge 1: d1-d2 (Longitudinal) -> Ring j
+                        # Edge 2: d2-d3 (Cross/Radial) -> Ring next_i (approx)
+                        # Edge 3: d3-d4 (Longitudinal) -> Ring next_j
+                        # Edge 4: d4-d1 (Cross/Radial) -> Ring i
+                        
+                        # We need to find the specific edges created/used by this face.
+                        # It's cleaner to do this by looking up edges between verts.
+                        
+                        # LONGITUDINAL EDGES (Along the path)
+                        # The edge connecting d1-d2 corresponds to radial index j
+                        e_long = bm.edges.get([d1[0], d2[0]])
+                        if e_long:
+                            # Slot #3 GUIDE: Top and Bottom Axis
+                            if j == idx_top or j == idx_bottom:
+                                e_long[edge_slots] = 3 # GUIDE
+                                e_long.seam = True # Guide implies seam usually, or at least helpful for visualization
+                                
+                            # Slot #1 PERIMETER: Outer Edge
+                            elif j == idx_outer:
+                                e_long[edge_slots] = 1 # PERIMETER
+                        
+                        # CROSS EDGES (Rings)
+                        # The edge connecting d4-d1 corresponds to ring i
+                        # If is_v_seam, then d2-d3 (which is next ring) is the closing seam.
+                        
+                        # Let's handle the closing seam specifically.
+                        # If this is the last segment (is_v_seam), then the edge d2-d3 is the loop closing the chain link.
+                        if is_v_seam:
+                            e_cross = bm.edges.get([d2[0], d3[0]])
+                            if e_cross:
+                                e_cross[edge_slots] = 1 # PERIMETER (Seam)
+                                e_cross.seam = True
 
                     except ValueError:
                         pass  # Face exists
@@ -254,90 +320,3 @@ class MASSA_OT_PrimChain(Massa_OT_Base):
         # 3. GLOBAL CLEANUP
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-        # 4. MARK SEAMS FROM UVs
-        # Since UVs are procedurally perfect, we mark seams where UVs are disjoint.
-        for e in bm.edges:
-            if e.seam: 
-                continue
-            
-            # Check for UV discontinuity
-            if len(e.link_loops) >= 2:
-                # Get UVs for this edge from adjacent faces
-                uvs = []
-                for l in e.link_loops:
-                    uvs.append(l[uv_layer].uv)
-                
-                # If UVs are far apart, it's a seam
-                # Simple check: Take the first loop's UV, compare against others
-                # Note: This is an approximation loop. 
-                # A generic "Is Seam" check usually involves checking adjacent loop UV coords for the same vertex.
-                
-                # Robust approach: Check edge verts.
-                # If a vert has different UV coords in different loops connected to this edge, it's a boundary.
-                
-                # Optimization: We know specific topology.
-                # But generic "Seam from UV" is safer for this complex torus.
-                
-                pass # Placeholder for more complex logic if needed.
-                
-        # SIMPLER: Force Material 0/1 Boundaries (if any)
-        # Chain only has Slot 0 currently in generation (Material 1 is unused in loop)
-        
-        # Explicitly Mark Seams via Geometric Check?
-        # NO, sticking to UV check pattern:
-        for v in bm.verts:
-            # If a vertex has multiple UV coordinates that are far apart, the edges using those splits are seams.
-            pass
-            
-        # ACTUALLY: Let's use the explicit "Seam" flags we could have set in the loop.
-        # But since we didn't, let's use a geometric property.
-        # The chain links are smooth.
-        # Let's mark the "Inner Loop" as a seam?
-        # Or just rely on the UVs being correct, and if the user unwraps again, they lose the perfect mapping?
-        # The USER REQUESTED: "make sure the seams... are aligned... so they unwrap correctly"
-        # If we provide explicit UVs, we don't strictly *need* seams for the initial state.
-        # BUT if the user hits "Unwrap", it fails without seams.
-        # So we MUST reverse-engineer the seams.
-        
-        for e in bm.edges:
-            if len(e.link_loops) < 2:
-                continue
-            
-            l1 = e.link_loops[0]
-            l2 = e.link_loops[1]
-            
-            # Compare UVs of the SAME vertex in the two loops
-            # l.vert is the vertex at the start of the loop edge.
-            # We need to find the specific shared vertex data.
-            
-            is_seam = False
-            for v_target in e.verts:
-                uv1 = None
-                uv2 = None
-                
-                # Find the loop pointing to v_target (or starting at it)
-                # This is tedious in BMesh API without helper.
-                pass
-                
-        # BACKUP PLAN: Mark Edge Loops based on Topology
-        # We know Radial Segs and Bend Segs.
-        # This is hard to select on the fly.
-        
-        # FINAL DECISION for CHAIN:
-        # Mark ALL edges that have sharp angles (there shouldn't be any).
-        # Mark edges where UVs wrap (U ~ 0 and U ~ 1).
-        
-        for f in bm.faces:
-            for l in f.loops:
-                # Check adjacent loop across edge
-                if l.edge.seam: continue
-                if not l.link_loop_radial_next: continue
-                
-                l_other = l.link_loop_radial_next
-                
-                u1, v1 = l[uv_layer].uv
-                u2, v2 = l_other[uv_layer].uv
-                
-                # Check dist
-                if abs(u1 - u2) > 0.5 or abs(v1 - v2) > 0.5:
-                    l.edge.seam = True

@@ -67,6 +67,11 @@ class MASSA_OT_PrimShard(Massa_OT_Base):
 
     def build_shape(self, bm: bmesh.types.BMesh):
         rng = random.Random(self.seed)
+        
+        # Initialize Edge Slots
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
         # 1. INITIALIZE BASE SHAPE (Cube)
         # ----------------------------------------------------------------------
@@ -127,6 +132,10 @@ class MASSA_OT_PrimShard(Massa_OT_Base):
                 edges_cut = [e for e in bm.edges if e.is_boundary]
 
                 if edges_cut:
+                    # Assign Slot 1 (Perimeter) to the cut boundary
+                    for e in edges_cut:
+                        e[edge_slots] = 1
+
                     res_fill = bmesh.ops.holes_fill(bm, edges=edges_cut, sides=0)
 
                     # Assign Slot 1 (Inner Core) to the new cut face
@@ -141,24 +150,8 @@ class MASSA_OT_PrimShard(Massa_OT_Base):
             except:
                 pass  # Bisect failed (plane missed mesh), continue
 
-        # 3. MARK SEAMS
+        # 3. MARK SEAMS (REMOVED - Replaced by Edge Slots)
         # ----------------------------------------------------------------------
-        # Mark sharp edges and material boundaries (Inner Core vs Shell)
-        for e in bm.edges:
-            if len(e.link_faces) >= 2:
-                mats = {f.material_index for f in e.link_faces}
-                
-                # Material Boundary
-                if len(mats) > 1:
-                    e.seam = True
-                    continue
-                
-                # Sharp Edges (Fractured bits are sharp)
-                # We mark ALL sharp edges as seams for better UV islands on shards
-                n1 = e.link_faces[0].normal
-                n2 = e.link_faces[1].normal
-                if n1.dot(n2) < 0.5: # 60 deg
-                    e.seam = True
 
         # 4. CLEANUP
         # ----------------------------------------------------------------------

@@ -277,30 +277,84 @@ class MASSA_OT_PrimLouver(Massa_OT_Base):
     def assign_edge_slots(self, bm):
         """
         Assigns standard edge slot IDs for styling.
-        Slot 1: Frame Outer Edges (Structural)
-        Slot 2: Blade Edges (Detail)
-        Slot 3: Screen/Inner (Sub-detail)
+        Slot 1: Frame Outer/Inner Horizontal Loops (Structural)
+        Slot 2: Blade Edges (Detail) - except where overridden
+        Slot 3: Blade Ends & Guide / Screen
         """
         slot_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not slot_layer:
             slot_layer = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
-        # Heuristic based on Material Index topology
+        # Helper to group blades
+        blade_edges = {}  # {y_bucket: [edges]}
+
         for e in bm.edges:
-            # Check adjacent faces
+            # Default to 0
+            e[slot_layer] = 0
+            
+            # Check adjacent faces for material context
             mats = {f.material_index for f in e.link_faces}
             
-            # Frame (0)
+            # --- FRAME (Mat 0) ---
             if 0 in mats:
-                e[slot_layer] = 1 # Structural
-            
-            # Blades (1)
-            elif 1 in mats:
-                e[slot_layer] = 2 # Detail
+                # User Request: "remove the edges slot #1 perimeter edges from everywhere 
+                # except for the horizontal inner and outer loops of the vent frame."
                 
-            # Screen (2)
+                # Check for Horizontal alignment (Z-flat)
+                v1, v2 = e.verts
+                is_horizontal = abs(v1.co.z - v2.co.z) < 0.001
+                
+                if is_horizontal:
+                    e[slot_layer] = 1
+                else:
+                    e[slot_layer] = 0
+
+            # --- BLADES (Mat 1) ---
+            elif 1 in mats:
+                # Group by Y-position to isolate blades
+                # Since blades are arrayed in Y, their centers are distinct in Y.
+                y_cent = round(sum(v.co.y for v in e.verts) / 2, 3)
+                if y_cent not in blade_edges:
+                    blade_edges[y_cent] = []
+                blade_edges[y_cent].append(e)
+
+            # --- SCREEN (Mat 2) ---
             elif 2 in mats:
-                e[slot_layer] = 3 # Sub-Detail
+                e[slot_layer] = 3
+
+        # Process Blades (Post-loop)
+        for y_key, edges in blade_edges.items():
+            long_edges = []
+            end_edges = []
+            
+            for e in edges:
+                v1, v2 = e.verts
+                dx = abs(v1.co.x - v2.co.x)
+                
+                # Blade is long in X. Long edges have large dx. End loops have small dx.
+                if dx > 0.01: # Threshold for "Long"
+                    long_edges.append(e)
+                else:
+                    end_edges.append(e)
+            
+            # 1. "Replace the end loops... with edges slot #3"
+            for e in end_edges:
+                e[slot_layer] = 3
+                
+            # 2. "Place one long edges slot #3 guide down the length... on the bottom... towards z0"
+            # The rest remain Slot 2 (implied "currently edges slot #2")
+            if long_edges:
+                # Find the edge with the lowest Z (closest to Z0/ground)
+                # Sort by average Z
+                long_edges.sort(key=lambda edge: (edge.verts[0].co.z + edge.verts[1].co.z) / 2)
+                
+                guide_edge = long_edges[0] # Lowest Z
+                guide_edge[slot_layer] = 3
+                
+                # Others stay Slot 2 (default) 
+                # Wait, default was 0 in loop. We need to set them to 2.
+                for e in long_edges[1:]:
+                    e[slot_layer] = 2
 
     def add_sockets(self, bm):
         """

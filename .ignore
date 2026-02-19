@@ -1,14 +1,21 @@
+# Version Control & IDE
+.git/
+.vscode/
+
 # Ignore build artifacts
 __pycache__/
 *.blend
 *.blend1
+*.zip
+_EXPORT/
 
 # Ignore distinct sub-modules if you aren't working on them
 /experimental_scripts/
 /deprecated/
-/tests/ 
+/tests/
+_Scripts/
+
 # Python-generated files
-__pycache__/
 *.py[oc]
 build/
 dist/
@@ -17,6 +24,8 @@ wheels/
 
 # Virtual environments
 .venv
+env/
+venv/
 
 # macOS
 .DS_Store

@@ -1,5 +1,6 @@
 import bpy
 import bmesh
+# [Massa Fix] Forced Timestamp Update for Extension Cache
 import math
 from mathutils import Vector
 from bpy.props import FloatProperty, IntProperty, FloatVectorProperty, BoolProperty
@@ -18,7 +19,7 @@ CARTRIDGE_META = {
 }
 
 
-class MASSA_OT_PrimTechPanel(Massa_OT_Base):
+class MASSA_OT_PrimPanel(Massa_OT_Base):
     bl_idname = "massa.gen_prim_04_panel"
     bl_label = "PRIM_04: Tech Panel"
     bl_options = {"REGISTER", "UNDO", "PRESET"}
@@ -238,25 +239,46 @@ class MASSA_OT_PrimTechPanel(Massa_OT_Base):
                     # --- Tech Detail Logic ---
                     # Inset Top Face
                     if self.inset_amount > 0.001:
-                        # Inset
-                        res = bmesh.ops.inset_individual(bm, faces=[top_face], thickness=self.inset_amount, use_even_offset=True)
+                        top_face.normal_update()
+                        # Inset + Depth (Atomic Operation)
+                        # Fixes "Lid" issue by handling depth within the inset op
+                        res = bmesh.ops.inset_region(
+                            bm, 
+                            faces=[top_face], 
+                            thickness=self.inset_amount, 
+                            depth=self.inset_depth, 
+                            use_even_offset=True
+                        )
                         faces_inner = res["faces"]
 
-                        # Extrude Inner
-                        if abs(self.inset_depth) > 0.001:
-                            res_ext = bmesh.ops.extrude_face_region(bm, geom=faces_inner)
-                            verts_ext = [v for v in res_ext["geom"] if isinstance(v, bmesh.types.BMVert)]
-                            faces_ext = [f for f in res_ext["geom"] if isinstance(f, bmesh.types.BMFace)]
-
-                            # Move
-                            bmesh.ops.translate(bm, verts=verts_ext, vec=(0, 0, self.inset_depth))
-
-                            # Assign Materials
-                            for f in faces_ext:
-                                f.material_index = 3 # Tile Inset (Sides/Bottom)
-                                # If pointing UP, maybe detail/light?
-                                if f.normal.z > 0.5:
-                                    f.material_index = 4 # Tech Detail / Light
+                        # Assign Materials (Faces are now the bottom of the inset)
+                        # The side faces are usually not in 'faces' list from inset_region directly? 
+                        # Actually inset_region returns 'faces' as the inner region.
+                        # Side faces are tricky to get from simple inset_region return.
+                        # BUT, generally they inherit from original.
+                        
+                        # Let's check material assignment.
+                        # If we used depth, the side faces exist.
+                        # We might need to find them if we want to color them different (Slot 3).
+                        
+                        # Strategy: Select faces_inner. Grow selection? 
+                        # Or just set inner to 4 (Detail) and let sides be whatever (likely 2).
+                        
+                        for f in faces_inner:
+                            f.material_index = 4 # Tech Detail / Light (Inner Bottom)
+                            
+                        # To find side faces, we can look at faces connected to inner faces that are NOT inner faces.
+                        # Side faces will have normal roughly perpendicular to Z.
+                        
+                        # Simple loop to color sides:
+                        # We know inner faces.
+                        for f in faces_inner:
+                            for loop in f.loops:
+                                edge = loop.edge
+                                for link_face in edge.link_faces:
+                                    if link_face not in faces_inner:
+                                        # This is likely a side face
+                                        link_face.material_index = 3 # Tile Inset (Sides)
 
                     # --- Socket: Mount (Top) ---
                     # Create a tiny quad at center top of tile
@@ -265,7 +287,7 @@ class MASSA_OT_PrimTechPanel(Massa_OT_Base):
                     # Mandate says "Socket Anchor" material slot.
                     # Position: cx, cy, sz + tile_height + 0.005
                     sock_z = sz + self.tile_height
-                    if self.inset_depth > 0: # If extruded up, higher
+                    if self.inset_amount > 0.001:
                         sock_z += self.inset_depth
 
                     self.create_socket_face(bm, Vector((cx, cy, sock_z + 0.002)), 0.08, 9, up=True)
@@ -365,3 +387,23 @@ class MASSA_OT_PrimTechPanel(Massa_OT_Base):
                     u = l.vert.co.x
                     v = l.vert.co.z
                     l[uv_layer].uv = (u * scale, v * scale)
+
+    def execute(self, context):
+        # 1. Run Standard Generation
+        result = super().execute(context)
+
+        # 2. Post-Process: Socket 0 Orientation
+        # Fix: Flip "Frame" Socket (Slot 0) to point Z- (Down)
+        if "FINISHED" in result:
+            obj = context.active_object
+            if obj:
+                # Find the socket for Slot 0
+                # Slot 0 name is "Frame"
+                target_prefix = f"SOCKET_{obj.name}_Frame"
+                
+                for child in obj.children:
+                    if child.name.startswith(target_prefix):
+                        # Force Rotation to Point Down (PI, 0, 0)
+                        child.rotation_euler = (math.pi, 0, 0)
+                        
+        return result

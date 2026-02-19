@@ -271,13 +271,33 @@ class MASSA_OT_PrimTank(Massa_OT_Base):
 
         # 5. MARK SEAMS
         # ----------------------------------------------------------------------
+        # 5. MARK SEAMS AND ASSIGN EDGE SLOTS
+        # ----------------------------------------------------------------------
+        edge_slots_layer = bm.edges.layers.int.get("edge_slots") or bm.edges.layers.int.new("edge_slots")
+
         for e in bm.edges:
             if len(e.link_faces) >= 2:
-                # Material Boundaries (Caps vs Body)
+                # Material Boundaries (Caps vs Body) -> Slot 1
                 mats = {f.material_index for f in e.link_faces}
                 if len(mats) > 1:
+                    e[edge_slots_layer] = 1
                     e.seam = True
                     continue
+
+                # Identify Body Longitudinal Loop -> Slot 3
+                # We look for a continuous line along the body Y axis.
+                # A good candidate for a "corner" is where X ≈ Z > 0 (Top-Right Diagonal)
+                if all(f.material_index == 0 for f in e.link_faces):
+                    v1, v2 = e.verts
+                    
+                    # Must be aligned with Y axis (X and Z constant within tolerance)
+                    if abs(v1.co.x - v2.co.x) < 0.001 and abs(v1.co.z - v2.co.z) < 0.001:
+                        # Must be in the +X/+Z quadrant
+                        if v1.co.x > 0.01 and v1.co.z > 0.01:
+                            # Must be approximately diagonal (X ≈ Z) to hit the "corner"
+                            if abs(v1.co.x - v1.co.z) < 0.1:
+                                e[edge_slots_layer] = 3
+                                e.seam = True
 
         # 6. PIVOT CORRECTION & CLEANUP
         # ----------------------------------------------------------------------
