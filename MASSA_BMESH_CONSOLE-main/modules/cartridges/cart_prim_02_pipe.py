@@ -250,3 +250,25 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
             elif self.shape_mode == "ELBOW":
                 if abs(e.verts[0].co.y) < 0.001 and abs(e.verts[1].co.y) < 0.001:
                     e.seam = True
+
+    def execute(self, context):
+        # 1. Run Standard Generation
+        result = super().execute(context)
+        
+        # 2. Post-Process: Socket 1 (Inner Wall) Orientation
+        # Fix: Force "Inner Wall" Socket to point Z+ (Up) instead of Center (Normal)
+        if "FINISHED" in result:
+            obj = context.active_object
+            if obj:
+                # Find the socket for Slot 1 ("Inner Wall")
+                # Socket names format: "SOCKET_<obj_name>_<slot_name>_<index>"
+                # Slot 1 name is "Inner Wall" -> sanitized to "Inner_Wall"
+                
+                for child in obj.children:
+                     # Robust Match: Check for "SOCKET_" prefix and "Inner Wall" (Space or Underscore)
+                    if child.name.startswith("SOCKET_") and ("Inner Wall" in child.name or "Inner_Wall" in child.name):
+                        # Force Rotation to Identity (Z+) relative to parent
+                        child.rotation_euler = (0, 0, 0)
+                        
+                        
+        return result
