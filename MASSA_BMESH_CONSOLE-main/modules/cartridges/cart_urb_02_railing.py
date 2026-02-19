@@ -53,13 +53,24 @@ class MASSA_OT_UrbRailing(Massa_OT_Base):
         bg = self.bottom_gap
         bs = self.baluster_spacing
 
+        # Calculate Inner Length (Between Posts)
+        # Length is total length including posts? 
+        # Actually standard practice: Total Length = self.length.
+        # Posts are at +/- L/2.
+        # Check Post logic:
+        # Left Post: -l/2 + pt/2 (Center) -> Left edge at -l/2, right edge at -l/2 + pt.
+        # Right Post: l/2 - pt/2 (Center) -> Right edge at l/2, left edge at l/2 - pt.
+        # Space between posts = (l/2 - pt) - (-l/2 + pt) = l - 2*pt.
+        
+        inner_l = max(0.01, l - 2 * pt)
+
         # 2. Top Rail (Length X)
         # Create at Z=h
         # Use create_cube
         res_TR = bmesh.ops.create_cube(bm, size=1.0)
         verts_TR = res_TR['verts']
-        # Scale: (l, rt, rt)
-        bmesh.ops.scale(bm, vec=Vector((l, rt, rt)), verts=verts_TR)
+        # Scale: (inner_l, rt, rt)
+        bmesh.ops.scale(bm, vec=Vector((inner_l, rt, rt)), verts=verts_TR)
         # Translate: (0, 0, h - rt/2)
         bmesh.ops.translate(bm, vec=Vector((0, 0, h - rt/2)), verts=verts_TR)
 
@@ -67,8 +78,8 @@ class MASSA_OT_UrbRailing(Massa_OT_Base):
         if bg < h - rt:
             res_BR = bmesh.ops.create_cube(bm, size=1.0)
             verts_BR = res_BR['verts']
-            # Scale: (l, pt, pt) ? Or smaller. Same as top rail maybe.
-            bmesh.ops.scale(bm, vec=Vector((l, pt, pt)), verts=verts_BR)
+            # Scale: (inner_l, pt, pt) ? Or smaller. Same as top rail maybe.
+            bmesh.ops.scale(bm, vec=Vector((inner_l, pt, pt)), verts=verts_BR)
             # Translate: (0, 0, bg + pt/2)
             bmesh.ops.translate(bm, vec=Vector((0, 0, bg + pt/2)), verts=verts_BR)
 
@@ -94,7 +105,32 @@ class MASSA_OT_UrbRailing(Massa_OT_Base):
         range_x = l - 2*pt
         num_b = int(range_x / bs)
 
-        start_x = -l/2 + pt + (range_x - (num_b-1)*bs)/2 # Center them
+        if num_b > 1:
+            start_x = -range_x/2 + (range_x - (num_b-1)*bs)/2 
+            # Re-verify math:
+            # We want them centered in the available space (range_x).
+            # Total span of balusters = (num_b - 1) * bs
+            # Remaining margin = range_x - Total span
+            # Margin per side = Remaining margin / 2
+            # Start relative to left inner edge (-range_x/2)? No, 0 is center.
+            # Left inner edge is at -range_x/2.
+            # First baluster at: -range_x/2 + Margin
+            
+            span = (num_b - 1) * bs
+            margin = (range_x - span) / 2
+            first_x = -range_x/2 + margin
+        else:
+            first_x = 0 # Single baluster at center (if fits?)
+
+        # Recalc math for loop
+        # Just use simpler centering logic:
+        # Array of N items with spacing S centered at 0:
+        # Start = -(N-1)*S / 2
+        
+        if num_b > 0:
+            bal_start_x = -((num_b - 1) * bs) / 2
+        else:
+            bal_start_x = 0
 
         # Baluster height: From Bottom Rail Top to Top Rail Bottom
         # Z_bot = bg + pt
@@ -107,7 +143,7 @@ class MASSA_OT_UrbRailing(Massa_OT_Base):
 
         if h_bal > 0 and num_b > 0:
             for i in range(num_b):
-                x = start_x + i * bs
+                x = bal_start_x + i * bs
 
                 # Create Baluster
                 res_bal = bmesh.ops.create_cube(bm, size=1.0)
@@ -144,12 +180,18 @@ class MASSA_OT_UrbRailing(Massa_OT_Base):
                     l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.y * scale)
 
     def draw_shape_ui(self, layout):
-        col = layout.column(align=True)
+        box_dims = layout.box()
+        box_dims.label(text="Dimensions", icon='ARROW_LEFTRIGHT')
+        col = box_dims.column(align=True)
         col.prop(self, "length")
         col.prop(self, "height")
-        layout.separator()
+        
+        box_det = layout.box()
+        box_det.label(text="Details", icon='MOD_BUILD')
+        col = box_det.column(align=True)
         col.prop(self, "rail_thick")
         col.prop(self, "post_thick")
+        col.separator()
         col.prop(self, "baluster_spacing")
         col.prop(self, "baluster_thick")
         col.prop(self, "bottom_gap")

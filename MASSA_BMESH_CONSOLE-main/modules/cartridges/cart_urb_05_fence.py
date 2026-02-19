@@ -114,21 +114,22 @@ class MASSA_OT_UrbFence(Massa_OT_Base):
                 # Fit 0-1 scaled by tiling params
                 # Verts order: v1(BL), v2(BR), v3(TR), v4(TL)
                 # U: X, V: Z
-                for l in f.loops:
-                    u = (l.vert.co.x - vx_min) / (vx_max - vx_min)
-                    v = (l.vert.co.z - vz_min) / (vz_max - vz_min)
+                for loop in f.loops:
+                    u = (loop.vert.co.x - vx_min) / (vx_max - vx_min)
+                    v = (loop.vert.co.z - vz_min) / (vz_max - vz_min)
 
-                    l[uv_layer].uv = (u * self.uv_tile_x, v * self.uv_tile_y)
+                    loop[uv_layer].uv = (u * self.uv_tile_x, v * self.uv_tile_y)
             else: # Frame
                 # Box or Cylinder
                 n = f.normal
                 # Simple Box
-                if abs(n.x) > 0.5:
-                    l[uv_layer].uv = (l.vert.co.y * scale, l.vert.co.z * scale)
-                elif abs(n.y) > 0.5:
-                    l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.z * scale)
-                else:
-                    l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.y * scale)
+                for loop in f.loops:
+                    if abs(n.x) > 0.5:
+                        loop[uv_layer].uv = (loop.vert.co.y * scale, loop.vert.co.z * scale)
+                    elif abs(n.y) > 0.5:
+                        loop[uv_layer].uv = (loop.vert.co.x * scale, loop.vert.co.z * scale)
+                    else:
+                        loop[uv_layer].uv = (loop.vert.co.x * scale, loop.vert.co.y * scale)
 
     def draw_shape_ui(self, layout):
         col = layout.column(align=True)

@@ -61,6 +61,7 @@ class MASSA_OT_AsmSignage(Massa_OT_Base):
 
         # 1. Base Pillar (Cylinder)
         res = bmesh.ops.create_circle(bm, cap_ends=True, radius=th, segments=12)
+        bm.faces.ensure_lookup_table()
         base_face = res['faces'][0] if 'faces' in res and len(res['faces']) > 0 else bm.faces[-1] # Usually created at origin
 
         # Extrude up to curve start
@@ -73,6 +74,7 @@ class MASSA_OT_AsmSignage(Massa_OT_Base):
 
         # Find top face
         top_face = None
+        bm.faces.ensure_lookup_table()
         bm.faces.ensure_lookup_table()
         for f in bm.faces:
             if f.normal.z > 0.9 and abs(f.calc_center_median().z - straight_h) < 0.1:
@@ -131,6 +133,7 @@ class MASSA_OT_AsmSignage(Massa_OT_Base):
             if remain_l > 0:
                 bm.faces.ensure_lookup_table()
                 end_face = None
+                bm.faces.ensure_lookup_table()
                 for f in bm.faces:
                     # Normal +X
                     if f.normal.x > 0.9 and f.calc_center_median().z > straight_h:
@@ -143,6 +146,7 @@ class MASSA_OT_AsmSignage(Massa_OT_Base):
                     bmesh.ops.translate(bm, verts=verts_ext2, vec=(remain_l, 0, 0))
 
         # Assign Slot 0 (Structure)
+        bm.faces.ensure_lookup_table()
         for f in bm.faces:
             f.material_index = 0
 
@@ -225,6 +229,7 @@ class MASSA_OT_AsmSignage(Massa_OT_Base):
         # 6. UV Mapping
         uv_layer = bm.loops.layers.uv.verify()
 
+        bm.faces.ensure_lookup_table()
         for f in bm.faces:
             if f.material_index == 4: # Sign Face (FIT)
                 # Fit UVs 0-1

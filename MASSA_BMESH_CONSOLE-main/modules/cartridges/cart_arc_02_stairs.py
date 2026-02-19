@@ -218,13 +218,22 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
                     l[uv_layer].uv = (l.vert.co.x * scale_u, l.vert.co.z * scale_u)
 
     def draw_shape_ui(self, layout):
-        col = layout.column(align=True)
-        col.prop(self, "stair_width")
-        col.prop(self, "total_height")
-        col.prop(self, "step_count")
-        col.prop(self, "tread_depth")
-        layout.separator()
-        col.prop(self, "has_stringer")
+        box_dim = layout.box()
+        box_dim.label(text="Dimensions", icon='MESH_PLANE')
+        col_dim = box_dim.column(align=True)
+        col_dim.prop(self, "stair_width")
+        col_dim.prop(self, "total_height")
+        col_dim.prop(self, "step_count")
+
+        box_det = layout.box()
+        box_det.label(text="Details", icon='LINCURVE')
+        col_det = box_det.column(align=True)
+        col_det.prop(self, "tread_depth")
+
+        box_str = layout.box()
+        box_str.label(text="Stringers", icon='MOD_BUILD')
+        col_str = box_str.column(align=True)
+        col_str.prop(self, "has_stringer")
         if self.has_stringer:
-            col.prop(self, "stringer_width")
-            col.prop(self, "stringer_offset")
+            col_str.prop(self, "stringer_width")
+            col_str.prop(self, "stringer_offset")

@@ -94,8 +94,11 @@ class MASSA_OT_Crate(Massa_OT_Base, MassaPropertiesMixin):
 
         # 2. INSET: Create Frame & Panels
         # We process all 6 faces of the cube
+        # [ARCHITECT FIX] Use safety check for negative frame widths
+        safe_frame = min(self.frame_width, self.width/2.1, self.depth/2.1, self.height/2.1)
+        
         ret = bmesh.ops.inset_individual(
-            bm, faces=bm.faces[:], thickness=self.frame_width, depth=0.0
+            bm, faces=bm.faces[:], thickness=safe_frame, depth=0.0
         )
 
         # Identify Faces
@@ -128,7 +131,7 @@ class MASSA_OT_Crate(Massa_OT_Base, MassaPropertiesMixin):
             # 2. Inset Individual (The "Gap" of the X)
             # We want to KEEP the borders (the X) and push the INNER triangles.
             ret_b = bmesh.ops.inset_individual(
-                bm, faces=new_faces, thickness=self.frame_width * 0.8, depth=0.0
+                bm, faces=new_faces, thickness=safe_frame * 0.8, depth=0.0
             )
 
             # 3. Push Inner Triangles
@@ -161,47 +164,61 @@ class MASSA_OT_Crate(Massa_OT_Base, MassaPropertiesMixin):
             ret_ext = bmesh.ops.extrude_region(bm, geom=valid_frames)
 
             # Filter geometry to find the "Top Caps" (the faces we want to push out)
-            # Strategy: The extruded faces (geom) include sides. We want the ones parallel to the original frames?
-            # Simpler Strategy: Iterate the verts returned by extrude and move them along their vertex normals.
-            # This mimics "Shrink/Fatten" behavior which handles the corners correctly.
-
             extruded_verts = [
                 v for v in ret_ext["geom"] if isinstance(v, bmesh.types.BMVert)
             ]
 
-            # We need to manually calculate the push vector.
-            # Since 'bmesh.ops.translate' is global, we loop.
-            # BUT efficient way: bmesh.ops.transform/translate? No.
-            # Manual loop is fine for cartridge scale (low poly).
-
+            # Correct extrusion direction
+            # We identify the 'link_faces' of these verts. If they are part of the original frame selection
+            # (checked via normal similarity or index), we push.
+            # Simpler: bmesh.ops.extrude_region moves the new verts to the same spot.
+            # We just need to translate them along the face normal.
+            
+            # Group verts by normal to handle corners correctly? 
+            # No, standard scaling is better for frames (Push/Pull style).
+            # Let's use bmesh.ops.transform with a translation matrix? No, that's global.
+            
+            # ROBUST METHOD: DISPLACE ALONG NORMAL
             for v in extruded_verts:
-                # Move vertex ALONG its normal.
+                # Average normal of connected faces that are selected?
+                # Actually, for a simple frame, the vertex normal is usually 45 degrees at corners.
+                # Pushing along vertex normal expands the frame.
                 v.co += v.normal * self.edge_extrude
 
-        # 5. EDGE ROLE INTERPRETER (Phase 4 Logic)
+        # 5. [PASS B] EDGE ROLE INTERPRETER & SEAMING
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
         # Ensure normals are clean for angle calc
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
+        count_s1 = 0
+        count_s2 = 0
+        
         for e in bm.edges:
-            # Perimeter (Boundary or Sharp Frame Edges) matches Slot 1 (Red)
+            # --- SLOT 1: PERIMETER / HARD EDGES ---
+            # Angle > 60 degrees (approx 1.0 rad) is usually a hard structural edge
+            # Crate frames are 90 degrees.
             angle = e.calc_face_angle(0)
+            
+            if angle > 0.8: # ~45 degrees
+                e[edge_slots] = 1  # Slot 1: Perimeter (Red)
+                e.seam = True      # Hard edges are always UV Seams
+                count_s1 += 1
+                continue
 
-            if angle > 1.5:
-                e[edge_slots] = 1  # Perimeter / Sharp Seam
+            # --- SLOT 2: CONTOUR / MATERIAL BOUNDARIES ---
+            # Edges between different materials (Frame vs Panel)
+            if len(e.link_faces) == 2:
+                m0 = e.link_faces[0].material_index
+                m1 = e.link_faces[1].material_index
 
-            # Inner Panel edges (Contour)
-            faces = e.link_faces
-            if len(faces) == 2:
-                m0 = faces[0].material_index
-                m1 = faces[1].material_index
-
-                if m0 == 0 and m1 == 0:
-                    # Outer Frame Edge
-                    e[edge_slots] = 1  # Red
-                elif m0 != m1:
-                    # Border between Frame and Panel
-                    e[edge_slots] = 2  # Cyan / Contour
+                if m0 != m1:
+                    e[edge_slots] = 2 # Slot 2: Contour (Cyan)
+                    count_s2 += 1
+        
+        # 6. [PASS C] SOCKETS
+        # Add basic socket if needed (omitted for now to keep existing logic, but good practice)
+        pass

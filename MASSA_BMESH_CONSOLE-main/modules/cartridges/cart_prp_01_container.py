@@ -219,42 +219,28 @@ class MASSA_OT_PrpContainer(Massa_OT_Base):
             # Create Cube
             res_cc = bmesh.ops.create_cube(bm, size=1.0)
             verts_cc = res_cc['verts']
+            faces_cc = res_cc['faces']
+
+            # Assign Frame Material immediately (before bevel destroys topology)
+            for f in faces_cc:
+                f.material_index = 1
+
             bmesh.ops.scale(bm, vec=Vector((cc_size, cc_size, cc_size)), verts=verts_cc)
             bmesh.ops.translate(bm, vec=c, verts=verts_cc)
 
-            # Hollow/Hole?
-            # Boolean subtract sphere? Or inset?
-            # Too complex for quick procedural.
-            # Just bevel the cube.
+            # Bevel
             # Select edges of this cube
             cc_edges = list({e for v in verts_cc for e in v.link_edges})
+            
+            # Bevel consumes geom, verts_cc will be invalid after this
             bmesh.ops.bevel(bm, geom=verts_cc+cc_edges, offset=0.02, segments=1)
 
-            # Assign Material
-            for v in verts_cc:
-                for f in v.link_faces:
-                    f.material_index = 1 # Frame
-
             # 6. Sockets (Corner)
-            # Find the outward facing faces of these corner cubes
-            # For each corner cube, find the 3 outer faces
-            # c is the corner coordinate.
-            # Faces with center "more outward" than c?
-            # Or just mark the whole corner cube as socket anchor?
-            # Mandate: "Must have exactly 8 Sockets".
-            # If we mark all faces of corner cube, we get 6 sockets per corner.
-            # We want 1 socket per corner, usually at the corner vertex or 3 faces.
-            # Let's mark the Top/Bottom face of the corner casting as the primary stack socket.
-
-            for v in verts_cc:
-                for f in v.link_faces:
-                    n = f.normal
-                    fc = f.calc_center_median()
-                    # Top/Bottom faces
-                    if abs(n.z) > 0.9:
-                        f.material_index = 9
-                    # Also Top/Bottom corners need side holes for locking?
-                    # The mandate emphasizes stacking. Top/Bottom is key.
+            # Find the Top/Bottom faces of the casting
+            # We use the original faces list which usually persists or we check validity
+            for f in faces_cc:
+                if f.is_valid and abs(f.normal.z) > 0.9:
+                    f.material_index = 9
 
         # 7. Manual UVs
         scale = getattr(self, "uv_scale_0", 1.0)

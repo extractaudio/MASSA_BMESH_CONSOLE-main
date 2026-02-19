@@ -76,8 +76,8 @@ class MASSA_OT_AsmTower(Massa_OT_Base):
             cap_ends=True,
             cap_tris=False,
             segments=sides,
-            diameter1=r1*2,
-            diameter2=r2*2,
+            radius1=r1,
+            radius2=r2,
             depth=h,
             calc_uvs=False
         )

@@ -61,7 +61,7 @@ class MASSA_OT_UrbStreetlight(Massa_OT_Base):
         bmesh.ops.translate(bm, vec=Vector((0, 0, h)), verts=verts_ext)
 
         sf = tr / br if br > 0 else 1.0
-        bmesh.ops.scale(bm, vec=Vector((sf, sf, 1.0)), cent=Vector((0,0,h)), verts=verts_ext)
+        bmesh.ops.scale(bm, vec=Vector((sf, sf, 1.0)), space=Matrix.Translation(Vector((0,0,h))), verts=verts_ext)
 
         top_face = None
         for f in ret_ext['geom']:
@@ -100,7 +100,7 @@ class MASSA_OT_UrbStreetlight(Massa_OT_Base):
         verts_house = [e for e in ret_house['geom'] if isinstance(e, bmesh.types.BMVert)]
         bmesh.ops.translate(bm, vec=Vector((0, 0, -0.2)), verts=verts_house)
 
-        bmesh.ops.scale(bm, vec=Vector((2.0, 2.0, 1.0)), cent=c_end - Vector((0,0,0.2)), verts=verts_house)
+        bmesh.ops.scale(bm, vec=Vector((2.0, 2.0, 1.0)), space=Matrix.Translation(c_end - Vector((0,0,0.2))), verts=verts_house)
 
         bulb_face = [f for f in ret_house['geom'] if isinstance(f, bmesh.types.BMFace)][0]
         bulb_face.material_index = 4 # Emission

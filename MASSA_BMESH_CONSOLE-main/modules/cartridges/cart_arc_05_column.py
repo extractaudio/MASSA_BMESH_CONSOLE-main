@@ -84,8 +84,7 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
         scale_fac = self.radius_top / self.radius_base if self.radius_base > 0 else 1.0
         # Scale around Z-axis center (0,0, current_z)
         # Current Z is ph + sh
-        center = Vector((0, 0, ph + sh))
-        bmesh.ops.scale(bm, vec=Vector((scale_fac, scale_fac, 1.0)), cent=center, verts=verts_extruded)
+        bmesh.ops.scale(bm, vec=Vector((scale_fac, scale_fac, 1.0)), verts=verts_extruded)
 
         capital_start_face = [f for f in ret['geom'] if isinstance(f, bmesh.types.BMFace)][0]
 
@@ -98,8 +97,7 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
         # Scale Capital Top (Usually wider)
         # Let's scale out a bit to match base radius or wider
         scale_fac_cap = (self.radius_base * 1.2) / (self.radius_top) if self.radius_top > 0 else 1.0
-        center = Vector((0, 0, th))
-        bmesh.ops.scale(bm, vec=Vector((scale_fac_cap, scale_fac_cap, 1.0)), cent=center, verts=verts_extruded)
+        bmesh.ops.scale(bm, vec=Vector((scale_fac_cap, scale_fac_cap, 1.0)), verts=verts_extruded)
 
         # 6. Fluting Logic
         if self.fluted:
