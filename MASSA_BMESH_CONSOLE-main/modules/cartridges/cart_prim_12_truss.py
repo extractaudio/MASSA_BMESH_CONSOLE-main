@@ -70,6 +70,10 @@ class MASSA_OT_PrimTruss(Massa_OT_Base):
     def build_shape(self, bm: bmesh.types.BMesh):
         # 1. CREATE GHOST MESH
         # ----------------------------------------------------------------------
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
         bm_ghost = bmesh.new()
 
         if self.base_shape == "BOX":
@@ -185,6 +189,7 @@ class MASSA_OT_PrimTruss(Massa_OT_Base):
 
             new_verts = res.get("verts", [])
             new_faces = list({f for v in new_verts for f in v.link_faces})
+            new_edges = list({e for v in new_verts for e in v.link_edges})
 
             # B. UV Map in Local Space
             # Cylinder runs from Z = -length/2 to +length/2
@@ -216,7 +221,28 @@ class MASSA_OT_PrimTruss(Massa_OT_Base):
                         if l[uv_layer].uv.x < 0.5:
                             l[uv_layer].uv.x += 1.0
 
-            # C. Transform to World Position
+            # C. MARK EDGE SLOTS
+            for e in new_edges:
+                v1 = e.verts[0]
+                v2 = e.verts[1]
+
+                # Identify vertical vs ring edges
+                dz = abs(v1.co.z - v2.co.z)
+
+                if dz < 0.001:
+                    # Ring Edge (Perimeter)
+                    e[edge_slots] = 1
+                else:
+                    # Longitudinal Edge (Strut Length)
+                    # Check for Seam location (Theta = 180 deg / PI -> X < 0, Y ~ 0)
+                    # With 8 segments, one vertex pair is at approx (-r, 0)
+                    mid_x = (v1.co.x + v2.co.x) / 2
+
+                    if mid_x < (-self.strut_radius * 0.9):
+                        e[edge_slots] = 3  # GUIDE / SEAM
+                        e.seam = True
+
+            # D. Transform to World Position
             rot_quat = z_vec.rotation_difference(vec)
             mat_trans = Matrix.Translation(mid)
             mat_rot = rot_quat.to_matrix().to_4x4()

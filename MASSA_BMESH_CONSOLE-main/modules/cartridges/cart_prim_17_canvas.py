@@ -211,7 +211,34 @@ class MASSA_OT_PrimCanvas(Massa_OT_Base):
 
         # 6. MARK SEAMS
         # ----------------------------------------------------------------------
+        # 6. MARK SEAMS & SLOT ASSIGNMENTS
+        # ----------------------------------------------------------------------
+        # Create Edge Slot Layer
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
         for e in bm.edges:
+            # Check for loose edges
+            if not e.link_faces:
+                continue
+
+            # Identify Material (Use first face as safe check)
+            mat = e.link_faces[0].material_index
+            
+            # --- SLOT LOGIC (FABRIC ONLY) ---
+            if mat == 0:
+                # Slot #1: Perimeter Loop (Boundary of the grid)
+                if e.is_boundary:
+                    e[edge_slots] = 1
+                
+                # Slot #5: Middle Fold (Crossing middle of canvas). 
+                # Defined as the centerline along Y=0 (X-Axis)
+                v1, v2 = e.verts
+                if abs(v1.co.y) < 0.001 and abs(v2.co.y) < 0.001:
+                    e[edge_slots] = 5
+
+            # --- EXISTING SEAM LOGIC ---
             if len(e.link_faces) >= 2:
                 # Material Boundaries (Grommets vs Fabric)
                 mats = {f.material_index for f in e.link_faces}

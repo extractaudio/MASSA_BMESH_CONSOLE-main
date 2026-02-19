@@ -423,6 +423,10 @@ def _generate_output(op, context, bm, socket_data, manifest):
             if force_auto_unwrap and manifest[i]["uv"] == "SKIP":
                 should_unwrap = True
 
+            # [ARCHITECT FIX] Allow Manual KEEP (Preserve UVs but allow packing)
+            if manifest[i]["uv"] == "KEEP":
+                should_unwrap = False
+
             if should_unwrap:
                 if is_debug_override:
                     bpy.ops.mesh.select_all(action="SELECT")

@@ -48,8 +48,8 @@ class MASSA_OT_PrimLathe(Massa_OT_Base):
         Slot 1: Base Anchor (Bottom Faces) -> flagged as 'sock': True for easy instancing.
         """
         return {
-            0: {"name": "Ceramic Surface", "uv": "SKIP", "phys": "STONE_MARBLE"},
-            1: {"name": "Base Anchor", "uv": "SKIP", "phys": "GENERIC", "sock": True},
+            0: {"name": "Ceramic Surface", "uv": "KEEP", "phys": "STONE_MARBLE"},
+            1: {"name": "Base Anchor", "uv": "KEEP", "phys": "GENERIC", "sock": True},
         }
 
     def draw_shape_ui(self, layout):
@@ -246,8 +246,68 @@ class MASSA_OT_PrimLathe(Massa_OT_Base):
             except:
                 pass
 
-        # 5. MARK SEAMS
+        # 5. MARK SEAMS & EDGE SLOTS
         # ----------------------------------------------------------------------
+        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        # --- A. Slot 1: Perimeters ---
+        # Target Rings (Indices map to 'nodes' list):
+        # 0: Base Outer
+        # 2: Rim Outer
+        # 3: Rim Inner
+        # 5: Base Inner
+        target_rings = [0, 2, 3, 5]
+        
+
+        for r_idx in target_rings:
+            if r_idx < len(ring_verts):
+                ring = ring_verts[r_idx]
+                for i in range(len(ring) - 1):
+                    v1 = ring[i]
+                    v2 = ring[i + 1]
+                    e = bm.edges.get([v1, v2])
+                    if e:
+                        e[edge_slots] = 1
+
+        # --- A2. Slot 3: Horizontal Seam (Mid Loops) ---
+        target_rings_3 = [1, 4]  # 1: Mid Outer, 4: Mid Inner
+        
+        for r_idx in target_rings_3:
+            if r_idx < len(ring_verts):
+                ring = ring_verts[r_idx]
+                for i in range(len(ring) - 1):
+                    v1 = ring[i]
+                    v2 = ring[i + 1]
+                    e = bm.edges.get([v1, v2])
+                    if e:
+                        e[edge_slots] = 3
+
+        # --- B. Slot 3: Vertical Seam Guide (Index 0) ---
+        seam_idx = 0
+        
+        # 1. Main Walls (Verticals)
+        for r in range(len(ring_verts) - 1):
+            v_bot = ring_verts[r][seam_idx]
+            v_top = ring_verts[r+1][seam_idx]
+            e = bm.edges.get([v_bot, v_top])
+            if e:
+                e[edge_slots] = 3
+                
+        # 2. Caps (Center Connectors)
+        # Bottom Cap: center -> ring 0
+        # SKIPPED: Guide stops at base loop (Ring 0) intersection per user request
+        # e_bot = bm.edges.get([v_center_bot, ring_verts[0][seam_idx]])
+        # if e_bot:
+        #     e_bot[edge_slots] = 3
+            
+        # Top Cap: center -> last ring
+        # SKIPPED: Guide stops at inner floor loop per user request
+        # e_top = bm.edges.get([v_center_top, ring_verts[-1][seam_idx]])
+        # if e_top:
+        #     e_top[edge_slots] = 3
+
+        # ----------------------------------------------------------------------
+        # Existing Seam Logic
         for e in bm.edges:
             if len(e.link_faces) >= 2:
                 # 1. Material Boundaries (Base Anchor vs Surface)

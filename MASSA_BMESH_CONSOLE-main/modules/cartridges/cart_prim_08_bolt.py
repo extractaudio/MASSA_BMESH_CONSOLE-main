@@ -168,9 +168,47 @@ class MASSA_OT_PrimBolt(Massa_OT_Base):
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         # ----------------------------------------------------------------------
-        # 5. MARK SEAMS
+        # 5. MARK SEAMS & EDGE SLOTS
         # ----------------------------------------------------------------------
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        # Thresholds
+        Z_UP_THRES = 0.9
+
         for e in bm.edges:
+            # --- Slot 1: Perimeter Rims ---
+            # Edges shared by a Flat Cap (Z > 0.9 or Z < -0.9) and a Side Wall (Z ~ 0)
+            is_cap = False
+            is_wall = False
+            
+            if len(e.link_faces) >= 2:
+                for f in e.link_faces:
+                    nz = f.normal.z
+                    if abs(nz) > Z_UP_THRES:
+                        is_cap = True
+                    elif abs(nz) < 0.5: # Generous wall check
+                        is_wall = True
+            
+            if is_cap and is_wall:
+                e[edge_slots] = 1
+
+            # --- Slot 3: Vertical Guide (One side: X > 0, Y ~ 0) ---
+            v1, v2 = e.verts
+            if v1.is_valid and v2.is_valid:
+                # Is vertical?
+                is_vertical = (abs(v1.co.x - v2.co.x) < 0.001 and 
+                               abs(v1.co.y - v2.co.y) < 0.001 and
+                               abs(v1.co.z - v2.co.z) > 0.001)
+                
+                # Is on +X axis (Y ~ 0)?
+                is_seam_loc = (abs(v1.co.y) < 0.001 and v1.co.x > 0.001)
+                
+                if is_vertical and is_seam_loc:
+                    e[edge_slots] = 3
+
+            # --- Standard Seams ---
             # 1. Material Boundaries
             if len(e.link_faces) >= 2:
                 mats = {f.material_index for f in e.link_faces}

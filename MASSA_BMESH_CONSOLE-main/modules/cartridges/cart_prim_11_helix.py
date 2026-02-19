@@ -100,6 +100,11 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
         sv = 1.0 if self.fit_uvs else (self.uv_scale * total_len)
 
         uv_layer = bm.loops.layers.uv.verify()
+        
+        # Verify Edge Slots Layer
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
         # 2. GENERATION LOOP (Construct Rings)
         # ----------------------------------------------------------------------
@@ -159,6 +164,18 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
                 ring_verts.append((world_p, u_coord, current_v_coord))
 
             rings_data.append(ring_verts)
+
+        # 2a. Determine "Bottom" Seam Index
+        # Find index j in the first ring with minimum Z coordinate
+        # This aligns the longitudinal cut to the "bottom" of the wire coil
+        j_bottom = 0
+        if rings_data:
+            min_z = rings_data[0][0][0].z  # rings_data[0][j][0] is Vector pos
+            for j in range(len(rings_data[0])):
+                z = rings_data[0][j][0].z
+                if z < min_z:
+                    min_z = z
+                    j_bottom = j
 
         # 3. BUILD MESH FROM DATA
         # ----------------------------------------------------------------------
@@ -221,6 +238,24 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
                         elif l.vert == v4:
                             l[uv_layer].uv = (uv4[0] * su, uv4[1])
 
+                    # --- EDGE SLOTS ---
+                    # 1. Longitudinal Seam (Bottom)
+                    # Edge connecting v1 -> v2 (along the wire length)
+                    if j == j_bottom:
+                         e_long = bm.edges.get([v1, v2])
+                         if e_long:
+                             e_long[edge_slots] = 3  # GUIDE
+                             e_long.seam = True
+
+                    # 2. Vertical Cuts (Rings) every 12 segments
+                    # Edge connecting v1 -> v4 (radial ring)
+                    # We cut the ring *before* the current segment if r % 12 == 0
+                    if r > 0 and r % 12 == 0:
+                        e_ring = bm.edges.get([v1, v4])
+                        if e_ring:
+                            e_ring[edge_slots] = 3  # GUIDE
+                            e_ring.seam = True
+
                 except ValueError:
                     pass  # Face already exists (rare)
 
@@ -261,6 +296,7 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
                 mats = {f.material_index for f in e.link_faces}
                 if len(mats) > 1:
                     e.seam = True
+                    e[edge_slots] = 1 # PERIMETER
             
             # 2. Existing Seams (from Cap generation?)
             # No, we rely on implicit U-wrapping seams.

@@ -62,6 +62,7 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         return {
             0: {"name": "Plate Surface", "uv": "SKIP", "phys": "METAL_STEEL"},
             1: {"name": "Cut Edges", "uv": "SKIP", "phys": "METAL_STEEL"},
+            3: {"name": "Guide Seam", "uv": "SEAM", "phys": "GENERIC"},
             9: {"name": "Socket Anchor", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }
 
@@ -117,10 +118,11 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         # 1. TOPOLOGY HELPERS
         # ----------------------------------------------------------------------
         def create_quad_face(bm, v1, v2, v3, v4):
-            if (v1.co - v2.co).length < 1e-6 or (v3.co - v4.co).length < 1e-6: return None
+            if not (v1.is_valid and v2.is_valid and v3.is_valid and v4.is_valid): return None
             try:
+                if (v1.co - v2.co).length < 1e-6 or (v3.co - v4.co).length < 1e-6: return None
                 return bm.faces.new((v1, v2, v3, v4))
-            except ValueError:
+            except (ValueError, AttributeError, ReferenceError):
                 return None
 
         def create_hub(bm, cx, cy, r_hole, width, segs):
@@ -159,6 +161,19 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
             # Create Verts
             c_verts = [bm.verts.new(p) for p in circ_pts]
             b_verts = [bm.verts.new(p) for p in box_pts]
+
+            # Tag Geometric Corners (for vertical cuts later)
+            # Use INT layer for data persistence
+            corner_layer = bm.verts.layers.int.get("MASSA_CORNER_ID")
+            if not corner_layer: corner_layer = bm.verts.layers.int.new("MASSA_CORNER_ID")
+
+            # Indices for corners: 45, 135, 225, 315 degrees
+            # segs=16 -> indices 2, 6, 10, 14.
+            step = segs // 8
+            corner_indices = [step, step*3, step*5, step*7]
+            for idx in corner_indices:
+                if idx < len(b_verts):
+                    b_verts[idx][corner_layer] = 1
 
             # Faces
             if self.has_holes and r_hole > 0.001:
@@ -276,7 +291,23 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         # 3. POST-PROCESS & THICKNESS
         # ----------------------------------------------------------------------
         bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=0.0001)
+        
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+        
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+        # Detect Sharp Corners (Before Extrusion)
+        corner_layer = bm.verts.layers.int.get("MASSA_CORNER_ID")
+        if corner_layer:
+            for v in bm.verts:
+                # Criteria: Tagged as Geometric Corner AND Valence == 3 (Perimeter)
+                # We mark them with '2' to persist this state across extrusion
+                if v[corner_layer] == 1 and len(v.link_edges) == 3:
+                    v[corner_layer] = 2
+                else:
+                    v[corner_layer] = 0
 
         # Mark Surface Slot
         for f in bm.faces: f.material_index = 0
@@ -292,6 +323,72 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
             f.material_index = 1
 
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        # ----------------------------------------------------------------------
+        # 3.5 EDGE SLOT ASSIGNMENT (RIM & SEAMS)
+        # ----------------------------------------------------------------------
+        # Ensure we have the layer
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+
+        # Thresholds
+        Z_UP_THRES = 0.9
+        Y_CENTER_THRES = 0.001
+        X_CENTER_THRES = 0.001
+
+        for e in bm.edges:
+            if not e.is_valid: continue
+            # --- Slot 1: Perimeter Rims ---
+            # Edges shared by a Flat Cap (Z > 0.9 or Z < -0.9) and a Side Wall (Z ~ 0)
+            is_cap = False
+            is_wall = False
+            
+            for f in e.link_faces:
+                nz = f.normal.z
+                if abs(nz) > Z_UP_THRES:
+                    is_cap = True
+                elif abs(nz) < 0.5: # Generous wall check
+                    is_wall = True
+            
+            if is_cap and is_wall:
+                e[edge_slots] = 1
+
+            # --- Slot 3: Guide Seams (Center X) ---
+            # Edges that lie on the X-axis (Y=0)
+            # This catches the center line of the plate AND the split in the holes
+            v1, v2 = e.verts
+            if not (v1.is_valid and v2.is_valid): continue
+            
+            if abs(v1.co.y) < Y_CENTER_THRES and abs(v2.co.y) < Y_CENTER_THRES:
+                e[edge_slots] = 3
+
+            # --- Slot 3: Guide Seams (Center Y) ---
+            # Edges that lie on the Y-axis (X=0)
+            if abs(v1.co.x) < X_CENTER_THRES and abs(v2.co.x) < X_CENTER_THRES:
+                e[edge_slots] = 3
+
+            # --- Slot 3: Vertical Cuts on Sharp Corners ---
+            # Edges that are Vertical AND linked to a marked Sharp Corner vertex
+            # Vertical means parallel to Z (x1~x2, y1~y2)
+            try:
+                is_vertical = (abs(v1.co.x - v2.co.x) < 0.001 and 
+                               abs(v1.co.y - v2.co.y) < 0.001 and
+                               abs(v1.co.z - v2.co.z) > 0.001)
+            except (AttributeError, ReferenceError):
+                continue
+            
+            if is_vertical:
+                is_marked = False
+                if corner_layer:
+                    if v1[corner_layer] == 2 or v2[corner_layer] == 2:
+                        is_marked = True
+                
+                if is_marked:
+                    e[edge_slots] = 3
 
         # ----------------------------------------------------------------------
         # 4. MANUAL UVs ("THE MANDATE")
@@ -366,7 +463,11 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
             
             # Unwrap around best_hc
             for l in f.loops:
-                v = l.vert.co
+                try:
+                    v = l.vert.co
+                except (AttributeError, ReferenceError):
+                    continue
+                
                 vec = Vector((v.x, v.y, 0)) - best_hc
                 angle = math.atan2(vec.y, vec.x) # -pi to pi
                 u = angle / (2 * math.pi) # -0.5 to 0.5
