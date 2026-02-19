@@ -57,6 +57,32 @@ from . import cart_prim_landscape
 from . import cart_arch_01_stairs_linear
 from . import cart_arch_02_stairs_spiral
 from . import cart_arch_03_stairs_industrial
+from . import cart_arc_01_wall
+from . import cart_arc_02_stairs
+from . import cart_arc_03_window
+from . import cart_arc_04_doorway
+from . import cart_arc_05_column
+
+# --- INDUSTRIAL SUITE (cart_ind_*) ---
+from . import cart_ind_01_truss
+from . import cart_ind_02_duct
+from . import cart_ind_03_catwalk
+from . import cart_ind_04_ladder
+from . import cart_ind_05_silo
+
+# --- URBAN SUITE (cart_urb_*) ---
+from . import cart_urb_01_sidewalk
+from . import cart_urb_02_railing
+from . import cart_urb_03_streetlight
+from . import cart_urb_04_barrier
+from . import cart_urb_05_fence
+
+# --- PROPS & LANDSCAPE SUITE (cart_prp_*, cart_lnd_*) ---
+from . import cart_prp_01_container
+from . import cart_prp_02_rack
+from . import cart_prp_03_greeble
+from . import cart_lnd_01_planter
+from . import cart_lnd_02_boulder
 
 # --- ASSEMBLIES & PARTS ---
 from . import cart_building_assembly_1
@@ -124,6 +150,29 @@ MODULES = [
     cart_arch_01_stairs_linear,
     cart_arch_02_stairs_spiral,
     cart_arch_03_stairs_industrial,
+    cart_arc_01_wall,
+    cart_arc_02_stairs,
+    cart_arc_03_window,
+    cart_arc_04_doorway,
+    cart_arc_05_column,
+    # Ind
+    cart_ind_01_truss,
+    cart_ind_02_duct,
+    cart_ind_03_catwalk,
+    cart_ind_04_ladder,
+    cart_ind_05_silo,
+    # Urb
+    cart_urb_01_sidewalk,
+    cart_urb_02_railing,
+    cart_urb_03_streetlight,
+    cart_urb_04_barrier,
+    cart_urb_05_fence,
+    # Props/Land
+    cart_prp_01_container,
+    cart_prp_02_rack,
+    cart_prp_03_greeble,
+    cart_lnd_01_planter,
+    cart_lnd_02_boulder,
     # Assemblies & Parts
     cart_building_assembly_1,
     cart_building_assembly_2,
@@ -186,6 +235,29 @@ CLASSES = [
     cart_arch_01_stairs_linear.MASSA_OT_ArchStairsLinear,
     cart_arch_02_stairs_spiral.MASSA_OT_ArchStairsSpiral,
     cart_arch_03_stairs_industrial.MASSA_OT_ArchStairsIndustrial,
+    cart_arc_01_wall.MASSA_OT_ArcWall,
+    cart_arc_02_stairs.MASSA_OT_ArcStairs,
+    cart_arc_03_window.MASSA_OT_ArcWindow,
+    cart_arc_04_doorway.MASSA_OT_ArcDoorway,
+    cart_arc_05_column.MASSA_OT_ArcColumn,
+    # Ind
+    cart_ind_01_truss.MASSA_OT_IndTruss,
+    cart_ind_02_duct.MASSA_OT_IndDuct,
+    cart_ind_03_catwalk.MASSA_OT_IndCatwalk,
+    cart_ind_04_ladder.MASSA_OT_IndLadder,
+    cart_ind_05_silo.MASSA_OT_IndSilo,
+    # Urb
+    cart_urb_01_sidewalk.MASSA_OT_UrbSidewalk,
+    cart_urb_02_railing.MASSA_OT_UrbRailing,
+    cart_urb_03_streetlight.MASSA_OT_UrbStreetlight,
+    cart_urb_04_barrier.MASSA_OT_UrbBarrier,
+    cart_urb_05_fence.MASSA_OT_UrbFence,
+    # Props/Land
+    cart_prp_01_container.MASSA_OT_PrpContainer,
+    cart_prp_02_rack.MASSA_OT_PrpRack,
+    cart_prp_03_greeble.MASSA_OT_PrpGreeble,
+    cart_lnd_01_planter.MASSA_OT_LndPlanter,
+    cart_lnd_02_boulder.MASSA_OT_LndBoulder,
     # Assemblies & Parts
     cart_building_assembly_1.MASSA_OT_BuildingAssembly1,
     cart_building_assembly_2.MASSA_OT_Canopy,
