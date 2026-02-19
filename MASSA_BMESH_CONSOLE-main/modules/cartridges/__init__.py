@@ -98,6 +98,11 @@ from . import cart_asm_07_vending
 from . import cart_asm_08_signage
 from . import cart_asm_09_checkpoint
 from . import cart_asm_10_tower
+from . import cart_asm_11_spiral_staircase
+from . import cart_asm_12_fire_escape
+from . import cart_asm_13_cloister
+from . import cart_asm_14_loading_dock
+from . import cart_asm_15_elevator_shaft
 
 
 # -------------------------------------------------------------------
@@ -192,6 +197,11 @@ MODULES = [
     cart_asm_08_signage,
     cart_asm_09_checkpoint,
     cart_asm_10_tower,
+    cart_asm_11_spiral_staircase,
+    cart_asm_12_fire_escape,
+    cart_asm_13_cloister,
+    cart_asm_14_loading_dock,
+    cart_asm_15_elevator_shaft,
 ]
 
 # List of Operator Classes (Used for Registration)
@@ -282,6 +292,11 @@ CLASSES = [
     cart_asm_08_signage.MASSA_OT_AsmSignage,
     cart_asm_09_checkpoint.MASSA_OT_AsmCheckpoint,
     cart_asm_10_tower.MASSA_OT_AsmTower,
+    cart_asm_11_spiral_staircase.MASSA_OT_AsmSpiralStaircase,
+    cart_asm_12_fire_escape.MASSA_OT_AsmFireEscape,
+    cart_asm_13_cloister.MASSA_OT_AsmCloister,
+    cart_asm_14_loading_dock.MASSA_OT_AsmLoadingDock,
+    cart_asm_15_elevator_shaft.MASSA_OT_AsmElevatorShaft,
 ]
 
 # -------------------------------------------------------------------
