@@ -193,6 +193,9 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
                 f.smooth = True
 
         # 5. MARK SEAMS
+        # Initialize Edge Slot Data Layer
+        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
         # Explicit Seam Logic (Aligning with Beam/Pipe behavior)
         for e in bm.edges:
             # 1. Material Boundaries (Surface vs Rim)
@@ -210,6 +213,26 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
                     # Seam if < 0.5 (60 deg) dot product (sharp corner)
                     if n1.dot(n2) < 0.5:
                         e.seam = True
+        
+        # 5b. MARK GUIDE SLOTS (Slot 3)
+        # We need the 4 vertical edges at the corners to be guides.
+        # These are vertical (same X,Y) and located at min/max X/Y.
+        
+        for e in bm.edges:
+            v1 = e.verts[0]
+            v2 = e.verts[1]
+            
+            # Check for Verticality (Same X, Same Y)
+            if (abs(v1.co.x - v2.co.x) < EPS) and (abs(v1.co.y - v2.co.y) < EPS):
+                # It is vertical. Now check if it's at a corner.
+                # We check the X and Y against the bounds found in Step 4.
+                
+                is_corner_x = (abs(v1.co.x - min_x) < EPS) or (abs(v1.co.x - max_x) < EPS)
+                is_corner_y = (abs(v1.co.y - min_y) < EPS) or (abs(v1.co.y - max_y) < EPS)
+                
+                if is_corner_x and is_corner_y:
+                    e.seam = True
+                    e[edge_slots] = 3  # Guide Slot
 
         # 6. UV MAPPING
         uv_layer = bm.loops.layers.uv.verify()
@@ -292,3 +315,60 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
 
                 for l, u, v in loop_uvs:
                     l[uv_layer].uv = (u * self.uv_scale, v * self.uv_scale)
+
+    def execute(self, context):
+        # 1. Run Standard Pipeline
+        result = super().execute(context)
+
+        # 2. Socket Post-Processing
+        if "FINISHED" in result:
+            obj = context.active_object
+            if obj:
+                # --- SLOT 0: Surface (Up) ---
+                surface_sockets = []
+                # --- SLOT 1: Edge Trim (Sides) ---
+                edge_sockets = []
+
+                for child in obj.children:
+                    # Slot 0 is "Surface"
+                    if child.name.startswith(f"SOCKET_{obj.name}_Surface"):
+                        surface_sockets.append(child)
+                    # Slot 1 is "Edge Trim"
+                    elif child.name.startswith(f"SOCKET_{obj.name}_Edge Trim"):
+                        edge_sockets.append(child)
+
+                # Process SLOT 0 (Surface) - Keep 1, Point Up
+                if surface_sockets:
+                    surface_sockets.sort(key=lambda s: s.location.z, reverse=True)
+                    top_socket = surface_sockets[0]
+                    for s in surface_sockets[1:]:
+                        bpy.data.objects.remove(s, do_unlink=True)
+                    top_socket.rotation_euler = (0, 0, 0)
+
+                # Process SLOT 1 (Edge Trim) - Create 2, Point X+ and X-
+                # We need exactly 2 sockets for this slot.
+                if len(edge_sockets) > 0:
+                    # Ensure we have at least 2
+                    while len(edge_sockets) < 2:
+                        new_sock = edge_sockets[0].copy()
+                        obj.users_collection[0].objects.link(new_sock)
+                        new_sock.parent = obj
+                        edge_sockets.append(new_sock)
+                    
+                    # If we have more than 2, delete extras
+                    if len(edge_sockets) > 2:
+                        for s in edge_sockets[2:]:
+                            bpy.data.objects.remove(s, do_unlink=True)
+                        edge_sockets = edge_sockets[:2]
+                    
+                    # Position Socket 1: Right (+X), Point +X
+                    s1 = edge_sockets[0]
+                    s1.location = Vector((self.width / 2, 0, 0))
+                    s1.rotation_euler = (0, math.pi / 2, 0) # Rotates Z UP to X+
+
+                    # Position Socket 2: Left (-X), Point -X
+                    s2 = edge_sockets[1]
+                    s2.location = Vector((-self.width / 2, 0, 0))
+                    s2.rotation_euler = (0, -math.pi / 2, 0) # Rotates Z UP to X-
+
+        return result

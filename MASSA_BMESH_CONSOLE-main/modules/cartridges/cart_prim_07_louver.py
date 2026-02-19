@@ -171,7 +171,7 @@ class MASSA_OT_PrimLouver(Massa_OT_Base):
         if self.add_screen:
             res_screen = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5)
             verts_s = res_screen["verts"]
-            faces_s = res_screen["faces"]
+            faces_s = list({f for v in verts_s for f in v.link_faces})
 
             # [FIX] Scale to fit INSIDE frame (Inner Dimensions) + tiny overlap for welding if desired
             # But cleanest is just fit exactly or slightly over. 

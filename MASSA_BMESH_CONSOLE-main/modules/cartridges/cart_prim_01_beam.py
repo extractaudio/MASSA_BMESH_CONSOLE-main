@@ -289,3 +289,30 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
                 # Apply scaled UVs
                 for l, u, v in loop_uvs:
                     l[uv_layer].uv = (u * su_s, v * sv_s)
+
+    def execute(self, context):
+        # 1. Run Standard Generation
+        result = super().execute(context)
+        
+        # 2. Post-Process: Socket 0 Orientation
+        # Fix: Force "Surface" Socket (Slot 0) to point Z+ (Up) instead of X+ (Normal)
+        if "FINISHED" in result:
+            obj = context.active_object
+            if obj:
+                # Find the socket for Slot 0
+                # Socket names format: "SOCKET_<obj_name>_<slot_name>_<index>"
+                # Slot 0 name is "Surface"
+                
+                target_prefix = f"SOCKET_{obj.name}_Surface"
+                
+                for child in obj.children:
+                    if child.name.startswith(target_prefix):
+                        # Force Rotation to Identity (Z+) relative to parent
+                        # Since Beam acts as local space, this makes it point along Beam's Z axis
+                        child.rotation_euler = (0, 0, 0)
+                        
+                        # Note: massa_sockets usually aligns Z to Normal.
+                        # For a beam, the side walls have normals in X.
+                        # By resetting to 0,0,0, we align the socket to the Object's Z.
+                        
+        return result
