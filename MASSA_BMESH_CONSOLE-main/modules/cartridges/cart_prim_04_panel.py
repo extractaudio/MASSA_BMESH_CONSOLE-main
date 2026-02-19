@@ -1,13 +1,12 @@
 import bpy
 import bmesh
-import random
 import math
 from mathutils import Vector
 from bpy.props import FloatProperty, IntProperty, FloatVectorProperty, BoolProperty
 from ...operators.massa_base import Massa_OT_Base
 
 CARTRIDGE_META = {
-    "name": "PRIM_04: Grid Panel",
+    "name": "PRIM_04: Tech Panel",
     "id": "prim_04_panel",
     "icon": "MOD_BUILD",
     "scale_class": "STANDARD",
@@ -19,39 +18,55 @@ CARTRIDGE_META = {
 }
 
 
-class MASSA_OT_PrimPanel(Massa_OT_Base):
+class MASSA_OT_PrimTechPanel(Massa_OT_Base):
     bl_idname = "massa.gen_prim_04_panel"
-    bl_label = "PRIM_04: Panel"
+    bl_label = "PRIM_04: Tech Panel"
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
     # --- 1. DIMENSIONS ---
     size: FloatVectorProperty(name="Size", default=(2.0, 2.0, 0.1), min=0.01)
 
-    # --- 2. PATTERN ---
-    # --- 2. PATTERN ---
+    # --- 2. GRID PATTERN ---
     cuts_x: IntProperty(name="Grid X", default=4, min=1)
     cuts_y: IntProperty(name="Grid Y", default=4, min=1)
-    gap: FloatProperty(name="Frame Gap", default=0.015, min=0.0, unit="LENGTH")
+    gap: FloatProperty(name="Tile Gap", default=0.02, min=0.0, unit="LENGTH")
 
-    # --- 3. PROFILE ---
-    inset_amt: FloatProperty(name="Inset Margin", default=0.05, min=0.001)
-    inset_height: FloatProperty(name="Inset Height", default=0.05, description="Height offset for the inner tile")
+    # --- 3. FRAME ---
+    frame_width: FloatProperty(name="Frame Width", default=0.1, min=0.0)
+    frame_height: FloatProperty(name="Frame Height", default=0.05, min=0.0)
 
-    # --- 4. UV ---
+    # --- 4. TILE PROFILE ---
+    tile_height: FloatProperty(name="Tile Height", default=0.05, min=0.0)
+    inset_amount: FloatProperty(name="Inset Margin", default=0.05, min=0.0)
+    inset_depth: FloatProperty(
+        name="Inset Depth",
+        default=-0.02,
+        description="Depth of the inner detail relative to tile top",
+    )
+
+    # --- 5. CUTOUT ---
+    use_cutout: BoolProperty(name="Center Cutout", default=False)
+    cutout_ratio: FloatProperty(
+        name="Cutout Ratio",
+        default=0.3,
+        min=0.0,
+        max=0.9,
+        description="Size of cutout relative to grid",
+    )
+
+    # --- 6. UV ---
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
     fit_uvs: BoolProperty(name="Fit UVs 0-1", default=False)
 
     def get_slot_meta(self) -> dict:
         return {
-            0: {
-                "name": "Edge Banding",
-                "uv": "BOX",
-                "phys": "METAL_STEEL",
-                "sock": True,
-            },
-            1: {"name": "Trim", "uv": "BOX", "phys": "GENERIC"},
-            2: {"name": "Backing", "uv": "BOX", "phys": "GENERIC"},
-            3: {"name": "Frame Surface", "uv": "BOX", "phys": "METAL_STEEL"},
+            0: {"name": "Frame", "uv": "SKIP", "phys": "METAL_STEEL"},
+            1: {"name": "Backing Plate", "uv": "SKIP", "phys": "GENERIC"},
+            2: {"name": "Tile Body", "uv": "SKIP", "phys": "METAL_STEEL"},
+            3: {"name": "Tile Inset", "uv": "SKIP", "phys": "METAL_DARK"},
+            4: {"name": "Tech Detail", "uv": "SKIP", "phys": "EMISSION"},
+            8: {"name": "Anchor (Bottom)", "uv": "SKIP", "phys": "GENERIC", "sock": True},
+            9: {"name": "Mount (Top)", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }
 
     def draw_shape_ui(self, layout):
@@ -60,265 +75,293 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
         row = col.row(align=True)
         row.prop(self, "size", index=0, text="X")
         row.prop(self, "size", index=1, text="Y")
-        row.prop(self, "size", index=2, text="Z")
+        row.prop(self, "size", index=2, text="Z (Base)")
 
         layout.separator()
-        layout.label(text="Grid Pattern", icon="GRID")
+        layout.label(text="Grid & Frame", icon="GRID")
         col = layout.column(align=True)
+        col.prop(self, "frame_width")
+        col.prop(self, "frame_height")
         row = col.row(align=True)
         row.prop(self, "cuts_x", text="X")
         row.prop(self, "cuts_y", text="Y")
         col.prop(self, "gap")
 
         layout.separator()
-        layout.label(text="Profile", icon="MOD_BEVEL")
+        layout.label(text="Tech Tile Profile", icon="MOD_BEVEL")
         col = layout.column(align=True)
-        col.prop(self, "inset_amt")
-        col.prop(self, "inset_height", text="Tile Offset (+/-)")
+        col.prop(self, "tile_height")
+        col.prop(self, "inset_amount")
+        col.prop(self, "inset_depth")
 
-
+        layout.separator()
+        layout.label(text="Features", icon="MOD_BOOLEAN")
+        col = layout.column(align=True)
+        col.prop(self, "use_cutout")
+        if self.use_cutout:
+            col.prop(self, "cutout_ratio")
 
     def build_shape(self, bm: bmesh.types.BMesh) -> None:
         sx, sy, sz = self.size
 
         # ----------------------------------------------------------------------
-        # 1. GRID LOGIC
-        # ----------------------------------------------------------------------
-        total_w = sx * 2
-        total_l = sy * 2
-
-        total_gap_x = self.gap * (self.cuts_x - 1)
-        total_gap_y = self.gap * (self.cuts_y - 1)
-
-        cell_w = (total_w - total_gap_x) / self.cuts_x
-        cell_l = (total_l - total_gap_y) / self.cuts_y
-
-        start_x = -(total_w / 2) + (cell_w / 2)
-        start_y = -(total_l / 2) + (cell_l / 2)
-
-        # ----------------------------------------------------------------------
-        # 2. GENERATION LOOP
-        # ----------------------------------------------------------------------
-        valid_top_faces = []
-
-        for ix in range(self.cuts_x):
-            for iy in range(self.cuts_y):
-                cx = start_x + (ix * (cell_w + self.gap))
-                cy = start_y + (iy * (cell_l + self.gap))
-                center = Vector((cx, cy, 0))
-
-                # Create Box
-                top_face = self.create_box_cell(bm, center, cell_w, cell_l, sz)
-                valid_top_faces.append(top_face)
-
-        # ----------------------------------------------------------------------
-        # 3. INSET & EXTRUDE LOGIC
-        # ----------------------------------------------------------------------
-        if valid_top_faces:
-            # A. Inset
-            # Safety: Ensure we don't inset more than the face allows
-            safe_limit = min(cell_w / 2.01, cell_l / 2.01)
-            safe_inset = min(self.inset_amt, safe_limit)
-            
-            # Clamp to minimum to avoid zero-area faces/crashes
-            if safe_inset < 0.0001:
-                safe_inset = 0.0001
-
-            # Perform Inset (Individual is safer for disjoint grid faces)
-            res_inset = bmesh.ops.inset_individual(
-                bm, faces=valid_top_faces, thickness=safe_inset, use_even_offset=True
-            )
-            
-            # In inset_individual, the original faces become the "inner" faces.
-            # We don't need to hunt for them in a dict if we track the original objects,
-            # BUT bmesh operators often replace/invalidating Python objects.
-            # Use the return dict.
-            faces_inner = res_inset["faces"]
-
-            # B. Extrude / Move Inner Tile
-            if abs(self.inset_height) > 0.0001:
-                res_ext = bmesh.ops.extrude_face_region(bm, geom=faces_inner)
-                
-                verts_ext = [v for v in res_ext["geom"] if isinstance(v, bmesh.types.BMVert)]
-                faces_ext_top = [f for f in res_ext["geom"] if isinstance(f, bmesh.types.BMFace)]
-                
-                # Move Extruded Face
-                bmesh.ops.translate(bm, verts=verts_ext, vec=(0, 0, self.inset_height))
-
-                # Assign Materials
-                # 1. Top Face -> Trim (Slot 1)
-                for f in faces_ext_top:
-                    f.material_index = 1 
-                
-                # 2. Side Walls -> Edge Banding (Slot 0) or Frame (Slot 3)?
-                # The user calls this "inset tile", implying the side wall belongs to the tile.
-                # Let's check faces attached to verts_ext that are NOT the top face.
-                for f in faces_ext_top:
-                    for loop in f.loops:
-                        # The edge of the top face connects to a side face
-                        # The loop.edge.link_faces has usually 2 faces: Top and Side.
-                        for linked_face in loop.edge.link_faces:
-                            if linked_face != f:
-                                linked_face.material_index = 0 # Edge Banding style for the "cut"
-                                
-            else:
-                # No Extrusion, just flat inset. 
-                # The "inner" faces are the ones we inset.
-                for f in faces_inner:
-                    f.material_index = 1
-
-        # ----------------------------------------------------------------------
-        # 4. FINAL CLEANUP & NORMAL ENFORCEMENT
-        # ----------------------------------------------------------------------
-        bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=bm.edges[:] )
-
-        # 1. Global Recalc (Fixes walls/boxes)
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-
-        # 2. Force Update to read accurate normals
-        bm.normal_update()
-
-        # 3. THE FINAL OVERRIDE
-        for f in bm.faces:
-            if f.material_index == 1:
-                # Check for horizontal alignment (Is it a floor?)
-                # We use > 0.5 to be safe, filtering out vertical walls
-                if abs(f.normal.z) > 0.5:
-                    # STRICT CHECK: If it points down, FLIP IT UP.
-                    if f.normal.z < 0:
-                        f.normal_flip()
-
-        # ----------------------------------------------------------------------
-        # 5. MARK SEAMS
-        # ----------------------------------------------------------------------
-        for e in bm.edges:
-            # 1. Material Boundaries
-            if len(e.link_faces) >= 2:
-                mats = {f.material_index for f in e.link_faces}
-                if len(mats) > 1:
-                    e.seam = True
-                    continue
-
-                # 2. Sharp Edges (Box Map Seams)
-                # If same material, check angle
-                if all(m >= 0 for m in mats):
-                    mat_idx = e.link_faces[0].material_index
-                    
-                    # Special Rule for Edge Banding (Slot 0)
-                    if mat_idx == 0:
-                        # Only ONE vertical seam per Box loop
-                        # Box side faces are approx vertical.
-                        # We want to unwrap as a strip.
-                        
-                        # Check verticality
-                        v1, v2 = e.verts
-                        is_vertical = abs(v1.co.x - v2.co.x) < 0.001 and abs(v1.co.y - v2.co.y) < 0.001
-                        
-                        if is_vertical:
-                            # We need a consistent rule to pick ONE edge per box.
-                            
-                            # Fallback: Just look at normal directions.
-                            # If normals are (-1,0,0) and (0,-1,0), that's a corner.
-                            n1 = e.link_faces[0].normal
-                            n2 = e.link_faces[1].normal
-                            
-                            # If it's the corner between Left (-X) and Back (-Y)?
-                            if n1.x < -0.9 or n2.x < -0.9:
-                                if n1.y < -0.9 or n2.y < -0.9:
-                                    e.seam = True
-                        else:
-                            # Horizontal edges (top/bottom rim)
-                            # These are already handled by Material Boundary (Slot 0 vs Slot 3/2)
-                            pass
-                            
-                    else:
-                        # Standard Box Logic
-                        n1 = e.link_faces[0].normal
-                        n2 = e.link_faces[1].normal
-                        if n1.dot(n2) < 0.5:  # 60 degrees
-                            e.seam = True
-
-        # ----------------------------------------------------------------------
-        # 6. UV MAPPING
+        # 1. SETUP LAYERS
         # ----------------------------------------------------------------------
         uv_layer = bm.loops.layers.uv.verify()
-        s = 1.0 if self.fit_uvs else self.uv_scale
+        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        # ----------------------------------------------------------------------
+        # 2. BACKING PLATE (Base)
+        # ----------------------------------------------------------------------
+        # Create base box centered at Z=sz/2 (assuming Z=0 is bottom)
+        # We'll treat Z=0 as the bottom plane for the Anchor.
+        # The backing plate goes from Z=0 to Z=sz
+
+        # Define geometry helper
+        def create_box(center, size, mat_idx, return_top=False):
+            # Center is Vector((x, y, z_center))
+            # Size is Vector((w, l, h))
+            w, l, h = size
+            hw, hl, hh = w / 2, l / 2, h / 2
+
+            # Local Coords
+            coords = [
+                (-hw, -hl, -hh), (hw, -hl, -hh), (hw, hl, -hh), (-hw, hl, -hh), # Bot
+                (-hw, -hl, hh), (hw, -hl, hh), (hw, hl, hh), (-hw, hl, hh)      # Top
+            ]
+
+            verts = [bm.verts.new(Vector(c) + center) for c in coords]
+
+            # Faces: Top, Bot, Front, Right, Back, Left
+            # Winding Order: CCW for outward normals
+            faces = []
+            faces.append(bm.faces.new([verts[4], verts[5], verts[6], verts[7]])) # Top (Z+)
+            faces.append(bm.faces.new([verts[0], verts[3], verts[2], verts[1]])) # Bot (Z-)
+            faces.append(bm.faces.new([verts[0], verts[1], verts[5], verts[4]])) # Front (Y-)
+            faces.append(bm.faces.new([verts[1], verts[2], verts[6], verts[5]])) # Right (X+)
+            faces.append(bm.faces.new([verts[2], verts[3], verts[7], verts[6]])) # Back (Y+)
+            faces.append(bm.faces.new([verts[3], verts[0], verts[4], verts[7]])) # Left (X-)
+
+            for f in faces:
+                f.material_index = mat_idx
+
+            return faces[0] if return_top else faces
+
+        # Create Backing
+        # Size: sx, sy, sz
+        # Center: 0, 0, sz/2
+        create_box(Vector((0, 0, sz / 2)), Vector((sx, sy, sz)), 1) # Slot 1: Backing
+
+        # ----------------------------------------------------------------------
+        # 3. FRAME
+        # ----------------------------------------------------------------------
+        # The frame sits on top of the backing, around the perimeter.
+        # Frame Height adds to SZ.
+        # It's a hollow rectangle. We can make 4 boxes or extrude a ring.
+        # Let's make 4 boxes for cleaner topology separation (Tech style).
+
+        fw = self.frame_width
+        fh = self.frame_height
+
+        if fw > 0.001 and fh > 0.001:
+            # Top of backing
+            base_z = sz + fh / 2
+            
+            # Top/Bottom Bars (Full Width)
+            # Size: sx, fw, fh
+            # Pos Y: +/- (sy/2 - fw/2)
+            pos_y_top = (sy / 2) - (fw / 2)
+            pos_y_bot = -((sy / 2) - (fw / 2))
+
+            create_box(Vector((0, pos_y_top, base_z)), Vector((sx, fw, fh)), 0) # Slot 0: Frame
+            create_box(Vector((0, pos_y_bot, base_z)), Vector((sx, fw, fh)), 0) # Slot 0: Frame
+
+            # Side Bars (Between Top/Bot)
+            # Length: sy - 2*fw
+            # Width: fw
+            # Pos X: +/- (sx/2 - fw/2)
+            side_len = max(0.001, sy - (2 * fw))
+            pos_x_right = (sx / 2) - (fw / 2)
+            pos_x_left = -((sx / 2) - (fw / 2))
+            
+            create_box(Vector((pos_x_right, 0, base_z)), Vector((fw, side_len, fh)), 0)
+            create_box(Vector((pos_x_left, 0, base_z)), Vector((fw, side_len, fh)), 0)
+
+        # ----------------------------------------------------------------------
+        # 4. GRID TILES
+        # ----------------------------------------------------------------------
+        # Area available for tiles
+        grid_w = sx - (2 * fw)
+        grid_l = sy - (2 * fw)
+
+        if grid_w > 0.01 and grid_l > 0.01:
+            # Calculate Cell Size
+            # We want `cuts_x` tiles.
+            # Total Gap Width X = gap * (cuts_x - 1) ... actually gap is between tiles?
+            # Let's say gap is margin around each tile effectively.
+            # Or gap is between tiles.
+
+            # Effective cell size
+            # w = (grid_w - (cuts_x - 1)*gap) / cuts_x ??
+            # Simpler: Divide grid_w by cuts_x, then shrink by gap/2 on each side.
+
+            raw_cell_w = grid_w / self.cuts_x
+            raw_cell_l = grid_l / self.cuts_y
+
+            # Apply Gap
+            cell_w = max(0.001, raw_cell_w - self.gap)
+            cell_l = max(0.001, raw_cell_l - self.gap)
+
+            start_x = -(grid_w / 2) + (raw_cell_w / 2)
+            start_y = -(grid_l / 2) + (raw_cell_l / 2)
+
+            tile_base_z = sz + (self.tile_height / 2)
+
+            for ix in range(self.cuts_x):
+                for iy in range(self.cuts_y):
+                    # Cutout Check
+                    if self.use_cutout:
+                        # Normalize position -1 to 1
+                        nx = (ix / (self.cuts_x - 1)) * 2 - 1 if self.cuts_x > 1 else 0
+                        ny = (iy / (self.cuts_y - 1)) * 2 - 1 if self.cuts_y > 1 else 0
+                        dist = max(abs(nx), abs(ny)) # Box distance
+                        if dist < self.cutout_ratio:
+                            continue
+
+                    cx = start_x + (ix * raw_cell_w)
+                    cy = start_y + (iy * raw_cell_l)
+
+                    # Create Tile Base (Slot 2)
+                    center = Vector((cx, cy, tile_base_z))
+                    top_face = create_box(center, Vector((cell_w, cell_l, self.tile_height)), 2, return_top=True)
+
+                    # --- Tech Detail Logic ---
+                    # Inset Top Face
+                    if self.inset_amount > 0.001:
+                        # Inset
+                        res = bmesh.ops.inset_individual(bm, faces=[top_face], thickness=self.inset_amount, use_even_offset=True)
+                        faces_inner = res["faces"]
+
+                        # Extrude Inner
+                        if abs(self.inset_depth) > 0.001:
+                            res_ext = bmesh.ops.extrude_face_region(bm, geom=faces_inner)
+                            verts_ext = [v for v in res_ext["geom"] if isinstance(v, bmesh.types.BMVert)]
+                            faces_ext = [f for f in res_ext["geom"] if isinstance(f, bmesh.types.BMFace)]
+
+                            # Move
+                            bmesh.ops.translate(bm, verts=verts_ext, vec=(0, 0, self.inset_depth))
+
+                            # Assign Materials
+                            for f in faces_ext:
+                                f.material_index = 3 # Tile Inset (Sides/Bottom)
+                                # If pointing UP, maybe detail/light?
+                                if f.normal.z > 0.5:
+                                    f.material_index = 4 # Tech Detail / Light
+
+                    # --- Socket: Mount (Top) ---
+                    # Create a tiny quad at center top of tile
+                    # Height: sz + tile_height (top surface)
+                    # Use a small offset to avoid Z-fighting if flush, or just flush if mandated.
+                    # Mandate says "Socket Anchor" material slot.
+                    # Position: cx, cy, sz + tile_height + 0.005
+                    sock_z = sz + self.tile_height
+                    if self.inset_depth > 0: # If extruded up, higher
+                        sock_z += self.inset_depth
+
+                    self.create_socket_face(bm, Vector((cx, cy, sock_z + 0.002)), 0.08, 9, up=True)
+
+        # ----------------------------------------------------------------------
+        # 5. SOCKET: ANCHOR (Bottom)
+        # ----------------------------------------------------------------------
+        # Slot 8, Facing Down (Z-)
+        self.create_socket_face(bm, Vector((0, 0, -0.002)), 0.1, 8, up=False)
+
+        # ----------------------------------------------------------------------
+        # 6. CLEANUP & NORMALS
+        # ----------------------------------------------------------------------
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+        # ----------------------------------------------------------------------
+        # 7. EDGE ROLES & SEAMS
+        # ----------------------------------------------------------------------
+        bm.edges.ensure_lookup_table()
+        for e in bm.edges:
+            # Angle check
+            if not e.is_manifold:
+                continue
+            if len(e.link_faces) < 2:
+                continue
+
+            f1, f2 = e.link_faces[0], e.link_faces[1]
+            angle = f1.normal.dot(f2.normal)
+
+            # Sharp / Seam for > 45 deg (dot < 0.7)
+            if angle < 0.7:
+                e.seam = True
+                e.smooth = False
+                e[edge_slots] = 1 # Perimeter / Hard
+
+            # Material Boundary
+            if f1.material_index != f2.material_index:
+                e.seam = True
+                e[edge_slots] = 2 # Detail
+
+            # Frame edges?
+            if f1.material_index == 0 or f2.material_index == 0:
+                # Mark frame outer edges as perimeter
+                if angle < 0.7:
+                    e[edge_slots] = 1
+
+        # ----------------------------------------------------------------------
+        # 8. UV MAPPING (Manual Box Map)
+        # ----------------------------------------------------------------------
+        self.apply_box_uvs(bm, uv_layer)
+
+    def create_socket_face(self, bm, center, size, mat_idx, up=True):
+        """Creates a detached quad for socket anchoring."""
+        hs = size / 2
+        z = center.z
+
+        # Coords
+        coords = [
+            (center.x - hs, center.y - hs, z),
+            (center.x + hs, center.y - hs, z),
+            (center.x + hs, center.y + hs, z),
+            (center.x - hs, center.y + hs, z),
+        ]
+
+        verts = [bm.verts.new(Vector(c)) for c in coords]
+        f = bm.faces.new(verts)
+        f.material_index = mat_idx
+
+        # If facing down, flip normal (create reversed or flip)
+        # Default creation is CCW (Up).
+        if not up:
+            f.normal_flip()
+
+    def apply_box_uvs(self, bm, uv_layer):
+        scale = self.uv_scale
 
         for f in bm.faces:
             n = f.normal
             nx, ny, nz = abs(n.x), abs(n.y), abs(n.z)
 
-            # Special Strip Map for Edge Banding (Slot 0)
-            if f.material_index == 0:
-                # Standard Box Map Logic for now to ensure clean islands
-                loop_uvs = []
-                if nz > nx and nz > ny:
-                    # Top/Bottom -> XY
-                    for l in f.loops:
-                        loop_uvs.append([l, l.vert.co.x, l.vert.co.y])
-                elif nx > ny and nx > nz:
-                    # Side X -> YZ
-                    for l in f.loops:
-                        loop_uvs.append([l, l.vert.co.y, l.vert.co.z])
-                else:
-                    # Side Y -> XZ
-                    for l in f.loops:
-                        loop_uvs.append([l, l.vert.co.x, l.vert.co.z])
-
-                # Apply Scaled UVs
-                for l, u, v in loop_uvs:
-                    l[uv_layer].uv = (u * s, v * s)
-
+            # Determine projection axis
+            if nz > nx and nz > ny:
+                # Top/Bottom -> XY
+                for l in f.loops:
+                    u = l.vert.co.x
+                    v = l.vert.co.y
+                    l[uv_layer].uv = (u * scale, v * scale)
+            elif nx > ny and nx > nz:
+                # Side X -> YZ
+                for l in f.loops:
+                    u = l.vert.co.y
+                    v = l.vert.co.z
+                    l[uv_layer].uv = (u * scale, v * scale)
             else:
-                # Standard Box Map Logic
-                loop_uvs = []
-                if nz > nx and nz > ny:
-                    # Top/Bottom -> XY
-                    for l in f.loops:
-                        loop_uvs.append([l, l.vert.co.x, l.vert.co.y])
-                elif nx > ny and nx > nz:
-                    # Side X -> YZ
-                    for l in f.loops:
-                        loop_uvs.append([l, l.vert.co.y, l.vert.co.z])
-                else:
-                    # Side Y -> XZ
-                    for l in f.loops:
-                        loop_uvs.append([l, l.vert.co.x, l.vert.co.z])
-
-                # Apply Scaled UVs
-                for l, u, v in loop_uvs:
-                    l[uv_layer].uv = (u * s, v * s)
-
-
-    def create_box_cell(self, bm, center, w, l, h):
-        """
-        Creates a separate box for each grid cell.
-        """
-        hw, hl = w / 2, l / 2
-        coords = [
-            (-hw, -hl, h),
-            (hw, -hl, h),
-            (hw, hl, h),
-            (-hw, hl, h),  # Top Ring (Z=h)
-            (-hw, -hl, 0),
-            (hw, -hl, 0),
-            (hw, hl, 0),
-            (-hw, hl, 0),  # Bottom Ring (Z=0)
-        ]
-        verts = [bm.verts.new(Vector(c) + center) for c in coords]
-
-        # Faces
-        f_top = bm.faces.new([verts[0], verts[1], verts[2], verts[3]])
-        f_top.material_index = 3  # Frame Surface
-
-        f_bot = bm.faces.new([verts[4], verts[7], verts[6], verts[5]])
-        f_bot.material_index = 2  # Backing
-
-        # Sides
-        side_indices = [(0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)]
-        for idxs in side_indices:
-            f = bm.faces.new([verts[i] for i in idxs])
-            f.material_index = 0  # Edge Banding
-
-        return f_top
-
+                # Side Y -> XZ
+                for l in f.loops:
+                    u = l.vert.co.x
+                    v = l.vert.co.z
+                    l[uv_layer].uv = (u * scale, v * scale)
