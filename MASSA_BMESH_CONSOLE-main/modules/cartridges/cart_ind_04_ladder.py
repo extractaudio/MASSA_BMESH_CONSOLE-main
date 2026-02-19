@@ -100,7 +100,8 @@ class MASSA_OT_IndLadder(Massa_OT_Base):
                 # Arc from Rail L to Rail R via -Y.
 
                 # Create Circle
-                res_hoop = bmesh.ops.create_circle(bm, cap_ends=False, radius=self.cage_radius, segments=12)
+                # Create Circle (Redundant)
+                # res_hoop = bmesh.ops.create_circle(bm, cap_ends=False, radius=self.cage_radius, segments=12) # REMOVED
                 # Rotate 90 X? Circle is XY. Correct.
                 # Cut circle to be an arc?
                 # Let's keep full circle for now or simplify.
@@ -145,12 +146,13 @@ class MASSA_OT_IndLadder(Massa_OT_Base):
                     vs.append(v)
 
                 # Connect
+                edges_hoop = []
                 for k in range(len(vs)-1):
                     e = bm.edges.new((vs[k], vs[k+1]))
-                    # Make thick?
+                    edges_hoop.append(e)
 
                 # Extrude edges to make strip
-                res_ext = bmesh.ops.extrude_edge_only(bm, edges=[e for v in vs for e in v.link_edges])
+                res_ext = bmesh.ops.extrude_edge_only(bm, edges=edges_hoop)
                 # Translate up slightly to give thickness
                 verts_up = [e for e in res_ext['geom'] if isinstance(e, bmesh.types.BMVert)]
                 bmesh.ops.translate(bm, vec=Vector((0, 0, 0.05)), verts=verts_up)

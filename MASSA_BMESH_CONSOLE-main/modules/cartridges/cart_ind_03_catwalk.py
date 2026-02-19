@@ -64,7 +64,7 @@ class MASSA_OT_IndCatwalk(Massa_OT_Base):
         # Let's say length/width define outer bounds.
         # Inset main face to create frame border.
 
-        ret = bmesh.ops.inset_region(bm, faces=[f_main], thickness=ft)
+        ret = bmesh.ops.inset_region(bm, faces=[f_main], use_boundary=False, use_even_offset=True, thickness=ft)
         # The center face (newly created or original modified) is now smaller.
         # The rim faces are the frame top.
 
@@ -113,9 +113,12 @@ class MASSA_OT_IndCatwalk(Massa_OT_Base):
                     # Check if on outer perimeter
                     # X approx +/- l/2 or Y approx +/- w/2
                     is_outer = False
-                    for v in e.verts:
-                        if abs(abs(v.co.x) - l/2) < 0.01 or abs(abs(v.co.y) - w/2) < 0.01:
-                            is_outer = True
+                    v0 = e.verts[0]
+                    v1 = e.verts[1]
+                    # Check if both vertices rest on the outer X bounds OR outer Y bounds
+                    if (abs(abs(v0.co.x) - l/2) < 0.01 and abs(abs(v1.co.x) - l/2) < 0.01) or \
+                       (abs(abs(v0.co.y) - w/2) < 0.01 and abs(abs(v1.co.y) - w/2) < 0.01):
+                        is_outer = True
                     if is_outer:
                         toe_edges.append(e)
 
@@ -156,7 +159,7 @@ class MASSA_OT_IndCatwalk(Massa_OT_Base):
                     else:
                         l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.y * scale)
 
-    def draw_shape_ui(self, layout):
+    def draw_cartridge_ui(self, layout):
         col = layout.column(align=True)
         col.prop(self, "length")
         col.prop(self, "width")

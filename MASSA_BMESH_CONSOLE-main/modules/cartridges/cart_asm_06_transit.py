@@ -202,11 +202,10 @@ class MASSA_OT_AsmTransit(Massa_OT_Base):
         bmesh.ops.translate(bm, vec=(ad_x, ad_y, h/2), verts=ad_verts)
 
         # Assign Slot 1 (Frame)
-        ad_faces = []
-        for v in ad_verts:
-            for f in v.link_faces:
-                f.material_index = 1
-                ad_faces.append(f)
+        # Assign Slot 1 (Frame)
+        ad_faces = ret['faces']
+        for f in ad_faces:
+            f.material_index = 1
 
         # Inset faces for Ad (Front and Back)
         # Identify faces pointing +/- X (Wait, board is at right side, facing +/- X is the thin side. Facing +/- Y is the main face)

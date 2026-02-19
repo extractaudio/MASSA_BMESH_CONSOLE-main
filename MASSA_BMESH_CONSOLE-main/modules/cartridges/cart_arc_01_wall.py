@@ -57,15 +57,21 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         segs_x = 8
         segs_z = 6
 
-        # Create Grid
+        # Create Grid (Size=0.5 = 1x1 unit total size)
         bmesh.ops.create_grid(bm, x_segments=segs_x, y_segments=segs_z, size=0.5)
 
-        # Scale to dimensions
-        bmesh.ops.scale(bm, vec=Vector((self.wall_length, self.wall_height, 1)), verts=bm.verts)
-        # Move to verify origin (Grid is centered)
-        bmesh.ops.translate(bm, vec=Vector((self.wall_length/2, 0, self.wall_height/2)), verts=bm.verts)
-        # Rotate to upright (Grid is on XY, need XZ)
+        # Rotate to upright (Make Vertical)
+        # Rotates Y->Z (XY plane to XZ plane)
         bmesh.ops.rotate(bm, cent=Vector((0,0,0)), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=bm.verts)
+
+        # Scale to dimensions (X=Length, Z=Height, Y=1)
+        # Grid is now on XZ plane.
+        bmesh.ops.scale(bm, vec=Vector((self.wall_length, 1.0, self.wall_height)), verts=bm.verts)
+
+        # Translate to Positive Octant
+        # Currently Centered at (0,0,0). Extents: X[-L/2, L/2], Z[-H/2, H/2].
+        # Target: X[0, L], Z[0, H].
+        bmesh.ops.translate(bm, vec=Vector((self.wall_length/2, 0, self.wall_height/2)), verts=bm.verts)
 
         # 3. Cut Holes (Delete Faces)
         if self.hole_enable:
@@ -75,7 +81,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
             hole_min_z = self.hole_z - self.hole_height/2
             hole_max_z = self.hole_z + self.hole_height/2
 
-            # Find faces inside bounds
+            bm.faces.ensure_lookup_table()
             for f in bm.faces:
                 c = f.calc_center_median()
                 if (hole_min_x <= c.x <= hole_max_x) and (hole_min_z <= c.z <= hole_max_z):
@@ -86,18 +92,20 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         # 4. Extrude Thickness
         # Extrude all faces along Y
         ret = bmesh.ops.extrude_face_region(bm, geom=bm.faces)
-        extruded_geom = ret['geom']
-
-        # Filter for vertices to move
-        verts_to_move = [e for e in extruded_geom if isinstance(e, bmesh.types.BMVert)]
+        verts_to_move = [e for e in ret['geom'] if isinstance(e, bmesh.types.BMVert)]
+        
+        # Translate extruded verts by +Thickness in Y
         bmesh.ops.translate(bm, vec=Vector((0, self.wall_thick, 0)), verts=verts_to_move)
+
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         # 5. Baseboard Logic
         if self.baseboard_height > 0:
             # Bisect at baseboard height
-            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:]+bm.verts[:], plane_co=Vector((0,0,self.baseboard_height)), plane_no=Vector((0,0,1)))
+            res = bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:]+bm.verts[:], plane_co=Vector((0,0,self.baseboard_height)), plane_no=Vector((0,0,1)))
 
             # Assign material to faces below height
+            bm.faces.ensure_lookup_table()
             for f in bm.faces:
                 if f.calc_center_median().z < self.baseboard_height:
                     f.material_index = 2 # Trim (Slot 2)
@@ -122,6 +130,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         scale_u = getattr(self, "uv_scale_0", 1.0)
         scale_v = scale_u
 
+        bm.faces.ensure_lookup_table()
         for f in bm.faces:
             mat_idx = f.material_index
             if mat_idx == 9: continue
@@ -138,20 +147,22 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                     l[uv_layer].uv = (v_co.x * scale_u, v_co.y * scale_v)
 
     def draw_shape_ui(self, layout):
-        col = layout.column(align=True)
+        box_dim = layout.box()
+        col = box_dim.column(align=True)
         col.prop(self, "wall_length")
         col.prop(self, "wall_height")
         col.prop(self, "wall_thick")
 
-        layout.separator()
-        col = layout.column(align=True)
-        col.prop(self, "hole_enable")
+        box_hole = layout.box()
+        col = box_hole.column(align=True)
+        col.prop(self, "hole_enable", toggle=True, icon='MOD_BOOLEAN')
         if self.hole_enable:
             col.prop(self, "hole_x")
             col.prop(self, "hole_z")
             col.prop(self, "hole_width")
             col.prop(self, "hole_height")
 
-        layout.separator()
-        col = layout.column(align=True)
+        box_trim = layout.box()
+        col = box_trim.column(align=True)
         col.prop(self, "baseboard_height")
+        col.prop(self, "baseboard_depth")

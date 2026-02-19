@@ -22,7 +22,7 @@ CARTRIDGE_META = {
 
 
 class MASSA_OT_AsmLoadingDock(Massa_OT_Base):
-    bl_idname = "massa.gen_asm_14_loading_dock",
+    bl_idname = "massa.gen_asm_14_loading_dock"
     bl_label = "ASM_14 Loading Dock"
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
