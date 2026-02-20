@@ -139,7 +139,9 @@ class MASSA_OT_AsmCloister(Massa_OT_Base):
             # Create edges from prev_verts
             edges_cross = []
             for i in range(len(prev_verts)-1):
-                e = bm.edges.new((prev_verts[i], prev_verts[i+1]))
+                e = bm.edges.get((prev_verts[i], prev_verts[i+1]))
+                if not e:
+                    e = bm.edges.new((prev_verts[i], prev_verts[i+1]))
                 edges_cross.append(e)
                 e[edge_slots] = 2 # Rib (Cross edge)
 
@@ -204,7 +206,7 @@ class MASSA_OT_AsmCloister(Massa_OT_Base):
 
         # Start Socket (Input) - Facing -Y
         res_s1 = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.2)
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_s1['verts'])
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_s1['verts'])
         bmesh.ops.translate(bm, vec=(0, 0, 0), verts=res_s1['verts']) # At origin
         for f in res_s1['faces']:
             f.material_index = 9
@@ -212,7 +214,7 @@ class MASSA_OT_AsmCloister(Massa_OT_Base):
 
         # End Socket (Output) - Facing +Y
         res_s2 = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.2)
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_s2['verts'])
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_s2['verts'])
         bmesh.ops.translate(bm, vec=(0, l, 0), verts=res_s2['verts']) # At end
         for f in res_s2['faces']:
             f.material_index = 9

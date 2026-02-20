@@ -36,6 +36,10 @@ class MASSA_OT_IndLadder(Massa_OT_Base):
     cage_radius: FloatProperty(name="Cage Radius", default=0.4, min=0.1)
     cage_strips: IntProperty(name="Cage Strips", default=5, min=3)
 
+    # === REDO-PANEL SAFE UI ELEMENTS ===
+    massa_hide_ui: bpy.props.BoolProperty(name="Hide UI (Redo Trap)", default=False)
+    massa_scene_proxy: bpy.props.StringProperty(name="Scene Proxy", default="null")
+
     def get_slot_meta(self):
         return {
             0: {"name": "Metal", "uv": "BOX", "phys": "METAL_STEEL"},
@@ -73,9 +77,9 @@ class MASSA_OT_IndLadder(Massa_OT_Base):
             # Using create_cube for low poly industrial look? Or cylinder.
             # Cylinder is better.
             res_rung = bmesh.ops.create_cube(bm, size=1.0) # Simple box rung
-            # Scale: (w, rr, rr)
+            # Scale: (w - rt, rr, rr) so the rung fits perfectly between the inner edges of the rails
             rr = self.rung_radius * 2 # diameter
-            bmesh.ops.scale(bm, vec=Vector((w, rr, rr)), verts=res_rung['verts'])
+            bmesh.ops.scale(bm, vec=Vector((w - rt, rr, rr)), verts=res_rung['verts'])
             bmesh.ops.translate(bm, vec=Vector((0, 0, z)), verts=res_rung['verts'])
 
         # 4. Safety Cage
@@ -190,12 +194,22 @@ class MASSA_OT_IndLadder(Massa_OT_Base):
                 l[uv_layer].uv = (u * scale, v * scale)
 
     def draw_shape_ui(self, layout):
-        col = layout.column(align=True)
+        if self.massa_hide_ui:
+            layout.label(text="UI Hidden (Redo Trap)", icon='ERROR')
+            layout.prop(self, "massa_hide_ui", toggle=True, text="Show UI", icon='RESTRICT_VIEW_OFF')
+            return
+
+        box = layout.box()
+        row = box.row()
+        row.prop(self, "massa_hide_ui", text="Lock UI", icon='LOCKED')
+        row.label(text="Ladder Configuration")
+
+        col = box.column(align=True)
         col.prop(self, "height")
         col.prop(self, "width")
         col.prop(self, "rail_thick")
         col.prop(self, "rung_spacing")
-        layout.separator()
+        col.separator()
         col.prop(self, "has_cage")
         if self.has_cage:
             col.prop(self, "cage_start_height")

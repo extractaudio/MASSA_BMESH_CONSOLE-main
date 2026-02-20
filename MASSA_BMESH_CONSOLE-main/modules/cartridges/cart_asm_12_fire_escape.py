@@ -201,7 +201,7 @@ class MASSA_OT_AsmFireEscape(Massa_OT_Base):
         # At (l/2, 0, 0) facing -Y (into wall)
         # Create a small face
         res_sock1 = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.2)
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_sock1['verts']) # Face -Y
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_sock1['verts']) # Face -Y
         bmesh.ops.translate(bm, vec=(l/2, 0, 0), verts=res_sock1['verts'])
         for f in res_sock1['faces']:
             f.material_index = 9
@@ -252,7 +252,7 @@ class MASSA_OT_AsmFireEscape(Massa_OT_Base):
         # Perfect chain.
 
         res_sock2 = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.2)
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_sock2['verts'])
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_sock2['verts'])
         bmesh.ops.translate(bm, vec=(l + l/2, 0, -h), verts=res_sock2['verts'])
         for f in res_sock2['faces']:
             f.material_index = 9

@@ -88,13 +88,13 @@ class MASSA_OT_AsmRoboticArm(Massa_OT_Base):
         # Usually robotic arms accumulate transforms.
 
         # Matrices
-        mat_base_rot = Matrix.Rotation(y_rot, 4, 'Z')
-        mat_j1 = Matrix.Rotation(j1_rot, 4, 'Y') # Pitch around local Y? Let's say Y is axis of rotation.
-        mat_j2 = Matrix.Rotation(j2_rot, 4, 'Y')
+        mat_base_rot = Matrix.Rotation(y_rot, 3, 'Z')
+        mat_j1 = Matrix.Rotation(j1_rot, 3, 'Y') # Pitch around local Y? Let's say Y is axis of rotation.
+        mat_j2 = Matrix.Rotation(j2_rot, 3, 'Y')
 
         # 1. BASE
         # Cylinder at origin
-        res_base = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, diameter1=br*2, diameter2=br*1.8, depth=bh)
+        res_base = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, radius1=br, radius2=br*0.9, depth=bh)
         bmesh.ops.translate(bm, vec=(0, 0, bh/2), verts=res_base['verts'])
         for f in res_base['faces']:
             f.material_index = 0
@@ -103,14 +103,14 @@ class MASSA_OT_AsmRoboticArm(Massa_OT_Base):
         # 2. TURRET (Rotates with Base)
         # Sits on top of base.
         turret_h = bh * 0.5
-        res_turret = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, diameter1=br*1.5, diameter2=br*1.5, depth=turret_h)
+        res_turret = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, radius1=br*0.75, radius2=br*0.75, depth=turret_h)
         bmesh.ops.translate(bm, vec=(0, 0, bh + turret_h/2), verts=res_turret['verts'])
 
         # Add Shoulder Joint Hub (Cylinder sideways)
         # Axis along Y (local to turret).
         # Center at (0, 0, bh + turret_h/2).
-        res_shoulder = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, diameter1=at*1.5, diameter2=at*1.5, depth=br*1.8)
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_shoulder['verts']) # Cylinder is Z up -> Rotate X 90 -> Y axis.
+        res_shoulder = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, radius1=at*0.75, radius2=at*0.75, depth=br*1.8)
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_shoulder['verts']) # Cylinder is Z up -> Rotate X 90 -> Y axis.
         bmesh.ops.translate(bm, vec=(0, 0, bh + turret_h/2), verts=res_shoulder['verts'])
 
         turret_geom = res_turret['verts'] + res_shoulder['verts']
@@ -138,8 +138,8 @@ class MASSA_OT_AsmRoboticArm(Massa_OT_Base):
         bmesh.ops.translate(bm, vec=(0, 0, bl/2), verts=res_bicep['verts'])
 
         # Add Elbow Joint at top (0, 0, bl)
-        res_elbow = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, diameter1=at*1.2, diameter2=at*1.2, depth=at*1.5)
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_elbow['verts'])
+        res_elbow = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=12, radius1=at*0.6, radius2=at*0.6, depth=at*1.5)
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_elbow['verts'])
         bmesh.ops.translate(bm, vec=(0, 0, bl), verts=res_elbow['verts'])
 
         bicep_geom = res_bicep['verts'] + res_elbow['verts']
@@ -182,7 +182,7 @@ class MASSA_OT_AsmRoboticArm(Massa_OT_Base):
 
         # Add Wrist/End Effector Socket
         # At tip (0, 0, fl)
-        res_wrist = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, diameter1=at, diameter2=at*0.8, depth=0.2)
+        res_wrist = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, radius1=at/2, radius2=at*0.4, depth=0.2)
         bmesh.ops.translate(bm, vec=(0, 0, fl), verts=res_wrist['verts'])
 
         # Add Socket Plane

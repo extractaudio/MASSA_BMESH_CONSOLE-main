@@ -87,7 +87,7 @@ class MASSA_OT_AsmRadarArray(Massa_OT_Base):
         # Center hub.
 
         # Hub cylinder
-        res_hub = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, diameter1=0.6, diameter2=0.6, depth=bh)
+        res_hub = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, radius1=0.3, radius2=0.3, depth=bh)
         bmesh.ops.translate(bm, vec=(0, 0, bh/2), verts=res_hub['verts'])
 
         # Assign base material
@@ -114,7 +114,7 @@ class MASSA_OT_AsmRadarArray(Massa_OT_Base):
 
             # Rotation to align Z to vec
             rot_quat = vec.to_track_quat('Z', 'Y')
-            rot_mat = rot_quat.to_matrix().to_4x4()
+            rot_mat = rot_quat.to_matrix().to_3x3()
 
             res_leg = bmesh.ops.create_cube(bm, size=1.0)
             bmesh.ops.scale(bm, vec=(0.2, 0.2, length), verts=res_leg['verts'])
@@ -146,7 +146,7 @@ class MASSA_OT_AsmRadarArray(Massa_OT_Base):
             yoke_geom.extend(res_arm['verts'])
 
         # Rotate Yoke by Yaw
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=mat_yaw, verts=yoke_geom)
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=mat_yaw.to_3x3(), verts=yoke_geom)
 
         for f in list({f for v in yoke_geom for f in v.link_faces}):
             f.material_index = 2
@@ -220,7 +220,7 @@ class MASSA_OT_AsmRadarArray(Massa_OT_Base):
 
         # Add Horn
         # Cylinder at center, pointing up Z (local).
-        res_horn = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, diameter1=0.2, diameter2=0.1, depth=hl)
+        res_horn = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, radius1=0.1, radius2=0.05, depth=hl)
         bmesh.ops.translate(bm, vec=(0, 0, hl/2), verts=res_horn['verts'])
         horn_verts = res_horn['verts']
         for f in res_horn['faces']:
@@ -241,7 +241,7 @@ class MASSA_OT_AsmRadarArray(Massa_OT_Base):
             length = vec.length
 
             rot_quat = vec.to_track_quat('Z', 'Y')
-            rot_mat_strut = rot_quat.to_matrix().to_4x4()
+            rot_mat_strut = rot_quat.to_matrix().to_3x3()
 
             res_strut = bmesh.ops.create_cube(bm, size=1.0)
             bmesh.ops.scale(bm, vec=(st, st, length), verts=res_strut['verts'])

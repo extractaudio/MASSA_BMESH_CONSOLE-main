@@ -203,7 +203,7 @@ class MASSA_OT_AsmQuantumServer(Massa_OT_Base):
                             res_led = bmesh.ops.create_grid(bm, x_segments=4, y_segments=1, size=1.0)
                             bmesh.ops.scale(bm, vec=(led_w, 1.0, led_h), verts=res_led['verts'])
                             # Rotate to face -Y (Standard grid is Z up)
-                            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_led['verts'])
+                            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_led['verts'])
                             # Move to front of blade
                             bmesh.ops.translate(bm, vec=(0, -d/2 + inset_depth - 0.01, z_pos), verts=res_led['verts'])
 
@@ -236,7 +236,7 @@ class MASSA_OT_AsmQuantumServer(Massa_OT_Base):
                 # Create socket placeholder
                 res_sock = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.1)
                 # Rotate to face +Y (Standard grid is Z up). Rot 90 X -> -Y. Rot -90 X -> +Y.
-                bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-90), 4, 'X'), verts=res_sock['verts'])
+                bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-90), 3, 'X'), verts=res_sock['verts'])
 
                 # Position on back face
                 bmesh.ops.translate(bm, vec=(px, d/2 + 0.02, pz), verts=res_sock['verts'])

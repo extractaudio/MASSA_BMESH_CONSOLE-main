@@ -80,7 +80,7 @@ class MASSA_OT_AsmCheckpoint(Massa_OT_Base):
             # Or keep as glass?
             # "Inset all 4 walls and delete the centers to create a wraparound window frame."
             # Mandate says delete.
-            bmesh.ops.delete(bm, geom=res['faces'], context='FACES_ONLY')
+            bmesh.ops.delete(bm, geom=res['faces'], context='FACES')
 
             # Bridge the gaps? Or leave as frame?
             # If we delete faces only, we leave edges.
@@ -119,8 +119,8 @@ class MASSA_OT_AsmCheckpoint(Massa_OT_Base):
             cap_ends=True,
             cap_tris=False,
             segments=16,
-            diameter1=boom_rad*2,
-            diameter2=boom_rad*2,
+            radius1=boom_rad,
+            radius2=boom_rad,
             depth=boom_len
         )
         b_verts = ret['verts']
@@ -136,7 +136,7 @@ class MASSA_OT_AsmCheckpoint(Massa_OT_Base):
 
         # Apply Open State Rotation
         angle = self.open_state * math.radians(90)
-        rot_mat = Matrix.Rotation(angle, 4, 'Y') # Rotate up around Y axis (if boom is along X)
+        rot_mat = Matrix.Rotation(angle, 3, 'Y') # Rotate up around Y axis (if boom is along X)
 
         bmesh.ops.rotate(bm, verts=b_verts, cent=pivot, matrix=rot_mat)
 

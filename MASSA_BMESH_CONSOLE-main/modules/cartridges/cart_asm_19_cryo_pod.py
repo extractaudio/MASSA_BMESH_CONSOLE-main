@@ -107,7 +107,7 @@ class MASSA_OT_AsmCryoPod(Massa_OT_Base):
         # Rotate around X axis. Positive X rotation lifts +Y? No, Right Hand Rule: Thumb X, Curl Y->Z.
         # So Positive X lifts +Y up? No, Y becomes Z. Yes.
 
-        rot_mat = Matrix.Rotation(math.radians(slant), 4, 'X')
+        rot_mat = Matrix.Rotation(math.radians(slant), 3, 'X')
 
         # Pivot at feet (-Y end)?
         # Feet at y = -l/2.
@@ -253,7 +253,7 @@ class MASSA_OT_AsmCryoPod(Massa_OT_Base):
         rot_quat = vec.to_track_quat('Z', 'Y')
         res_arm = bmesh.ops.create_cube(bm, size=1.0)
         bmesh.ops.scale(bm, vec=(0.05, 0.05, dist), verts=res_arm['verts'])
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=rot_quat.to_matrix().to_4x4(), verts=res_arm['verts'])
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=rot_quat.to_matrix().to_3x3(), verts=res_arm['verts'])
         bmesh.ops.translate(bm, vec=mid, verts=res_arm['verts'])
         for f in res_arm['faces']:
             f.material_index = 2 # Mechanical
@@ -266,9 +266,9 @@ class MASSA_OT_AsmCryoPod(Massa_OT_Base):
         # Grid Normal is Z.
         # Rot 90 Y -> Normal X.
         # We want to face Bed (Left).
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-90), 4, 'Y'), verts=res_screen['verts'])
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-90), 3, 'Y'), verts=res_screen['verts'])
         # Tilt up slightly
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-20), 4, 'X'), verts=res_screen['verts'])
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-20), 3, 'X'), verts=res_screen['verts'])
 
         bmesh.ops.translate(bm, vec=screen_pos, verts=res_screen['verts'])
 
@@ -327,8 +327,8 @@ class MASSA_OT_AsmCryoPod(Massa_OT_Base):
                     rot_quat = vec.to_track_quat('Z', 'Y')
                     mid = (seg_start + seg_end) / 2
 
-                    res_tube = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, diameter1=tube_r*2, diameter2=tube_r*2, depth=dist)
-                    bmesh.ops.rotate(bm, cent=(0,0,0), matrix=rot_quat.to_matrix().to_4x4(), verts=res_tube['verts'])
+                    res_tube = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=8, radius1=tube_r, radius2=tube_r, depth=dist)
+                    bmesh.ops.rotate(bm, cent=(0,0,0), matrix=rot_quat.to_matrix().to_3x3(), verts=res_tube['verts'])
                     bmesh.ops.translate(bm, vec=mid, verts=res_tube['verts'])
 
                     for f in res_tube['faces']:
