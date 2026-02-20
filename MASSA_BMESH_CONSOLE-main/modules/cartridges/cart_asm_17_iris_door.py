@@ -88,10 +88,10 @@ class MASSA_OT_AsmIrisDoor(Massa_OT_Base):
         frame_segs = 8
 
         # Outer ring
-        res_out = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=frame_segs, diameter1=(r+fw)*2, diameter2=(r+fw)*2, depth=d)
+        res_out = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=frame_segs, radius1=r+fw, radius2=r+fw, depth=d)
         verts_out = res_out['verts']
         # Inner ring (hole)
-        res_in = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=frame_segs, diameter1=r*2, diameter2=r*2, depth=d+0.1) # Slightly longer for boolean
+        res_in = bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=frame_segs, radius1=r, radius2=r, depth=d+0.1) # Slightly longer for boolean
         verts_in = res_in['verts']
 
         # Boolean difference is expensive/unstable in bmesh usually.
@@ -222,7 +222,7 @@ class MASSA_OT_AsmIrisDoor(Massa_OT_Base):
             bm_verts = []
 
             # Rotation matrix for this segment
-            rot_mat = Matrix.Rotation(angle_center, 4, 'Z')
+            rot_mat = Matrix.Rotation(angle_center, 3, 'Z')
 
             for v_local in local_verts:
                 # Apply rotation
@@ -265,7 +265,7 @@ class MASSA_OT_AsmIrisDoor(Massa_OT_Base):
 
         # 3. ROTATE UPRIGHT
         # Rotate 90 degrees around X to make it a vertical door/hatch.
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=bm.verts)
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=bm.verts)
 
         # Position so bottom of frame is at Z=0?
         # Current center is at (0,0,0).

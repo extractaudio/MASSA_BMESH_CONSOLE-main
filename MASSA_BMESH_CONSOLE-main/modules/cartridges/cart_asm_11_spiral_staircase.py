@@ -105,8 +105,8 @@ class MASSA_OT_AsmSpiralStaircase(Massa_OT_Base):
         res_post = bmesh.ops.create_cone(
             bm,
             cap_ends=True,
-            diameter1=post_r * 2,
-            diameter2=post_r * 2,
+            radius1=post_r,
+            radius2=post_r,
             depth=h,
             segments=16,
         )
@@ -149,7 +149,7 @@ class MASSA_OT_AsmSpiralStaircase(Massa_OT_Base):
             bmesh.ops.translate(bm, vec=(post_r + step_len/2, 0, self.tread_thick/2), verts=verts_step)
 
             # Rotate around Z
-            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(theta, 4, 'Z'), verts=verts_step)
+            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(theta, 3, 'Z'), verts=verts_step)
 
             # Move up
             bmesh.ops.translate(bm, vec=(0,0,z), verts=verts_step)
@@ -201,8 +201,8 @@ class MASSA_OT_AsmSpiralStaircase(Massa_OT_Base):
                 res_p = bmesh.ops.create_cone(
                     bm,
                     cap_ends=True,
-                    diameter1=self.rail_radius * 2,
-                    diameter2=self.rail_radius * 2,
+                    radius1=self.rail_radius,
+                    radius2=self.rail_radius,
                     depth=h_post,
                     matrix=mat_p,
                     segments=12
@@ -250,7 +250,7 @@ class MASSA_OT_AsmSpiralStaircase(Massa_OT_Base):
             faces_side = [f for f in res_ex['geom'] if isinstance(f, bmesh.types.BMFace)]
 
             bmesh.ops.translate(bm, vec=(0,0,d_z), verts=verts_new)
-            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(d_theta, 4, 'Z'), verts=verts_new)
+            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(d_theta, 3, 'Z'), verts=verts_new)
 
             # UV Mapping
             if uv_layer and faces_side:

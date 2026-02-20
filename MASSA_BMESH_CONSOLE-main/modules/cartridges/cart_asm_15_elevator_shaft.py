@@ -170,7 +170,7 @@ class MASSA_OT_AsmElevatorShaft(Massa_OT_Base):
             res_s = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.2)
             # Facing -Y (Out of shaft front)
             # Plane normal Z. Rot 90 X -> -Y.
-            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 4, 'X'), verts=res_s['verts'])
+            bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=res_s['verts'])
             bmesh.ops.translate(bm, vec=(0, 0, z), verts=res_s['verts'])
 
             for f in res_s['faces']:

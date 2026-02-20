@@ -226,7 +226,7 @@ class MASSA_OT_AsmLoadingDock(Massa_OT_Base):
         res_s = bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.2)
         # Rotate to face +Y
         # Plane normal +Z. Rot -90 X -> +Y.
-        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-90), 4, 'X'), verts=res_s['verts'])
+        bmesh.ops.rotate(bm, cent=(0,0,0), matrix=Matrix.Rotation(math.radians(-90), 3, 'X'), verts=res_s['verts'])
         bmesh.ops.translate(bm, vec=(0, 0.5, 0), verts=res_s['verts']) # Slightly in front? Or at 0.
         # If bumpers are at Y=0 to Y=bt. Truck backs to Y=bt.
         # So socket should be at Y=bt (bumper face)?
