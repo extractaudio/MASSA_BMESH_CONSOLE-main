@@ -12,7 +12,7 @@ CARTRIDGE_META = {
     "icon": "MOD_BUILD",
     "scale_class": "STANDARD",
     "flags": {
-        "ALLOW_SOLIDIFY": False,
+        "ALLOW_SOLIDIFY": False, # Volumetric
         "USE_WELD": True,
         "ALLOW_CHAMFER": True,
         "LOCK_PIVOT": True,
@@ -42,163 +42,138 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Wall Plaster", "uv": "SKIP", "phys": "CONCRETE"},
+            0: {"name": "Wall Plaster", "uv": "BOX", "phys": "CONCRETE"},
             2: {"name": "Trim", "uv": "BOX", "phys": "WOOD"},  # Baseboard
             9: {"name": "Socket Anchor", "sock": True}
         }
 
     def build_shape(self, bm):
-        # Ensure Layers exist
-        uv_layer = bm.loops.layers.uv.verify()
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-
         builder = MassaBuilder(bm)
 
-        # 1. Create Base Wall (Front Face)
-        # We start with a grid on XY, rotate to XZ
-        # Wall is created at origin, then moved.
+        l = self.wall_length
+        h = self.wall_height
+        t = self.wall_thick
 
-        # Grid Resolution based on size (approx 0.5m per segment)
-        segs_x = max(2, int(self.wall_length / 0.5))
-        segs_z = max(2, int(self.wall_height / 0.5))
+        # Determine segments (Wall Panels)
+        rects = []
 
-        builder.create_grid(x_segments=segs_x, y_segments=segs_z, size=1.0) \
-               .rotate(90, axis='X') \
-               .scale(self.wall_length, 1.0, self.wall_height) \
-               .translate(self.wall_length/2, 0, self.wall_height/2)
-
-        # 2. Cut Hole (Manual BMesh Op)
         if self.hole_enable:
-            faces_to_delete = []
-            hole_min_x = self.hole_x - self.hole_width/2
-            hole_max_x = self.hole_x + self.hole_width/2
-            hole_min_z = self.hole_z - self.hole_height/2
-            hole_max_z = self.hole_z + self.hole_height/2
+            hx = self.hole_x
+            hz = self.hole_z
+            hw = self.hole_width
+            hh = self.hole_height
 
-            # Use builder's active faces if set, else all
-            # create_grid sets active_verts, active_faces might be empty?
-            # MassaBuilder.create_grid does not explicitly set active_faces, only active_verts.
-            # So we iterate bm.faces
-            bm.faces.ensure_lookup_table()
-            for f in bm.faces:
-                c = f.calc_center_median()
-                if (hole_min_x <= c.x <= hole_max_x) and (hole_min_z <= c.z <= hole_max_z):
-                    faces_to_delete.append(f)
+            x1 = hx - hw/2
+            x2 = hx + hw/2
+            z1 = hz - hh/2
+            z2 = hz + hh/2
 
-            if faces_to_delete:
-                bmesh.ops.delete(bm, geom=faces_to_delete, context='FACES')
-                builder._update() # Refresh lookup
+            # Clamp hole
+            if x1 < 0: x1 = 0
+            if x2 > l: x2 = l
+            if z1 < 0: z1 = 0
+            if z2 > h: z2 = h
 
-        # 3. Extrude Thickness
-        # Select all faces (Front face remains)
-        builder.select_all_faces() \
-               .extrude(self.wall_thick, axis=Vector((0, 1, 0))) \
-               .clean() # Remove doubles/recalc normals
+            # Left Panel
+            if x1 > 0.001:
+                rects.append({'x': 0, 'w': x1, 'z': 0, 'h': h})
 
-        # 4. Baseboard
-        if self.baseboard_height > 0:
-            # Bisect Plane
-            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:]+bm.verts[:],
-                                   plane_co=Vector((0,0,self.baseboard_height)),
-                                   plane_no=Vector((0,0,1)))
-            builder._update()
+            # Right Panel
+            if x2 < l - 0.001:
+                rects.append({'x': x2, 'w': l - x2, 'z': 0, 'h': h})
 
-            # Select Bottom Faces (Front and Back? Or just Front?)
-            # Usually baseboard is on both sides or just interior.
-            # Let's assume both sides (Front Y=0, Back Y=Thick)
-            # We select faces below height AND facing Y or -Y (vertical walls)
+            # Bottom Panel (under hole)
+            if z1 > 0.001 and (x2 - x1) > 0.001:
+                rects.append({'x': x1, 'w': x2-x1, 'z': 0, 'h': z1})
 
-            # Helper: select faces by height < limit
-            builder.select_faces_by_height(min_z=-0.1, max_z=self.baseboard_height - 0.001)
+            # Top Panel (above hole)
+            if z2 < h - 0.001 and (x2 - x1) > 0.001:
+                rects.append({'x': x1, 'w': x2-x1, 'z': z2, 'h': h - z2})
 
-            # Filter for vertical faces only (normal Z near 0)
-            vertical_faces = [f for f in builder.active_faces if abs(f.normal.z) < 0.1]
-            builder.active_faces = vertical_faces
+        else:
+            rects.append({'x': 0, 'w': l, 'z': 0, 'h': h})
 
-            # Tag Material
-            builder.tag_slot(2)
+        # Build Wall Segments
+        uv_s0 = getattr(self, "uv_scale_0", 1.0)
 
-            # Extrude Baseboard Depth?
-            if self.baseboard_depth > 0.001:
-                # We want to extrude OUTWARD (along normal)
-                # MassaBuilder.extrude(distance, axis=None) extrudes along normal ("Region Extrude")
-                # But region extrude on multiple disconnected faces (Front/Back) works fine.
-                builder.extrude(self.baseboard_depth)
+        for r in rects:
+            if r['w'] <= 0.001 or r['h'] <= 0.001: continue
 
-                # Tag side faces of extrusion?
-                # Extrude operation updates active_faces to new faces (fronts).
-                # Side faces are usually created but not selected?
-                # MassaBuilder.extrude: self.active_faces = extruded_faces
+            cx = r['x'] + r['w']/2
+            cz = r['z'] + r['h']/2
+            cy = t/2
 
-                # Tag all selected (new fronts) as 2
-                builder.tag_slot(2)
+            builder.create_box(r['w'], t, r['h']) \
+                   .translate(cx, cy, cz) \
+                   .tag_slot(0) \
+                   .tag_uvs(uv_s0, 'BOX')
 
-        # 5. Edge Roles
-        # Mark perimeter edges as 1
-        # Edges on sharp angles > 80 deg
-        for e in bm.edges:
-            if e.is_boundary:
-                e[edge_slots] = 1
+        # Build Baseboards
+        bh = self.baseboard_height
+        bd = self.baseboard_depth
+
+        if bh > 0.001:
+            bb_rects = []
+
+            # Check hole overlap
+            hole_cuts = False
+            if self.hole_enable:
+                hz = self.hole_z
+                hh = self.hole_height
+                z1 = hz - hh/2
+                if z1 < bh:
+                    # Hole cuts baseboard
+                    hx = self.hole_x
+                    hw = self.hole_width
+                    x1 = hx - hw/2
+                    x2 = hx + hw/2
+
+                    if x1 > 0.001:
+                        bb_rects.append({'x': 0, 'w': x1})
+                    if x2 < l - 0.001:
+                        bb_rects.append({'x': x2, 'w': l - x2})
+                else:
+                    # Hole is above baseboard
+                    bb_rects.append({'x': 0, 'w': l})
             else:
-                try:
-                    angle = e.calc_face_angle()
-                except ValueError:
-                    angle = 0.0 # Wire edges
+                bb_rects.append({'x': 0, 'w': l})
 
-                if angle > math.radians(80):
-                    e[edge_slots] = 2
+            uv_s2 = getattr(self, "uv_scale_2", 1.0)
 
-        # 6. Sockets (Geometric Method)
-        if self.hole_enable:
-            # Create a small quad in the center of the hole
-            c = Vector((self.hole_x, self.wall_thick/2, self.hole_z))
-            sz = 0.1
+            for r in bb_rects:
+                if r['w'] <= 0.001: continue
 
-            # Use builder to create a standalone face?
-            # MassaBuilder methods usually operate on existing bm.
-            # We can use create_grid but it translates.
+                cx = r['x'] + r['w']/2
+                cz = bh/2
 
-            # Let's manual build to ensure index 9
-            v1 = bm.verts.new(c + Vector((-sz, 0, -sz)))
-            v2 = bm.verts.new(c + Vector((sz, 0, -sz)))
-            v3 = bm.verts.new(c + Vector((sz, 0, sz)))
-            v4 = bm.verts.new(c + Vector((-sz, 0, sz)))
-            f_sock = bm.faces.new((v1, v2, v3, v4))
-            f_sock.material_index = 9
+                # Front Baseboard (Y = -bd/2)
+                builder.create_box(r['w'], bd, bh) \
+                       .translate(cx, -bd/2, cz) \
+                       .tag_slot(2) \
+                       .tag_uvs(uv_s2, 'BOX')
 
-            # Force Normal Y-
-            f_sock.normal_update()
-            # (If winding is wrong, we might need to flip)
+                # Back Baseboard (Y = t + bd/2)
+                builder.create_box(r['w'], bd, bh) \
+                       .translate(cx, t + bd/2, cz) \
+                       .tag_slot(2) \
+                       .tag_uvs(uv_s2, 'BOX')
 
-        # 7. Manual UVs
-        self.apply_manual_uvs(bm)
+        # Sockets
+        # Start (x=0)
+        builder.create_grid(size=0.5) \
+               .rotate(90, 'Y') \
+               .translate(0, t/2, h/2) \
+               .tag_slot(9) \
+               .tag_socket(1)
 
-    def apply_manual_uvs(self, bm):
-        uv_layer = bm.loops.layers.uv.verify()
-        scale_u = getattr(self, "uv_scale_0", 1.0)
-        scale_v = scale_u # Square scaling usually
+        # End (x=l)
+        builder.create_grid(size=0.5) \
+               .rotate(90, 'Y') \
+               .translate(l, t/2, h/2) \
+               .tag_slot(9) \
+               .tag_socket(2)
 
-        bm.faces.ensure_lookup_table()
-        for f in bm.faces:
-            mat_idx = f.material_index
-            if mat_idx == 9: continue
-
-            n = f.normal
-
-            # Baseboard (Slot 2) might need different scale?
-            # Using global scale for now.
-
-            for l in f.loops:
-                v_co = l.vert.co
-                # Box Mapping
-                if abs(n.y) > 0.5: # Front/Back
-                    l[uv_layer].uv = (v_co.x * scale_u, v_co.z * scale_v)
-                elif abs(n.x) > 0.5: # Side
-                    l[uv_layer].uv = (v_co.y * scale_u, v_co.z * scale_v)
-                else: # Top/Bottom
-                    l[uv_layer].uv = (v_co.x * scale_u, v_co.y * scale_v)
+        builder.clean()
 
     def draw_shape_ui(self, layout):
         box_dim = layout.box()
