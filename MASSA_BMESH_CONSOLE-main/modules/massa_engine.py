@@ -78,6 +78,10 @@ def run_pipeline(op, context):
     try:
         op.build_shape(bm)
 
+        # [ARCHITECT NEW] Initial Cleanup (Fix pin-sharp faces at source)
+        if flags.get("FIX_DEGENERATE", True):
+             massa_polish.apply_cleanup(bm, fix_degenerate=True, fix_thin=True)
+
         # [ARCHITECT FIX] Ensure layer exists before detection
         if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
             bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
