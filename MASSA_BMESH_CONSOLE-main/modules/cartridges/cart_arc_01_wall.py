@@ -160,14 +160,14 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
 
         # Sockets
         # Start (x=0)
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'Y') \
                .translate(0, t/2, h/2) \
                .tag_slot(9) \
                .tag_socket(1)
 
         # End (x=l)
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'Y') \
                .translate(l, t/2, h/2) \
                .tag_slot(9) \

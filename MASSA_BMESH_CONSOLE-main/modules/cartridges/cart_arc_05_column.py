@@ -124,14 +124,14 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
 
         # Sockets
         # Bottom
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'X') \
                .translate(0, -0.1, 0) \
                .tag_slot(9) \
                .tag_socket(1)
 
         # Top
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'X') \
                .translate(0, 0, th + 0.1) \
                .tag_slot(9) \

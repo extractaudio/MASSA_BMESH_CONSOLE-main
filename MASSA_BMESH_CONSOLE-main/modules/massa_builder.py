@@ -59,8 +59,13 @@ class MassaBuilder:
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
-        # Capture faces from new verts
-        self.active_faces = list(set(f for v in verts for f in v.link_faces))
+        # Capture faces reliably
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret:
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
@@ -90,7 +95,12 @@ class MassaBuilder:
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
-        self.active_faces = list(set(f for v in verts for f in v.link_faces))
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret:
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
@@ -124,7 +134,14 @@ class MassaBuilder:
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
-        self.active_faces = list(set(f for v in verts for f in v.link_faces))
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret: # Sometimes in 'geom'
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        elif 'geom' in ret:
+            self.active_faces = [f for f in ret['geom'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
@@ -159,7 +176,14 @@ class MassaBuilder:
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
-        self.active_faces = list(set(f for v in verts for f in v.link_faces))
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret:
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        elif 'geom' in ret:
+            self.active_faces = [f for f in ret['geom'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
