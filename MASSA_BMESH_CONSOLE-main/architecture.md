@@ -1208,3 +1208,86 @@ This section defines the strict geometric and behavioral contracts for the core 
   "tolerance": 0.1
 }
 ```
+
+## URB_11: HVAC Unit
+
+```json
+{
+  "id": "urb_11_hvac",
+  "behavior": "Industrial Rooftop/Wall Unit",
+  "slots": [0, 3, 9],
+  "default_params": {
+      "width": 1.5,
+      "depth": 1.5,
+      "height": 1.0
+  },
+  "expected_dimensions": [1.5, 1.5, 1.0],
+  "tolerance": 0.2
+}
+```
+
+## URB_12: Fire Hydrant
+
+```json
+{
+  "id": "urb_12_fire_hydrant",
+  "behavior": "Utility Fixture",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "height": 0.8,
+      "radius_body": 0.15
+  },
+  "expected_dimensions": [0.4, 0.4, 0.8],
+  "tolerance": 0.15
+}
+```
+
+## URB_13: Dumpster
+
+```json
+{
+  "id": "urb_13_dumpster",
+  "behavior": "Waste Container",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "width": 2.0,
+      "depth": 1.5,
+      "height": 1.2
+  },
+  "expected_dimensions": [2.0, 1.5, 1.2],
+  "tolerance": 0.3
+}
+```
+
+## URB_14: Traffic Light
+
+```json
+{
+  "id": "urb_14_traffic_light",
+  "behavior": "Pole & Fixture",
+  "slots": [0, 1, 3, 9],
+  "default_params": {
+      "pole_height": 4.5,
+      "arm_length": 3.0
+  },
+  "expected_dimensions": [4.0, 1.0, 4.8],
+  "tolerance": 0.5
+}
+```
+
+## URB_15: Kiosk
+
+```json
+{
+  "id": "urb_15_kiosk",
+  "behavior": "Small Structure",
+  "slots": [0, 1, 3, 9],
+  "default_params": {
+      "width": 2.0,
+      "depth": 2.0,
+      "height": 2.5
+  },
+  "expected_dimensions": [2.2, 2.2, 2.8],
+  "tolerance": 0.3
+}
+```

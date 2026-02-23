@@ -159,6 +159,6 @@ This mode generates an image (`uv_layout_<object>.png`) where:
 4.  **Distortion:** Compare the shape of the UV island to the 3D geometry (viewed in standard renders).
 
 **Fix Protocol:**
+*   **Missing Seams?** If the **Edge Auditor** flags `CRITICAL_NO_SEAMS_ON_COMPLEX_MESH`, you MUST use `tag_edge_role(1)` or `(3)` on critical edges (like cylinder caps or sharp corners) to allow the unwrapper to "unfold" the mesh.
 *   **Distortion?** Change projection mode (e.g., `BOX` vs `UNWRAP`) or adjust `uv_scale`.
 *   **Overlaps?** Enable `auto_unwrap=True` in the cartridge or check your manual mapping logic.
-*   **Bad Seams?** Ensure Edge Slots 1 (Perimeter) or 3 (Guide) are correctly tagged to guide the unwrap.
