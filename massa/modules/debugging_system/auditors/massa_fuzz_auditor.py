@@ -32,16 +32,25 @@ def audit_mesh(obj, op_class=None):
     try:
         op_instance = op_class()
     except Exception as e:
-        # If standard instantiation fails (e.g. bpy restriction), 
-        # we might need to rely on the fact that Blender properties are class descriptors.
-        # But we need an instance to hold values.
-        # If this fails, we skip fuzzing.
-        errors.append(f"FUZZER_INIT_FAIL: {str(e)}")
-        return errors
+        # Fallback: Create a Mock Object if direct instantiation fails
+        # This works if build_shape only relies on self attributes and not internal bpy state
+        class MockOperator:
+            pass
+
+        op_instance = MockOperator()
+        # Bind methods
+        if hasattr(op_class, "build_shape"):
+            # Bind the method to the instance
+            op_instance.build_shape = op_class.build_shape.__get__(op_instance, MockOperator)
+
+        # Populate defaults later in parameter identification
+        # errors.append(f"FUZZER_INIT_FAIL: {str(e)}")
+        # return errors
 
     # 2. Identify Parameters
     prop_defs = {}
     
+    # 2a. RNA Properties (Base class props mostly)
     if hasattr(op_class, "bl_rna"):
         for key, prop in op_class.bl_rna.properties.items():
             if key not in {"rna_type", "bl_idname", "bl_label", "bl_description", "bl_options", "bl_undo_group", "script"}:
@@ -51,7 +60,9 @@ def audit_mesh(obj, op_class=None):
                     "max": getattr(prop, "hard_max", 10),
                     "items": [i.identifier for i in prop.enum_items] if prop.type == 'ENUM' else []
                 }
-    elif hasattr(op_class, "__annotations__"):
+
+    # 2b. Annotations (Python defined props - crucial for custom props in headless)
+    if hasattr(op_class, "__annotations__"):
         # Manual Parsing of bpy.props attributes
         for key, val in op_class.__annotations__.items():
             # Value is likely a tuple or keywords from the Property(...) call
@@ -105,6 +116,20 @@ def audit_mesh(obj, op_class=None):
                     "max": p_max,
                     "items": p_items
                 }
+
+                # Set default on mock instance if needed
+                if not hasattr(op_instance, key):
+                    default_val = 0.0
+                    if p_type == 'FLOAT': default_val = 1.0 # Safe non-zero default
+                    elif p_type == 'INT': default_val = 1
+                    elif p_type == 'BOOLEAN': default_val = False
+                    elif p_type == 'ENUM' and p_items: default_val = p_items[0]
+
+                    # Try to get actual default from keywords
+                    if keywords and 'default' in keywords:
+                        default_val = keywords['default']
+
+                    setattr(op_instance, key, default_val)
 
     if not prop_defs:
         # If we failed to find definitions, we can't fuzz reliably.
