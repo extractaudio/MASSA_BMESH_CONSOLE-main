@@ -141,8 +141,20 @@ def render_viewport(name):
     tmp_path = os.path.join(os.environ.get("TEMP", "/tmp"), f"{name}.png")
     bpy.context.scene.render.filepath = tmp_path
 
-    # Use OpenGL render (viewport render)
-    bpy.ops.render.opengl(write_still=True)
+    if bpy.app.background:
+        # Use Workbench for software render
+        bpy.context.scene.render.engine = 'BLENDER_WORKBENCH'
+        # Configure Workbench for clarity
+        bpy.context.scene.display.shading.light = 'FLAT'
+        bpy.context.scene.display.shading.color_type = 'MATERIAL' # Use Material colors (for Heatmaps/UVs)
+        # Ensure we show wireframes if set on objects
+        # Workbench X-Ray might be needed for UV overlap checking?
+        # Actually wireframe attribute on object works in Workbench.
+
+        bpy.ops.render.render(write_still=True)
+    else:
+        # Use OpenGL render (viewport render)
+        bpy.ops.render.opengl(write_still=True)
     return tmp_path
 
 def image_to_base64(path):
@@ -437,7 +449,7 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     if not obj:
         # If we didn't run a cartridge, and there's no object, fail.
         # But if we are in a mode that expects one, we should error.
-        if mode in ["AUDIT", "PERFORMANCE", "UV_HEATMAP", "CSG_DEBUG"]:
+        if mode in ["AUDIT", "PERFORMANCE", "UV_HEATMAP", "CSG_DEBUG", "UV_INSPECT"]:
              return {"status": "FAIL", "errors": ["No Mesh Created by Cartridge or Found in Scene"]}
 
     if mode == "UV_HEATMAP":
@@ -447,6 +459,18 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
              return {"status": "SUCCESS", "image_path": output_path}
         except Exception as e:
              return {"status": "FAIL", "message": f"Heatmap Error: {str(e)}"}
+
+    if mode == "UV_INSPECT":
+        try:
+             # Generate a 2D mesh representation of the UV layout
+             print(f"DEBUG: UV_INSPECT on {obj} Name:{obj.name} Type:{obj.type} Data:{obj.data}")
+             setup_uv_layout_view(obj)
+             output_path = render_viewport(f"uv_layout_{obj.name}")
+             return {"status": "SUCCESS", "image_path": output_path}
+        except Exception as e:
+             import traceback
+             traceback.print_exc()
+             return {"status": "FAIL", "message": f"UV Inspect Error: {str(e)}"}
 
     if mode == "PERFORMANCE":
         poly_count = len(obj.data.polygons)
@@ -546,7 +570,6 @@ def setup_uv_heatmap(obj):
             else:
                 ratio = area_3d / area_uv
         
-        score = 0.0
         # Simple heuristic for "Badness"
         if ratio > 5.0 or ratio < 0.2:
             col = red
@@ -592,6 +615,81 @@ def setup_uv_heatmap(obj):
     obj.show_wire = True
     
     setup_camera()
+
+def setup_uv_layout_view(obj):
+    """
+    Creates a new mesh where XY coordinates = UV coordinates of the original object.
+    Used for visual inspection of packing and overlaps.
+    """
+    import bmesh
+
+    bm_orig = bmesh.new()
+    bm_orig.from_mesh(obj.data)
+    bm_orig.faces.ensure_lookup_table()
+
+    uv_layer = bm_orig.loops.layers.uv.verify()
+
+    # Create new BMesh for UVs
+    bm_uv = bmesh.new()
+
+    # Iterate faces and recreate them in UV space (2D)
+    for f in bm_orig.faces:
+        uv_verts = []
+        for l in f.loops:
+            uv = l[uv_layer].uv
+            # Create vert at (u, v, 0)
+            # Note: We duplicate verts per face loop to simulate split UVs correctly
+            # (UV islands are split in UV space even if connected in 3D)
+            v = bm_uv.verts.new((uv.x, uv.y, 0))
+            uv_verts.append(v)
+
+        try:
+            bm_uv.faces.new(uv_verts)
+        except ValueError:
+            pass # Degenerate face in UV space
+
+    bm_orig.free()
+
+    # Convert to Mesh Object
+    mesh_uv = bpy.data.meshes.new("UV_Layout_Mesh")
+    bm_uv.to_mesh(mesh_uv)
+    bm_uv.free()
+
+    uv_obj = bpy.data.objects.new("UV_Layout_Obj", mesh_uv)
+    bpy.context.collection.objects.link(uv_obj)
+
+    # Hide original
+    obj.hide_render = True
+    obj.hide_viewport = True
+
+    # Material: Wireframe + Semi-transparent fill
+    mat = bpy.data.materials.new(name="UV_Layout_Mat")
+    mat.use_nodes = True
+    # Wireframe display
+    uv_obj.show_wire = True
+    uv_obj.show_all_edges = True
+    uv_obj.data.materials.append(mat)
+
+    # Setup Orthographic Camera
+    setup_camera()
+    cam = bpy.context.scene.camera
+    cam.data.type = 'ORTHO'
+    cam.data.ortho_scale = 1.2 # Slightly larger than 1.0 to show margins
+    cam.location = (0.5, 0.5, 10) # Center of 0-1 space
+    cam.rotation_euler = (0, 0, 0) # Look down Z (default camera points down -Z in Blender if rot is 0,0,0? No, default is -Z)
+    # Actually standard camera looks down -Z.
+    # We want to look at XY plane.
+    # Default camera:
+    # Location (0,0,10)
+    # Rotation (0,0,0) -> Points Down -Z.
+    # Top of image is +Y, Right is +X.
+    # This matches UV space orientation.
+
+    # Add border for 0-1 bounds
+    bpy.ops.mesh.primitive_plane_add(size=1.0, location=(0.5, 0.5, -0.1))
+    plane = bpy.context.active_object
+    plane.display_type = 'WIRE'
+    plane.show_wire = True
 
 def print_json(data):
     print("---AUDIT_START---")

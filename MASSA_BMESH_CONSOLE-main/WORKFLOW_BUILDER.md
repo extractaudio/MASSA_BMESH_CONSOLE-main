@@ -136,3 +136,29 @@ print(builder.report())
 ## 5. API Reference
 
 For full API details, inspect `modules/massa_builder.py`. The class is fully documented with docstrings.
+
+## 6. Visual UV Verification
+
+The `runner.py` tool now supports a specific mode for auditing UV packing and integrity visually.
+
+### Command
+```bash
+python modules/debugging_system/runner.py --cartridge modules/cartridges/your_cartridge.py --mode UV_INSPECT
+```
+
+### Interpretation
+This mode generates an image (`uv_layout_<object>.png`) where:
+*   **Geometry**: Represents the flattened UV islands in 0-1 space.
+*   **Wireframe**: Shows the topology of the UV islands.
+*   **Square Border**: Represents the 0.0 to 1.0 UV coordinate bounds.
+
+**What to look for:**
+1.  **Overlaps:** Darker/denser mesh areas indicating Z-fighting or overlapping islands (unless intentional stacking).
+2.  **OutOfBounds:** Geometry extending outside the square border.
+3.  **Wasted Space:** Large empty gaps between islands.
+4.  **Distortion:** Compare the shape of the UV island to the 3D geometry (viewed in standard renders).
+
+**Fix Protocol:**
+*   **Distortion?** Change projection mode (e.g., `BOX` vs `UNWRAP`) or adjust `uv_scale`.
+*   **Overlaps?** Enable `auto_unwrap=True` in the cartridge or check your manual mapping logic.
+*   **Bad Seams?** Ensure Edge Slots 1 (Perimeter) or 3 (Guide) are correctly tagged to guide the unwrap.

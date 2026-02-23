@@ -49,6 +49,16 @@ When tasked with creating or modifying a Cartridge in `modules/cartridges/`, you
    Use the `runner.py` tool to proactively check your cartridge:
    - `python modules/debugging_system/runner.py --cartridge ... --mode AUDIT` (Standard Checks)
    - `python modules/debugging_system/runner.py --cartridge ... --mode UV_HEATMAP` (Visualizes UV Distortion: Red=Bad, Blue=Good)
+   - `python modules/debugging_system/runner.py --cartridge ... --mode UV_INSPECT` (Visualizes UV Layout Packing: 0-1 Bounds)
+
+   **UV Inspection Protocol:**
+   When verifying a new cartridge, you MUST generate and inspect the UV Layout image.
+   - **Check for:** Overlapping islands (darker mesh), Out-of-bounds geometry (outside the square), and Logic errors (e.g., collapsed faces).
+   - **Fix Protocol:**
+     1. **Malformed/Collapsed?** Check topology for Zero-Area faces.
+     2. **Overlapping?** Enable `auto_unwrap=True` or verify manual UV math.
+     3. **Bad Seams?** Ensure Edge Slot 1 (Perimeter) and 3 (Guide) are correctly tagged.
+     4. **Scale?** Adjust `uv_scale` property.
 
 ## 4. Parameter Addition Protocol (The Rule of Five)
 

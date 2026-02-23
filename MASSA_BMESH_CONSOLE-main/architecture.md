@@ -1124,3 +1124,87 @@ This section defines the strict geometric and behavioral contracts for the core 
   "tolerance": 0.3
 }
 ```
+
+## URB_06: Bench
+
+```json
+{
+  "id": "urb_06_bench",
+  "behavior": "Seating Element",
+  "slots": [0, 9],
+  "default_params": {
+      "length": 2.0,
+      "height": 0.45,
+      "depth": 0.6
+  },
+  "expected_dimensions": [2.0, 0.6, 0.45],
+  "tolerance": 0.2
+}
+```
+
+## URB_07: Trash Bin
+
+```json
+{
+  "id": "urb_07_trash_bin",
+  "behavior": "Receptacle",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "height": 1.0,
+      "width": 0.6,
+      "depth": 0.6
+  },
+  "expected_dimensions": [0.6, 0.6, 1.0],
+  "tolerance": 0.15
+}
+```
+
+## URB_08: Bus Shelter
+
+```json
+{
+  "id": "urb_08_bus_shelter",
+  "behavior": "Covered Structure",
+  "slots": [0, 3, 9],
+  "default_params": {
+      "length": 4.0,
+      "height": 2.5,
+      "depth": 2.0
+  },
+  "expected_dimensions": [4.0, 2.0, 2.5],
+  "tolerance": 0.5
+}
+```
+
+## URB_09: Utility Cabinet
+
+```json
+{
+  "id": "urb_09_utility_cabinet",
+  "behavior": "Industrial Box",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "width": 1.2,
+      "height": 1.8,
+      "depth": 0.8
+  },
+  "expected_dimensions": [1.2, 0.8, 1.8],
+  "tolerance": 0.2
+}
+```
+
+## URB_10: Bollard
+
+```json
+{
+  "id": "urb_10_bollard",
+  "behavior": "Traffic Post",
+  "slots": [0, 9],
+  "default_params": {
+      "height": 1.0,
+      "radius": 0.15
+  },
+  "expected_dimensions": [0.3, 0.3, 1.0],
+  "tolerance": 0.1
+}
+```
