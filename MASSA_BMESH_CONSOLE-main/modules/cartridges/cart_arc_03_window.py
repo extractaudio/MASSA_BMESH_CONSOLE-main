@@ -4,6 +4,7 @@ import math
 from mathutils import Vector, Matrix
 from bpy.props import FloatProperty, EnumProperty, BoolProperty, IntProperty
 from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
 CARTRIDGE_META = {
     "name": "ARC_03: Curtain Wall",
@@ -33,11 +34,6 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
     frame_width: FloatProperty(name="Frame Width", default=0.1, min=0.01)
     mullion_thick: FloatProperty(name="Frame Depth", default=0.1, min=0.01)
 
-    # === REDO-PANEL SAFE UI ELEMENTS ===
-    massa_hide_ui: bpy.props.BoolProperty(name="Hide UI (Redo Trap)", default=False)
-    massa_scene_proxy: bpy.props.StringProperty(name="Scene Proxy", default="null")
-
-
     def get_slot_meta(self):
         return {
             0: {"name": "Frame", "uv": "BOX", "phys": "METAL_ALUMINUM"},
@@ -46,52 +42,83 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
         }
 
     def build_shape(self, bm):
-        # 1. Initialize Layers
+        # Ensure Layers exist
         uv_layer = bm.loops.layers.uv.verify()
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
-        # 2. Create Grid of Faces
-        bmesh.ops.create_grid(bm, x_segments=self.mullion_x, y_segments=self.mullion_y, size=1)
+        builder = MassaBuilder(bm)
+
+        # 1. Create Base Grid
+        # Create on XY (size 1), rotate to XZ, scale
+        builder.create_grid(x_segments=self.mullion_x, y_segments=self.mullion_y, size=1.0) \
+               .rotate(90, axis='X') \
+               .scale(self.win_width, 1.0, self.win_height) \
+               .translate(0, 0, self.win_height/2) \
+               .tag_slot(3) # Initial faces are Glass
+
+        # 2. Inset to create Frame
+        # Inset active faces (Glass). Result active faces are the inner Glass faces.
+        # Original faces (Frame + Glass area) are split.
+        # We need to select the Frame (Outer Rim).
         
-        # Scale to size
-        bmesh.ops.scale(bm, vec=Vector((self.win_width, self.win_height, 1)), verts=bm.verts)
+        # Track Glass faces
+        glass_faces_before = set(builder.active_faces) # Actually this is all faces
         
-        # Rotate to upright (facing Y-)
-        bmesh.ops.rotate(bm, cent=Vector((0,0,0)), matrix=Matrix.Rotation(math.radians(90), 3, 'X'), verts=bm.verts)
+        builder.inset(self.frame_width/2, relative=False)
         
-        # Translate to sit on Z=0
-        bmesh.ops.translate(bm, vec=Vector((0, 0, self.win_height/2)), verts=bm.verts)
+        glass_faces_after = set(builder.active_faces)
 
-        # 3. Create Frames via Inset
-        original_faces = bm.faces[:]
-        for f in original_faces:
-            f.material_index = 3  # Set all original faces to glass (3)
+        # Frame faces are faces that are NOT in glass_faces_after
+        # But wait, create_grid creates faces. inset modifies them?
+        # inset_individual usually REPLACES faces or modifies them.
+        # If I want to find the frame faces, they are the faces adjacent to glass but not glass?
+        # Or I can just select everything and subtract glass.
 
-        # Inset individual to create the frame outer rim (thickness is half because it's double on shared edges)
-        ret = bmesh.ops.inset_individual(bm, faces=original_faces, thickness=self.frame_width/2.0, use_even_offset=True)
+        all_faces = set(bm.faces)
+        frame_faces = list(all_faces - glass_faces_after)
 
-        # 4. Separate Frame and Glass
-        # bmesh inset_individual modifies original faces to be the inner faces
-        glass_faces = set(original_faces)
-        frame_faces = [f for f in bm.faces if f not in glass_faces]
+        builder.active_faces = frame_faces
+        builder.tag_slot(0) # Frame
 
-        for f in frame_faces:
-            f.material_index = 0  # Frame (0)
+        # 3. Extrude Frame
+        # Extrude Frame Backward (-Y) or Forward?
+        # Window frame usually protrudes or glass is recessed.
+        # Let's extrude Frame +Y (Forward) and -Y (Back)?
+        # Or just extrude it out.
+        # Original logic: Extrude -Y (Backwards).
 
-        # 5. Extrude Frame
-        # Extrude the frame faces backward (-Y) to give them depth
-        ret = bmesh.ops.extrude_face_region(bm, geom=frame_faces)
-        verts_to_move = [e for e in ret['geom'] if isinstance(e, bmesh.types.BMVert)]
-        bmesh.ops.translate(bm, vec=Vector((0, -self.mullion_thick, 0)), verts=verts_to_move)
+        builder.extrude(self.mullion_thick, axis=Vector((0, -1, 0)))
 
-        # 6. Manual UVs
+        # 4. Sockets
+        # Center of window: (0, 0, win_height/2)
+        # Add Socket Geometry
+        c = Vector((0, 0, self.win_height/2))
+        sz = 0.2
+        v1 = bm.verts.new(c + Vector((-sz, 0, -sz)))
+        v2 = bm.verts.new(c + Vector((sz, 0, -sz)))
+        v3 = bm.verts.new(c + Vector((sz, 0, sz)))
+        v4 = bm.verts.new(c + Vector((-sz, 0, sz)))
+        f_sock = bm.faces.new((v1, v2, v3, v4))
+        f_sock.material_index = 9
+        f_sock.normal_update()
+
+        # 5. Manual UVs
+        self.apply_manual_uvs(bm)
+
+    def apply_manual_uvs(self, bm):
+        uv_layer = bm.loops.layers.uv.verify()
+        scale = getattr(self, "uv_scale_0", 1.0)
+
+        bm.faces.ensure_lookup_table()
         for f in bm.faces:
+            # if f.material_index == 9: continue # Pass audit
+
             mat_idx = f.material_index
 
-            if mat_idx == 3: # Glass
-                # Bounds of this face
+            if mat_idx == 3: # Glass (Fit UVs)
+                 # Find Bounds
                 min_x = min(v.co.x for v in f.verts)
                 max_x = max(v.co.x for v in f.verts)
                 min_z = min(v.co.z for v in f.verts)
@@ -101,38 +128,31 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                 h = max_z - min_z
 
                 for l in f.loops:
-                    u = (l.vert.co.x - min_x) / w if w > 0 else 0
-                    v = (l.vert.co.z - min_z) / h if h > 0 else 0
+                    u = (l.vert.co.x - min_x) / w if w > 0.001 else 0
+                    v = (l.vert.co.z - min_z) / h if h > 0.001 else 0
                     l[uv_layer].uv = (u, v)
 
-            elif mat_idx == 0: # Frame
-                # Box mapping
-                scale = getattr(self, "uv_scale_0", 1.0)
+            else: # Frame, Socket (Box Map)
                 n = f.normal
                 for l in f.loops:
-                    # Simple box projection
+                    v = l.vert.co
                     if abs(n.x) > 0.5:
-                        l[uv_layer].uv = (l.vert.co.y * scale, l.vert.co.z * scale)
+                        l[uv_layer].uv = (v.y * scale, v.z * scale)
                     elif abs(n.z) > 0.5:
-                        l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.y * scale)
-                    else:
-                        l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.z * scale)
+                        l[uv_layer].uv = (v.x * scale, v.y * scale)
+                    else: # Y
+                        l[uv_layer].uv = (v.x * scale, v.z * scale)
 
     def draw_shape_ui(self, layout):
-        if self.massa_hide_ui:
-            layout.label(text="UI Hidden (Redo Trap)", icon='ERROR')
-            layout.prop(self, "massa_hide_ui", toggle=True, text="Show UI", icon='RESTRICT_VIEW_OFF')
-            return
-
         box = layout.box()
-        row = box.row()
-        row.prop(self, "massa_hide_ui", text="Lock UI", icon='LOCKED')
-        row.label(text="Window Configuration")
-        
-        col = layout.column(align=True)
+        box.label(text="Configuration", icon='MESH_GRID')
+        col = box.column(align=True)
         col.prop(self, "win_width")
         col.prop(self, "win_height")
-        layout.separator()
+
+        box_grid = layout.box()
+        box_grid.label(text="Grid & Frame", icon='MOD_WIREFRAME')
+        col = box_grid.column(align=True)
         col.prop(self, "mullion_x")
         col.prop(self, "mullion_y")
         col.prop(self, "frame_width")
