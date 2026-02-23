@@ -9,6 +9,7 @@ from bpy.props import (
     EnumProperty,
 )
 from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
 CARTRIDGE_META = {
     "name": "Spiral Stairs",
@@ -107,11 +108,11 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Treads", "uv": "SKIP", "phys": "WOOD_OAK"},
-            1: {"name": "Risers", "uv": "SKIP", "phys": "WOOD_PINE"},
-            2: {"name": "Structure", "uv": "SKIP", "phys": "METAL_STEEL"},
-            3: {"name": "Railing", "uv": "SKIP", "phys": "METAL_CHROME"},
-            4: {"name": "Anchors", "uv": "BOX", "phys": "GENERIC", "sock": True},
+            0: {"name": "Treads", "uv": "UNWRAP", "phys": "WOOD_OAK"},
+            1: {"name": "Risers", "uv": "UNWRAP", "phys": "WOOD_PINE"},
+            2: {"name": "Structure", "uv": "UNWRAP", "phys": "METAL_STEEL"},
+            3: {"name": "Railing", "uv": "UNWRAP", "phys": "METAL_CHROME"},
+            4: {"name": "Anchors", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }
 
     def draw_shape_ui(self, layout):
@@ -165,9 +166,9 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
             row.prop(self, "rail_radius", text="Radius")
             col.prop(self, "post_density")
 
-        # [REMOVED] UV UI - Moved to Central UVS Tab
-
     def build_shape(self, bm: bmesh.types.BMesh):
+        builder = MassaBuilder(bm)
+
         h = self.height
         rad = self.radius
         turns = self.turns
@@ -177,33 +178,30 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
         angle_step = angle_total / count
         rise_step = h / count
 
-        uv_layer = bm.loops.layers.uv.verify()
-        s = self.uv_scale
-
         # 1. CENTER POST
         if self.has_center_post:
-            res_post = bmesh.ops.create_cone(
-                bm,
-                cap_ends=True,
-                radius1=self.post_radius,
-                radius2=self.post_radius,
-                depth=h,
-                segments=16,
-            )
-            bmesh.ops.translate(bm, vec=(0, 0, h / 2), verts=res_post["verts"])
+            builder.create_cylinder(radius=self.post_radius, depth=h, segments=16, center=Vector((0,0,h/2))) \
+                   .tag_slot(2) # Structure
 
-            post_faces = list({f for v in res_post["verts"] for f in v.link_faces})
-            for f in post_faces:
-                if f.normal.z > 0.9:  # TOP CAP
-                    f.material_index = 4
-                    self.apply_box_map(f, uv_layer, s)
-                elif f.normal.z < -0.9:  # BOTTOM CAP
-                    f.material_index = 4
-                    self.apply_box_map(f, uv_layer, s)
-                else:  # SIDE WALLS
-                    f.material_index = 2
-                    f.smooth = True
-                    self.apply_polar_map(f, uv_layer, s, self.post_radius)
+            # Tag Seams: Caps (1), Vertical Zipper (3)
+            builder.select_all_faces().select_faces_by_slot(2).select_boundary().tag_edge_role(1)
+
+            # Vertical Zipper for Cylinder
+            # Find a vertical edge
+            builder.clean() # Ensure topology
+            # Helper to find vertical edge on active selection
+            # But active selection is last created faces.
+            candidates = []
+            for f in builder.active_faces:
+                for e in f.edges:
+                    v1, v2 = e.verts
+                    if abs(v1.co.x - v2.co.x) < 0.001 and abs(v1.co.y - v2.co.y) < 0.001:
+                        candidates.append(e)
+            if candidates:
+                # Pick one (e.g. max X)
+                zipper = max(candidates, key=lambda e: e.verts[0].co.x)
+                builder.active_edges = [zipper]
+                builder.tag_edge_role(3)
 
         # 2. STEPS
         inner_r = self.post_radius if self.has_center_post else 0.1
@@ -211,57 +209,37 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
         if self.has_stringer:
             tread_len -= self.stringer_width
 
+        mid_circ = 2 * math.pi * (inner_r + tread_len / 2)
+        step_width_approx = (mid_circ / count) * 1.1 # Slightly wider to overlap?
+
         for i in range(count):
             theta = i * angle_step
             z = i * rise_step
 
             # Tread
-            res_t = bmesh.ops.create_cube(bm, size=1.0)
-            verts_t = res_t["verts"]
+            # Create at origin, scale, translate, rotate
+            # Note: create_box creates at center.
+            # We need pivot at (0,0,0) for rotation.
 
-            mid_circ = 2 * math.pi * (inner_r + tread_len / 2)
-            step_width_approx = (mid_circ / count) * 1.1
-
-            bmesh.ops.scale(
-                bm, vec=(tread_len, step_width_approx, self.tread_thick), verts=verts_t
-            )
             dist_from_center = inner_r + (tread_len / 2)
-            bmesh.ops.translate(
-                bm, vec=(dist_from_center, 0, self.tread_thick / 2), verts=verts_t
-            )
-            bmesh.ops.rotate(
-                bm, cent=(0, 0, 0), matrix=Matrix.Rotation(theta, 4, "Z"), verts=verts_t
-            )
-            bmesh.ops.translate(bm, vec=(0, 0, z), verts=verts_t)
 
-            for f in list({f for v in verts_t for f in v.link_faces}):
-                f.material_index = 0
-                f.smooth = False
-                self.apply_box_map(f, uv_layer, s)
+            # Create Step Tread
+            builder.create_box(tread_len, step_width_approx, self.tread_thick) \
+                   .translate(dist_from_center, 0, self.tread_thick / 2) \
+                   .rotate(math.degrees(theta), 'Z') \
+                   .translate(0, 0, z) \
+                   .tag_slot(0) \
+                   .select_boundary().tag_edge_role(1)
 
             # Riser
             if self.closed_riser:
-                res_r = bmesh.ops.create_cube(bm, size=1.0)
-                verts_r = res_r["verts"]
                 r_thick = 0.02
-                bmesh.ops.scale(bm, vec=(tread_len, r_thick, rise_step), verts=verts_r)
-                bmesh.ops.translate(
-                    bm,
-                    vec=(dist_from_center, -step_width_approx / 2, -rise_step / 2),
-                    verts=verts_r,
-                )
-                bmesh.ops.rotate(
-                    bm,
-                    cent=(0, 0, 0),
-                    matrix=Matrix.Rotation(theta, 4, "Z"),
-                    verts=verts_r,
-                )
-                bmesh.ops.translate(bm, vec=(0, 0, z), verts=verts_r)
-
-                for f in list({f for v in verts_r for f in v.link_faces}):
-                    f.material_index = 1
-                    f.smooth = False
-                    self.apply_box_map(f, uv_layer, s)
+                builder.create_box(tread_len, r_thick, rise_step) \
+                       .translate(dist_from_center, -step_width_approx / 2, -rise_step / 2) \
+                       .rotate(math.degrees(theta), 'Z') \
+                       .translate(0, 0, z) \
+                       .tag_slot(1) \
+                       .select_boundary().tag_edge_role(1)
 
         # 3. HELICAL COMPONENTS
         path_radius_str = rad - (self.stringer_width / 2)
@@ -280,9 +258,7 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                 profile_h=self.stringer_depth,
                 pitch_angle=pitch_angle,
                 slot_idx=2,
-                is_round=False,
-                uv_layer=uv_layer,
-                uv_scale=s,
+                is_round=False
             )
 
         # B. Railing
@@ -304,36 +280,14 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                 h_post_vis = self.rail_height
                 h_post_phys = h_post_vis + (self.rail_radius * 0.5)
 
-                mat_p = Matrix.Translation(Vector((x, y, z_floor + h_post_phys / 2)))
+                center_pos = Vector((x, y, z_floor + h_post_phys / 2))
 
                 if self.rail_profile == "ROUND":
-                    res_p = bmesh.ops.create_cone(
-                        bm,
-                        cap_ends=True,
-                        radius1=self.rail_radius,
-                        radius2=self.rail_radius,
-                        depth=h_post_phys,
-                        matrix=mat_p,
-                        segments=12,
-                    )
+                    builder.create_cylinder(radius=self.rail_radius, depth=h_post_phys, segments=12, center=center_pos)
                 else:
-                    res_p = bmesh.ops.create_cube(bm, size=1.0)
-                    bmesh.ops.scale(
-                        bm,
-                        vec=(self.rail_radius * 2, self.rail_radius * 2, h_post_phys),
-                        verts=res_p["verts"],
-                    )
-                    bmesh.ops.transform(bm, matrix=mat_p, verts=res_p["verts"])
+                    builder.create_box(self.rail_radius * 2, self.rail_radius * 2, h_post_phys, center=center_pos)
 
-                for f in list({f for v in res_p["verts"] for f in v.link_faces}):
-                    f.material_index = 3
-                    f.smooth = self.rail_profile == "ROUND"
-                    radius_val = (
-                        self.rail_radius
-                        if self.rail_profile == "ROUND"
-                        else self.rail_radius * 2
-                    )
-                    self.apply_polar_map(f, uv_layer, s, radius_val)
+                builder.tag_slot(3).select_boundary().tag_edge_role(1)
 
             # Handrail
             rail_z_offset = self.rail_height + self.tread_thick
@@ -348,12 +302,17 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                 pitch_angle=pitch_angle,
                 slot_idx=3,
                 is_round=(self.rail_profile == "ROUND"),
-                z_offset=rail_z_offset,
-                uv_layer=uv_layer,
-                uv_scale=s,
+                z_offset=rail_z_offset
             )
 
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        # Cleanup & Sockets
+        builder.clean()
+
+        # Bottom Socket
+        builder.select_faces_by_normal(Vector((0, 0, -1)), tolerance=0.1).tag_socket(4)
+        # Top Socket
+        builder.select_faces_by_normal(Vector((0, 0, 1)), tolerance=0.1).tag_socket(4)
+
 
     def build_helix_extrusion(
         self,
@@ -367,19 +326,14 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
         pitch_angle,
         slot_idx,
         is_round,
-        z_offset=0.0,
-        uv_layer=None,
-        uv_scale=1.0,
+        z_offset=0.0
     ):
+        # Optimized implementation without manual UVs
+        # Uses MassaBuilder style tagging
+
         total_angle = turns * 2 * math.pi
         d_theta = total_angle / segs
         d_z = height / segs
-        arc_len_segment = math.sqrt((radius * d_theta) ** 2 + d_z**2)
-
-        if is_round:
-            perimeter = math.pi * profile_w
-        else:
-            perimeter = 2 * (profile_w + profile_h)
 
         # 1. INITIAL RING
         mat_setup = Matrix.Translation(Vector((radius, 0, z_offset))) @ Matrix.Rotation(
@@ -414,17 +368,27 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
 
         start_verts = list(verts_ring)
 
+        # Track longitudinal edges for tagging
+        long_edges = []
+
         # 2. EXTRUSION LOOP
-        current_v_coord = 0.0
-
         for k in range(segs):
-            current_v_coord += arc_len_segment * uv_scale
-
             res_ex = bmesh.ops.extrude_edge_only(bm, edges=edges_ring)
             verts_new = [v for v in res_ex["geom"] if isinstance(v, bmesh.types.BMVert)]
             faces_side = [
                 f for f in res_ex["geom"] if isinstance(f, bmesh.types.BMFace)
             ]
+            edges_side = [e for e in res_ex["geom"] if isinstance(e, bmesh.types.BMEdge) and e not in edges_ring]
+            # Note: extrude_edge_only returns edges in 'geom' that are the connecting edges (longitudinal)?
+            # Actually it returns faces, and new edges (the ring at other end) and connecting edges?
+            # We need to identify connecting edges to tag them as Seam/Guide.
+
+            # The 'geom' contains new verts, edges, faces.
+            # Edges perpendicular to ring are the ones connecting old ring to new ring.
+
+            for f in faces_side:
+                f.material_index = slot_idx
+                f.smooth = is_round
 
             bmesh.ops.translate(bm, vec=Vector((0, 0, d_z)), verts=verts_new)
             bmesh.ops.rotate(
@@ -434,42 +398,16 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                 verts=verts_new,
             )
 
-            if uv_layer and faces_side:
-                for j, edge_old in enumerate(edges_ring):
-                    target_face = None
-                    for f in faces_side:
-                        if edge_old in f.edges:
-                            target_face = f
-                            break
+            # Tag Longitudinal Edges
+            # Find edges connecting verts_ring (old) to verts_new (new)
+            # Or just use faces_side edges that are NOT in edges_ring or the new ring.
+            # Simpler: All edges of faces_side that align with flow?
+            # Let's rely on Edge Slots for seams.
+            # For round tube, we need 1 seam.
+            # For square, we need sharp edges (Role 2) and 1 seam (Role 1 or 3).
 
-                    if target_face:
-                        target_face.material_index = slot_idx
-                        target_face.smooth = is_round
-
-                        u_start = (j / len(edges_ring)) * perimeter * uv_scale
-                        u_end = ((j + 1) / len(edges_ring)) * perimeter * uv_scale
-
-                        v_prev = current_v_coord - (arc_len_segment * uv_scale)
-                        v_curr = current_v_coord
-
-                        loops = list(target_face.loops)
-                        for l in loops:
-                            if l.vert in edge_old.verts:
-                                if l.vert == edge_old.verts[0]:
-                                    l[uv_layer].uv = (u_start, v_prev)
-                                else:
-                                    l[uv_layer].uv = (u_end, v_prev)
-                            else:
-                                connected_to_start = False
-                                for e in l.vert.link_edges:
-                                    if e.other_vert(l.vert) == edge_old.verts[0]:
-                                        connected_to_start = True
-                                        break
-
-                                if connected_to_start:
-                                    l[uv_layer].uv = (u_start, v_curr)
-                                else:
-                                    l[uv_layer].uv = (u_end, v_curr)
+            # Find the edges in faces_side that are not the ring edges
+            # ...
 
             new_verts_set = set(verts_new)
             next_verts_ring = [None] * len(verts_ring)
@@ -478,6 +416,8 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                     other = e.other_vert(v_old)
                     if other in new_verts_set:
                         next_verts_ring[i] = other
+                        # This 'e' is a longitudinal edge
+                        long_edges.append(e)
                         break
 
             verts_ring = next_verts_ring
@@ -489,44 +429,63 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                 if found_edge:
                     edges_ring.append(found_edge)
 
-        # 3. CAP ENDS
+        # 3. CAP ENDS & TAGGING
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        # Tag Longitudinal Edges
+        # If ROUND: Tag ONE line of edges as Seam (3).
+        # If SQUARE: Tag ALL longitudinal edges as Sharp (2), and ONE as Seam (1)?
+        # Let's tag all sharp corners.
+
+        # We collected all long_edges.
+        # They are ordered by segment.
+        # We need to tag them by index in the ring.
+
+        n_profile = len(start_verts)
+        # long_edges list structure: [seg0_idx0, seg0_idx1... seg1_idx0...]
+        # Actually logic above appends in loop.
+
+        for k in range(segs):
+            base_idx = k * n_profile
+            if is_round:
+                # Tag only index 0 as Seam (3)
+                if base_idx < len(long_edges):
+                    long_edges[base_idx][edge_slots] = 3
+            else:
+                # Tag all as Sharp (2)
+                for i in range(n_profile):
+                    if (base_idx + i) < len(long_edges):
+                        long_edges[base_idx + i][edge_slots] = 2
+
+                # Tag index 0 as Seam (1) (override Sharp?)
+                # Actually Seam + Sharp = Perimeter (1) or just Seam (3)?
+                # If we want unwrap, we need a cut.
+                # Let's make one edge Seam (3) (Guide) in addition to sharp?
+                # Or make it Perimeter (1) (Sharp+Seam).
+                if base_idx < len(long_edges):
+                     long_edges[base_idx][edge_slots] = 1
+
+        # Cap Start
         try:
             bmesh.ops.contextual_create(bm, geom=start_verts)
             for f in bm.faces:
                 if all(v in start_verts for v in f.verts):
                     f.material_index = slot_idx
                     f.normal_flip()
-                    self.apply_box_map(f, uv_layer, s)
+                    for e in f.edges:
+                        e[edge_slots] = 1 # Perimeter Seam
         except:
             pass
 
+        # Cap End
         try:
             bmesh.ops.contextual_create(bm, geom=verts_ring)
             for f in bm.faces:
                 if all(v in verts_ring for v in f.verts):
                     f.material_index = slot_idx
-                    self.apply_box_map(f, uv_layer, s)
+                    for e in f.edges:
+                        e[edge_slots] = 1 # Perimeter Seam
         except:
             pass
-
-    def apply_box_map(self, face, uv_layer, scale):
-        n = face.normal
-        nx, ny, nz = abs(n.x), abs(n.y), abs(n.z)
-        for l in face.loops:
-            co = l.vert.co
-            if nz > nx and nz > ny:
-                u, v = co.x, co.y
-            elif nx > ny and nx > nz:
-                u, v = co.y, co.z
-            else:
-                u, v = co.x, co.z
-            l[uv_layer].uv = (u * scale, v * scale)
-
-    def apply_polar_map(self, face, uv_layer, scale, radius=1.0):
-        circumference = 2 * math.pi * radius
-        for l in face.loops:
-            co = l.vert.co
-            theta = math.atan2(co.y, co.x)
-            u = ((theta + math.pi) / (2 * math.pi)) * circumference
-            v = co.z
-            l[uv_layer].uv = (u * scale, v * scale)

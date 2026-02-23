@@ -4,6 +4,7 @@ import math
 from mathutils import Vector, Matrix
 from bpy.props import FloatProperty, EnumProperty, IntProperty, BoolProperty
 from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
 CARTRIDGE_META = {
     "name": "ARCH: Tiny Home",
@@ -17,57 +18,10 @@ CARTRIDGE_META = {
     },
 }
 
-
-def create_cube_helper(bm, loc, size, mat_idx, subdivide=False):
-    res = bmesh.ops.create_cube(bm, size=1.0)
-    verts = res["verts"]
-    safe_size = [max(0.001, s) for s in size]
-    bmesh.ops.scale(bm, vec=Vector(safe_size), verts=verts)
-    bmesh.ops.translate(bm, vec=loc, verts=verts)
-    
-    new_faces = list({f for v in verts for f in v.link_faces})
-    for f in new_faces: f.material_index = mat_idx
-    
-    # UV Seams Correct: Snippet A - The Plank
-    # 1. Identify Caps (Smallest Area)
-    sorted_faces = sorted(new_faces, key=lambda f: f.calc_area())
-    if len(sorted_faces) >= 2:
-        caps = sorted_faces[:2] # The two ends
-        
-        # 2. Mark Cap Seams
-        for f in caps:
-            for e in f.edges:
-                e.seam = True
-                
-        # 3. Mark Edge Roles (Contour)
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots: edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-        
-        for f in caps:
-            for e in f.edges:
-                e[edge_slots] = 2 # CONTOUR
-
-    if subdivide:
-        # Simple segmentation for large architectural planes
-        # We cut anything larger than 1.2m
-        max_len = 1.2
-        cuts_x = int(safe_size[0] / max_len)
-        cuts_y = int(safe_size[1] / max_len)
-        cuts_z = int(safe_size[2] / max_len)
-        
-        if cuts_x > 0 or cuts_y > 0 or cuts_z > 0:
-             # Collect edges to cut
-             edges_to_cut = list({e for f in new_faces for e in f.edges})
-             bmesh.ops.subdivide_edges(bm, edges=edges_to_cut, cuts=1, use_grid_fill=True)
-
-    return verts, new_faces
-
 class MASSA_OT_ArchTinyHome(Massa_OT_Base):
     bl_idname = "massa.gen_arch_tiny_home"
     bl_label = "ARCH: Tiny Home"
     bl_description = "Tiny Home Generator with Structural Framing"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
     # --- PROPERTIES ---
@@ -135,16 +89,16 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Foundation", "phys": "CONCRETE_RAW", "uv": "BOX"},
-            1: {"name": "Floor", "phys": "WOOD_PLANKS", "uv": "BOX"},
-            2: {"name": "Wall Ext", "phys": "WOOD_PAINTED", "uv": "BOX"},
-            3: {"name": "Wall Int", "phys": "GYPSUM_PAINTED", "uv": "BOX"},
-            4: {"name": "Framing", "phys": "WOOD_RAW", "uv": "BOX"},
-            5: {"name": "Roof", "phys": "METAL_ROOF", "uv": "BOX"},
-            6: {"name": "Trim", "phys": "WOOD_VARNISH", "uv": "BOX"},
+            0: {"name": "Foundation", "phys": "CONCRETE_RAW", "uv": "UNWRAP"},
+            1: {"name": "Floor", "phys": "WOOD_PLANKS", "uv": "UNWRAP"},
+            2: {"name": "Wall Ext", "phys": "WOOD_PAINTED", "uv": "UNWRAP"},
+            3: {"name": "Wall Int", "phys": "GYPSUM_PAINTED", "uv": "UNWRAP"},
+            4: {"name": "Framing", "phys": "WOOD_RAW", "uv": "UNWRAP"},
+            5: {"name": "Roof", "phys": "METAL_ROOF", "uv": "UNWRAP"},
+            6: {"name": "Trim", "phys": "WOOD_VARNISH", "uv": "UNWRAP"},
             7: {"name": "Glass", "phys": "GLASS_CLEAR", "uv": "FIT"},
-            8: {"name": "Door", "phys": "WOOD_VARNISH", "uv": "BOX"},
-            9: {"name": "Fixtures", "phys": "CERAMIC_WHITE", "uv": "BOX"},
+            8: {"name": "Door", "phys": "WOOD_VARNISH", "uv": "UNWRAP"},
+            9: {"name": "Fixtures", "phys": "CERAMIC_WHITE", "uv": "UNWRAP"},
         }
 
     def draw_shape_ui(self, layout):
@@ -243,10 +197,9 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
             col.prop(self, "prop_roof_overhang")
             col.prop(self, "prop_roof_height")
 
-
-
     def build_shape(self, bm):
-        print(f"DEBUG: build_shape running with w={self.prop_width} l={self.prop_length} h={self.prop_height}")
+        builder = MassaBuilder(bm)
+
         w = self.prop_width
         l = self.prop_length
         h = self.prop_height
@@ -293,7 +246,8 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
             x_pos = -w/2 + (w * (ix / piers_x))
             for iy in range(piers_y + 1):
                 y_pos = -l/2 + (l * (iy / piers_y))
-                create_cube_helper(bm, Vector((x_pos, y_pos, fh/2)), (pier_size, pier_size, fh), 0)
+                builder.create_box(pier_size, pier_size, fh).translate(x_pos, y_pos, fh/2) \
+                       .tag_slot(0).select_boundary().tag_edge_role(1)
         
         # House Floor Frame
         if self.prop_vis_framing:
@@ -301,14 +255,16 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
             num_joists = int(l / 0.4) + 1 
             for i in range(num_joists):
                 y_j = -l/2 + (i * (l / max(1, num_joists-1)))
-                create_cube_helper(bm, Vector((0, y_j, fh + joist_h/2)), (w, joist_w, joist_h), 4)
+                builder.create_box(w, joist_w, joist_h).translate(0, y_j, fh + joist_h/2) \
+                       .tag_slot(4).select_boundary().tag_edge_role(1)
 
             # Rims
-            create_cube_helper(bm, Vector((-w/2, 0, fh + joist_h/2)), (joist_w, l, joist_h), 4) 
-            create_cube_helper(bm, Vector((w/2, 0, fh + joist_h/2)), (joist_w, l, joist_h), 4)
+            builder.create_box(joist_w, l, joist_h).translate(-w/2, 0, fh + joist_h/2).tag_slot(4).select_boundary().tag_edge_role(1)
+            builder.create_box(joist_w, l, joist_h).translate(w/2, 0, fh + joist_h/2).tag_slot(4).select_boundary().tag_edge_role(1)
 
         # Flooring
-        create_cube_helper(bm, Vector((0, 0, fh + joist_h + floor_thick/2)), (w, l, floor_thick), 1, subdivide=True)
+        builder.create_box(w, l, floor_thick).translate(0, 0, fh + joist_h + floor_thick/2) \
+               .tag_slot(1).select_boundary().tag_edge_role(1)
 
         # ------------------------------------------------------------------
         # PORCH SYSTEM
@@ -316,11 +272,6 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
         porch_w = self.prop_porch_width
         porch_off = self.prop_porch_offset_x
         porch_d = self.prop_porch_depth
-        
-        # Porch Bounds
-        # Center is at porch_off.
-        # X range: [porch_off - porch_w/2, porch_off + porch_w/2]
-        # Y range: [-l/2 - porch_d, -l/2]
         
         p_x_min = porch_off - porch_w/2
         p_x_max = porch_off + porch_w/2
@@ -331,7 +282,8 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
             piers_p = max(2, int(porch_w / 2.0))
             for ix in range(piers_p + 1):
                 x_pos = p_x_min + (porch_w * (ix / piers_p))
-                create_cube_helper(bm, Vector((x_pos, p_y_end, fh/2)), (pier_size, pier_size, fh), 0)
+                builder.create_box(pier_size, pier_size, fh).translate(x_pos, p_y_end, fh/2) \
+                       .tag_slot(0).select_boundary().tag_edge_role(1)
             
             if self.prop_vis_framing:
                 # Joists
@@ -339,16 +291,17 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
                 for i in range(p_joists):
                     ratio = i / max(1, p_joists - 1)
                     y_j = -l/2 - (ratio * porch_d)
-                    create_cube_helper(bm, Vector((porch_off, y_j, fh + joist_h/2)), (porch_w, joist_w, joist_h), 4)
+                    builder.create_box(porch_w, joist_w, joist_h).translate(porch_off, y_j, fh + joist_h/2) \
+                           .tag_slot(4).select_boundary().tag_edge_role(1)
                 
-                # Rims (Sides)
-                create_cube_helper(bm, Vector((p_x_min + joist_w/2, -l/2 - porch_d/2, fh + joist_h/2)), (joist_w, porch_d, joist_h), 4)
-                create_cube_helper(bm, Vector((p_x_max - joist_w/2, -l/2 - porch_d/2, fh + joist_h/2)), (joist_w, porch_d, joist_h), 4)
-                # Front Rim
-                create_cube_helper(bm, Vector((porch_off, p_y_end + joist_w/2, fh + joist_h/2)), (porch_w, joist_w, joist_h), 4)
+                # Rims
+                builder.create_box(joist_w, porch_d, joist_h).translate(p_x_min + joist_w/2, -l/2 - porch_d/2, fh + joist_h/2).tag_slot(4).select_boundary().tag_edge_role(1)
+                builder.create_box(joist_w, porch_d, joist_h).translate(p_x_max - joist_w/2, -l/2 - porch_d/2, fh + joist_h/2).tag_slot(4).select_boundary().tag_edge_role(1)
+                builder.create_box(porch_w, joist_w, joist_h).translate(porch_off, p_y_end + joist_w/2, fh + joist_h/2).tag_slot(4).select_boundary().tag_edge_role(1)
 
             # Decking
-            create_cube_helper(bm, Vector((porch_off, -l/2 - porch_d/2, fh + joist_h + floor_thick/2)), (porch_w, porch_d, floor_thick), 1)
+            builder.create_box(porch_w, porch_d, floor_thick).translate(porch_off, -l/2 - porch_d/2, fh + joist_h + floor_thick/2) \
+                   .tag_slot(1).select_boundary().tag_edge_role(1)
 
         floor_top_z = fh + joist_h + floor_thick
         
@@ -357,22 +310,20 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
         # ------------------------------------------------------------------
         stud_d = 0.1
         stud_w = 0.05
-        # Plates
-        plate_z = floor_top_z + 0.025
-        top_plate_z = floor_top_z + h - 0.025
-        stud_h = h - 0.1
-        stud_z = floor_top_z + 0.05 + stud_h/2
 
+        # Helpers
         def build_stud_wall_complex(start_p, end_p, spacing, openings):
             if not self.prop_vis_framing: return
             vec = end_p - start_p
             wall_len = vec.length
             if wall_len < 0.01: return
-            
             unit = vec.normalized()
             center_wall = (start_p + end_p)/2
+            plate_z = floor_top_z + 0.025
+            top_plate_z = floor_top_z + h - 0.025
+            stud_h = h - 0.1
+            stud_z = floor_top_z + 0.05 + stud_h/2
             
-            # Parse Openings
             plate_cuts = [] 
             ops_processed = []
             for op in openings:
@@ -388,7 +339,7 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
             
             is_x_aligned = abs(vec.y) < 0.5 
             
-            # Bottom Plate (Cut)
+            # Bottom Plate
             curr_d = 0.0
             sorted_cuts = sorted(plate_cuts, key=lambda x: x[0])
             final_segs = []
@@ -401,11 +352,11 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
                 if (seg[1] - seg[0]) > 0.01:
                     seg_pos = start_p + (unit * ((seg[0]+seg[1])/2))
                     p_dim = (seg[1]-seg[0], stud_d, 0.05) if is_x_aligned else (stud_d, seg[1]-seg[0], 0.05)
-                    create_cube_helper(bm, Vector((seg_pos.x, seg_pos.y, plate_z)), p_dim, 4)
+                    builder.create_box(*p_dim, center=Vector((seg_pos.x, seg_pos.y, plate_z))).tag_slot(4).select_boundary().tag_edge_role(1)
             
             # Top Plate
             tp_dim = (wall_len, stud_d, 0.05) if is_x_aligned else (stud_d, wall_len, 0.05)
-            create_cube_helper(bm, Vector((center_wall.x, center_wall.y, top_plate_z)), tp_dim, 4)
+            builder.create_box(*tp_dim, center=Vector((center_wall.x, center_wall.y, top_plate_z))).tag_slot(4).select_boundary().tag_edge_role(1)
             
             # Studs & Openings
             count = int(wall_len / spacing)
@@ -415,62 +366,59 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
                 for op in ops_processed:
                     if dist > (op['min']+0.02) and dist < (op['max']-0.02):
                         hit_op = True
-                        # Cripples
                         if op['sill'] > 0.1: # Below
                             crip_h = op['sill'] - 0.05
                             pos = start_p + (unit * dist)
                             s_dim = (stud_w, stud_d, crip_h) if is_x_aligned else (stud_d, stud_w, crip_h)
-                            create_cube_helper(bm, Vector((pos.x, pos.y, floor_top_z + 0.05 + crip_h/2)), s_dim, 4)
+                            builder.create_box(*s_dim, center=Vector((pos.x, pos.y, floor_top_z + 0.05 + crip_h/2))).tag_slot(4).select_boundary().tag_edge_role(1)
                         
                         header_bot = floor_top_z + op['sill'] + op['height']
                         space_top = (top_plate_z - 0.025) - header_bot
                         if space_top > 0.1: # Above
-                            crip_st = header_bot + 0.1 # header 10cm
+                            crip_st = header_bot + 0.1
                             c_h = (top_plate_z - 0.025) - crip_st
                             if c_h > 0:
                                 pos = start_p + (unit * dist)
                                 s_dim = (stud_w, stud_d, c_h) if is_x_aligned else (stud_d, stud_w, c_h)
-                                create_cube_helper(bm, Vector((pos.x, pos.y, crip_st + c_h/2)), s_dim, 4)
+                                builder.create_box(*s_dim, center=Vector((pos.x, pos.y, crip_st + c_h/2))).tag_slot(4).select_boundary().tag_edge_role(1)
                         break
                 if not hit_op:
                     pos = start_p + (unit * dist)
                     s_dim = (stud_w, stud_d, stud_h) if is_x_aligned else (stud_d, stud_w, stud_h)
-                    create_cube_helper(bm, Vector((pos.x, pos.y, stud_z)), s_dim, 4)
+                    builder.create_box(*s_dim, center=Vector((pos.x, pos.y, stud_z))).tag_slot(4).select_boundary().tag_edge_role(1)
             
-            # Headers/Trimmers/Geo
             for op in ops_processed:
                 # Kings
                 s_dim = (stud_w, stud_d, stud_h) if is_x_aligned else (stud_d, stud_w, stud_h)
                 p_l = start_p + (unit * op['min'])
                 p_r = start_p + (unit * op['max'])
-                create_cube_helper(bm, Vector((p_l.x, p_l.y, stud_z)), s_dim, 4)
-                create_cube_helper(bm, Vector((p_r.x, p_r.y, stud_z)), s_dim, 4)
-                
+                builder.create_box(*s_dim, center=Vector((p_l.x, p_l.y, stud_z))).tag_slot(4).select_boundary().tag_edge_role(1)
+                builder.create_box(*s_dim, center=Vector((p_r.x, p_r.y, stud_z))).tag_slot(4).select_boundary().tag_edge_role(1)
                 # Header
                 h_z = floor_top_z + op['sill'] + op['height'] + 0.05
                 h_dim = (op['width'], stud_d, 0.1) if is_x_aligned else (stud_d, op['width'], 0.1)
                 p_c = start_p + (unit * op['center_dist'])
-                create_cube_helper(bm, Vector((p_c.x, p_c.y, h_z)), h_dim, 4)
-                
+                builder.create_box(*h_dim, center=Vector((p_c.x, p_c.y, h_z))).tag_slot(4).select_boundary().tag_edge_role(1)
                 # Sill
                 if op['type'] == 'WIN':
                     si_z = floor_top_z + op['sill'] - 0.025
                     si_dim = (op['width'], stud_d, 0.05) if is_x_aligned else (stud_d, op['width'], 0.05)
-                    create_cube_helper(bm, Vector((p_c.x, p_c.y, si_z)), si_dim, 4)
-                    
-                # Geo checks
+                    builder.create_box(*si_dim, center=Vector((p_c.x, p_c.y, si_z))).tag_slot(4).select_boundary().tag_edge_role(1)
+                # Geo
                 if self.prop_vis_openings:
                     mat = 8 if op['type'] == 'DOOR' else 7
                     z_geo = floor_top_z + op['sill'] + op['height']/2
                     dim_geo = (op['width']-0.02, 0.05, op['height']-0.02) if is_x_aligned else (0.05, op['width']-0.02, op['height']-0.02)
-                    create_cube_helper(bm, Vector((p_c.x, p_c.y, z_geo)), dim_geo, mat)
+                    builder.create_box(*dim_geo, center=Vector((p_c.x, p_c.y, z_geo))).tag_slot(mat).select_boundary().tag_edge_role(1)
+                    if mat == 7: # Glass FIT
+                        builder.tag_uvs(1.0, 'FIT')
 
         build_stud_wall_complex(Vector((-w/2, -l/2 + stud_d/2, 0)), Vector((w/2, -l/2 + stud_d/2, 0)), self.prop_stud_spacing, opening_data["FRONT"])
         build_stud_wall_complex(Vector((w/2, l/2 - stud_d/2, 0)), Vector((-w/2, l/2 - stud_d/2, 0)), self.prop_stud_spacing, opening_data["BACK"])
         build_stud_wall_complex(Vector((-w/2 + stud_d/2, l/2, 0)), Vector((-w/2 + stud_d/2, -l/2, 0)), self.prop_stud_spacing, opening_data["LEFT"])
         build_stud_wall_complex(Vector((w/2 - stud_d/2, -l/2, 0)), Vector((w/2 - stud_d/2, l/2, 0)), self.prop_stud_spacing, opening_data["RIGHT"])
 
-        # Sheathing (Simplified with tiling)
+        # Sheathing
         ext_thick = 0.02
         sheath_z = floor_top_z + h/2
         
@@ -489,25 +437,23 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
                     sl = op['min'] - curr_d
                     pos = start_p + (unit * (curr_d + sl/2)) + offset_vec
                     sz = (sl, ext_thick, h) if is_x else (ext_thick, sl, h)
-                    sz = (sl, ext_thick, h) if is_x else (ext_thick, sl, h)
-                    create_cube_helper(bm, Vector((pos.x, pos.y, sheath_z)), sz, 2, subdivide=True)
-                # Above/Below
+                    builder.create_box(*sz, center=Vector((pos.x, pos.y, sheath_z))).tag_slot(2).select_boundary().tag_edge_role(1)
                 if op['sill'] > 0.05:
                     pos = start_p + (unit * ((op['min']+op['max'])/2)) + offset_vec
                     sz = (op['max']-op['min'], ext_thick, op['sill']) if is_x else (ext_thick, op['max']-op['min'], op['sill'])
-                    create_cube_helper(bm, Vector((pos.x, pos.y, floor_top_z + op['sill']/2)), sz, 2)
+                    builder.create_box(*sz, center=Vector((pos.x, pos.y, floor_top_z + op['sill']/2))).tag_slot(2).select_boundary().tag_edge_role(1)
                 top = op['sill'] + op['height']
                 if top < h:
                     rem = h - top
                     pos = start_p + (unit * ((op['min']+op['max'])/2)) + offset_vec
                     sz = (op['max']-op['min'], ext_thick, rem) if is_x else (ext_thick, op['max']-op['min'], rem)
-                    create_cube_helper(bm, Vector((pos.x, pos.y, floor_top_z + top + rem/2)), sz, 2)
+                    builder.create_box(*sz, center=Vector((pos.x, pos.y, floor_top_z + top + rem/2))).tag_slot(2).select_boundary().tag_edge_role(1)
                 curr_d = op['max']
             if curr_d < wall_len:
                 sl = wall_len - curr_d
                 pos = start_p + (unit * (curr_d + sl/2)) + offset_vec
                 sz = (sl, ext_thick, h) if is_x else (ext_thick, sl, h)
-                create_cube_helper(bm, Vector((pos.x, pos.y, sheath_z)), sz, 2, subdivide=True)
+                builder.create_box(*sz, center=Vector((pos.x, pos.y, sheath_z))).tag_slot(2).select_boundary().tag_edge_role(1)
 
         build_sheathing_complex(Vector((-w/2 - ext_thick, -l/2, 0)), Vector((w/2 + ext_thick, -l/2, 0)), opening_data["FRONT"], Vector((0, -stud_d/2 - ext_thick/2, 0)))
         build_sheathing_complex(Vector((w/2 + ext_thick, l/2, 0)), Vector((-w/2 - ext_thick, l/2, 0)), opening_data["BACK"], Vector((0, stud_d/2 + ext_thick/2, 0)))
@@ -521,8 +467,8 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
             num_l = int(loft_len / 0.4) + 1
             for i in range(num_l):
                 y_j = (l/2 - loft_len) + (i * (loft_len / max(1, num_l-1)))
-                create_cube_helper(bm, Vector((0, y_j, lz + joist_h/2)), (w - 2*stud_d, joist_w, joist_h), 4)
-            create_cube_helper(bm, Vector((0, l/2 - loft_len/2, lz + joist_h + floor_thick/2)), (w - 2*stud_d, loft_len, floor_thick), 1)
+                builder.create_box(w - 2*stud_d, joist_w, joist_h).translate(0, y_j, lz + joist_h/2).tag_slot(4).select_boundary().tag_edge_role(1)
+            builder.create_box(w - 2*stud_d, loft_len, floor_thick).translate(0, l/2 - loft_len/2, lz + joist_h + floor_thick/2).tag_slot(1).select_boundary().tag_edge_role(1)
 
         # 5. ROOF & POSTS
         if self.prop_add_roof:
@@ -530,31 +476,21 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
             overhang = self.prop_roof_overhang
             rise = self.prop_roof_height
             
-            # Base Roof Bounds (House)
             rb_1 = Vector((-w/2 - overhang, -l/2 - overhang, roof_z))
             rb_2 = Vector((w/2 + overhang, -l/2 - overhang, roof_z))
             rb_3 = Vector((w/2 + overhang, l/2 + overhang, roof_z))
             rb_4 = Vector((-w/2 - overhang, l/2 + overhang, roof_z))
             
-            # Post Logic
             if self.prop_add_porch and self.prop_vis_framing:
-                # Posts adhere to the DECK corners, not the Roof Overhang
                 deck_x_min = p_x_min
                 deck_x_max = p_x_max
                 deck_y = p_y_end
                 
-                # Check if roof covers posts. If porch is wider than house + overhang, extend roof?
-                # For now, just extend roof Y to cover porch Y. X might be independent.
-                
-                # Extend Y of Roof to cover deck + overhang
                 porch_roof_y = deck_y - overhang
                 if porch_roof_y < rb_1.y:
                     rb_1.y = porch_roof_y
                     rb_2.y = porch_roof_y
                 
-                # If Porch is Wide, we might need to flare the roof or just let posts stick out?
-                # User likely wants roof to cover porch.
-                # Let's expand roof width if porch width > house width
                 if (deck_x_min - overhang) < rb_1.x:
                     rb_1.x = deck_x_min - overhang
                     rb_4.x = deck_x_min - overhang
@@ -563,71 +499,59 @@ class MASSA_OT_ArchTinyHome(Massa_OT_Base):
                     rb_3.x = deck_x_max + overhang
 
                 p_h = roof_z - floor_top_z
-                post_dim = 0.09 # 4x4 ~ 90-100mm. User requested smaller than previous.
+                post_dim = 0.09
                 post_z = floor_top_z + p_h/2
-                
-                # Align Posts to Deck Corners (Inset slightly so they stand ON the deck)
                 inset = post_dim / 2
                 
-                # Left Post
-                create_cube_helper(bm, Vector((deck_x_min + inset, deck_y + inset, post_z)), (post_dim, post_dim, p_h), 4)
-                # Right Post
-                create_cube_helper(bm, Vector((deck_x_max - inset, deck_y + inset, post_z)), (post_dim, post_dim, p_h), 4)
+                builder.create_box(post_dim, post_dim, p_h).translate(deck_x_min + inset, deck_y + inset, post_z).tag_slot(4).select_boundary().tag_edge_role(1)
+                builder.create_box(post_dim, post_dim, p_h).translate(deck_x_max - inset, deck_y + inset, post_z).tag_slot(4).select_boundary().tag_edge_role(1)
                 
-                # Beam
                 beam_z = roof_z - 0.1
                 bw = (deck_x_max - deck_x_min) + 2*overhang
-                create_cube_helper(bm, Vector((porch_off, deck_y + inset, beam_z)), (bw, post_dim, 0.2), 4)
+                builder.create_box(bw, post_dim, 0.2).translate(porch_off, deck_y + inset, beam_z).tag_slot(4).select_boundary().tag_edge_role(1)
 
-            # Draw Roof
             if self.prop_vis_roof:
                 if self.prop_roof_type == 'SHED':
+                    # Single slanted box
+                    pass # Keep manual or approximate with slanted box?
+                    # Manual construction of roof shape is cleaner for specific angles
                     rh_3 = rb_3 + Vector((0, 0, rise))
                     rh_4 = rb_4 + Vector((0, 0, rise))
+                    # Use manual vertices
                     v_list = [bm.verts.new(rb_1), bm.verts.new(rb_2), bm.verts.new(rh_3), bm.verts.new(Vector((rh_4.x, rh_4.y, rh_4.z)))]
                     f = bm.faces.new(v_list)
                     f.material_index = 5
-                    res = bmesh.ops.extrude_face_region(bm, geom=[f])
-                    verts_ext = [v for v in res["geom"] if isinstance(v, bmesh.types.BMVert)]
-                    bmesh.ops.translate(bm, vec=Vector((0,0,0.1)), verts=verts_ext)
+                    # Update builder active faces to this face
+                    builder.active_faces = [f]
+                    builder.extrude(0.1, axis=Vector((0,0,1))).tag_slot(5).select_boundary().tag_edge_role(1)
                     
                 elif self.prop_roof_type == 'GABLE':
+                    # Triangular Prism
                     rp_front = Vector(((rb_1.x+rb_2.x)/2, rb_1.y, roof_z + rise))
                     rp_back = Vector(((rb_3.x+rb_4.x)/2, rb_3.y, roof_z + rise))
                     
-                    v1, v2, v3, v4 = bm.verts.new(rb_1), bm.verts.new(rb_2), bm.verts.new(rb_3), bm.verts.new(rb_4)
-                    vp1, vp2 = bm.verts.new(rp_front), bm.verts.new(rp_back)
+                    # Create two slanted boxes like in mobile home
+                    roof_l_val = rb_3.y - rb_1.y
+                    roof_w_val = rb_2.x - rb_1.x
+                    slope_len = math.sqrt((roof_w_val/2)**2 + rise**2)
+                    angle = math.atan2(rise, roof_w_val/2)
+                    center_y = (rb_1.y + rb_3.y)/2
                     
-                    fL = bm.faces.new([v1, vp1, vp2, v4])
-                    fL.material_index = 5
-                    fR = bm.faces.new([v2, v3, vp2, vp1])
-                    fR.material_index = 5
+                    builder.create_box(slope_len + 0.2, roof_l_val, 0.1) \
+                           .rotate(math.degrees(-angle), 'Y') \
+                           .translate(rb_1.x + roof_w_val/4, center_y, roof_z + rise/2) \
+                           .tag_slot(5).select_boundary().tag_edge_role(1)
+
+                    builder.create_box(slope_len + 0.2, roof_l_val, 0.1) \
+                           .rotate(math.degrees(angle), 'Y') \
+                           .translate(rb_2.x - roof_w_val/4, center_y, roof_z + rise/2) \
+                           .tag_slot(5).select_boundary().tag_edge_role(1)
                     
                     if self.prop_vis_sheathing:
-                        fG1 = bm.faces.new([v1, v2, vp1])
-                        fG1.material_index = 2
-                        fG2 = bm.faces.new([v4, vp2, v3])
-                        fG2.material_index = 2
+                        # Gable Ends
+                        builder.create_box(w, wall_th, rise).translate(0, -l/2 + wall_th/2, roof_z + rise/2).tag_slot(2).select_boundary().tag_edge_role(1)
+                        builder.create_box(w, wall_th, rise).translate(0, l/2 - wall_th/2, roof_z + rise/2).tag_slot(2).select_boundary().tag_edge_role(1)
 
-        # 6. CLEANUP & EDGE ROLES
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        slot_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not slot_layer: slot_layer = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-        for e in bm.edges:
-            if e.is_boundary: e[slot_layer] = 1 
-            elif e.calc_face_angle(0) > 0.5: e[slot_layer] = 2 
-            else: e[slot_layer] = 4
-        
-        # Auditor Requirement: Verify Perimeter (Slot 1)
-        count_p = len([e for e in bm.edges if e[slot_layer] == 1])
-        if count_p == 0 and len(bm.verts) > 0:
-             # Fallback: Mark the ground contact edges as Perimeter
-             min_z = min([v.co.z for v in bm.verts])
-             for e in bm.edges:
-                 if e.verts[0].co.z < (min_z + 0.01) and e.verts[1].co.z < (min_z + 0.01):
-                     e[slot_layer] = 1
-
-# HARNESS COMPATIBILITY WRAPPER
-# The test harness expects a module-level build_shape function.
-def build_shape(self, bm):
-    MASSA_OT_ArchTinyHome.build_shape(self, bm)
+        # 6. CLEANUP
+        builder.clean()
+        builder.select_faces_by_normal(Vector((0,0,-1)), tolerance=0.1).tag_socket(9) # Anchor
