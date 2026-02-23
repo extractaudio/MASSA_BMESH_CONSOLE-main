@@ -436,7 +436,7 @@ def auto_detect_edge_slots(bm):
         if f1.material_index != f2.material_index:
             max_id = max(f1.material_index, f2.material_index)
             if max_id > 0:
-                e[edge_slots] = min(max_id, 4) # Clamp to 4
+                e[edge_slots] = min(max_id, 5) # Clamp to 5 [ARCHITECT FIX] Allow Folds
                 continue
 
         # D. Sharp Edges -> Slot 2 (Contour)
@@ -664,7 +664,7 @@ def tag_structure_edges(bm, op):
             # 1. Read Slot
             if edge_slots_layer:
                 slot_id = e[edge_slots_layer]
-                if 1 <= slot_id <= 4:
+                if 1 <= slot_id <= 5: # [ARCHITECT FIX] Include Slot 5 (Fold)
                     e[viz_layer] = slot_id
             
             # 2. Check Seam (Override)
