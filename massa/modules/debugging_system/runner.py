@@ -10,12 +10,18 @@ import base64
 import io
 import contextlib
 import bmesh
+import re
 
 # 1. Setup Path to import your attached 'auditors' folder
 current_dir = os.path.dirname(os.path.abspath(__file__))
 repo_root = os.path.dirname(os.path.dirname(current_dir)) # Up 2 levels: modules/debugging_system -> modules -> root
 if current_dir not in sys.path:
     sys.path.append(current_dir)
+
+# Add parent of repo to sys.path so we can import 'massa' as a package
+parent_of_repo = os.path.dirname(repo_root)
+if parent_of_repo not in sys.path:
+    sys.path.append(parent_of_repo)
 
 # 2. Import your attached files
 # NOTE: Ensure your attached files are in the 'auditors' folder
@@ -26,6 +32,20 @@ except ImportError:
         import auditors
     except ImportError:
         pass
+
+def prepare_cartridge_env():
+    # Import required modules
+    try:
+        # Import using full package path 'massa.x.y' to support relative imports inside them
+        import massa.operators.massa_base as massa_base_mod
+        import massa.modules.massa_builder as massa_builder_mod
+
+        globals()['Massa_OT_Base'] = massa_base_mod.Massa_OT_Base
+        globals()['MassaBuilder'] = massa_builder_mod.MassaBuilder
+        return True
+    except ImportError as e:
+        print(f"Failed to import dependencies: {e}")
+        return False
 
 def run_checks(obj):
     errors = []
@@ -431,18 +451,38 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     exec_time_ms = 0.0
     try:
         start_time = time.perf_counter()
+        print(f"Runner: Checking cartridge {cartridge_path}")
         if os.path.exists(cartridge_path) and cartridge_path != "global_skill_placeholder.py":
+            print("Runner: File exists, executing...")
+            prepare_cartridge_env()
             with open(cartridge_path) as f:
                 code = f.read()
+
+                # Replace relative imports using regex to handle variations
+                # Use flexible whitespace matching
+                code = re.sub(r'from\s+\.+\s*operators\.massa_base\s+import\s+Massa_OT_Base', '# [MOCKED] Massa_OT_Base', code)
+                code = re.sub(r'from\s+\.+\s*massa_builder\s+import\s+MassaBuilder', '# [MOCKED] MassaBuilder', code)
+
+                # Check for remaining relative imports
+                if "from ." in code:
+                    print("Runner WARNING: Relative imports found in code!")
+                    for line in code.split('\n'):
+                        if "from ." in line and not line.strip().startswith("#"):
+                            print(f"  > {line}")
 
                 exec(code, globals())
 
                 # [AUTO-EXECUTE] If we just loaded an Operator, run it to generate the mesh
                 op_class = None
+                print("Runner: Scanning globals for MASSA_OT_...")
                 for name, val in globals().items():
-                    if name.startswith("MASSA_OT_") and isinstance(val, type):
-                        op_class = val
-                        break
+                    if name.startswith("MASSA_OT_"):
+                         print(f"Runner: Found Global {name}")
+                         if isinstance(val, type):
+                             # Avoid picking up the Base class itself if imported
+                             if name != "Massa_OT_Base":
+                                 op_class = val
+                                 break
 
                 if op_class:
                     try:
@@ -455,13 +495,21 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
 
                             # Call Operator
                             idname = op_class.bl_idname
+                            print(f"Runner: Found Operator {idname}")
                             if "." in idname:
                                 cat, name = idname.split(".")
                                 if hasattr(bpy.ops, cat):
                                     func = getattr(getattr(bpy.ops, cat), name)
                                     func() # Run!
+                                    print(f"Runner: Executed {idname}")
+                                else:
+                                    print(f"Runner: Could not find category {cat} in bpy.ops")
+                            else:
+                                print(f"Runner: Invalid idname {idname}")
                     except Exception as e:
                         print(f"Runner Execution Error: {e}")
+                        import traceback
+                        traceback.print_exc()
 
         else:
              # If cartridge doesn't exist (and we aren't in SKILL_EXEC), it's okay if we just want to audit existing?
