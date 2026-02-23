@@ -343,12 +343,12 @@ class MassaBuilder:
         if not self.active_faces:
             return self
 
+        # Fixed: use_relative not supported by inset_individual in this API version
         ret = bmesh.ops.inset_individual(
             self.bm,
             faces=self.active_faces,
             thickness=amount,
-            depth=depth,
-            use_relative=relative
+            depth=depth
         )
 
         # Selection usually remains valid faces or new faces?
@@ -562,11 +562,10 @@ class MassaBuilder:
             return self
 
         try:
+            # span/offset not supported in bmesh.ops.grid_fill in this API version
             ret = bmesh.ops.grid_fill(
                 self.bm,
-                edges=self.active_edges,
-                span=span,
-                offset=offset
+                edges=self.active_edges
             )
             self.active_faces = ret['faces']
         except RuntimeError:
