@@ -126,8 +126,8 @@ class MassaBuilder:
             cap_ends=cap_ends,
             cap_tris=False,
             segments=segments,
-            diameter1=radius * 2,
-            diameter2=radius * 2,
+            radius1=radius,
+            radius2=radius,
             depth=depth
         )
         verts = ret['verts']
@@ -168,8 +168,8 @@ class MassaBuilder:
             cap_ends=cap_ends,
             cap_tris=False,
             segments=segments,
-            diameter1=radius_bottom * 2,
-            diameter2=radius_top * 2,
+            radius1=radius_bottom,
+            radius2=radius_top,
             depth=depth
         )
         verts = ret['verts']
