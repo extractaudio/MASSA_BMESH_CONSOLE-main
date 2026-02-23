@@ -39,6 +39,10 @@ When tasked with creating or modifying a Cartridge in `modules/cartridges/`, you
    - **Slot 1 (Perimeter):** End Caps / Silhouette.
    - **Slot 3 (Guide):** Cylinder Seams / Tube Cuts (Essential for UV Unwrapping).
 
+   **Intelligent Edge Auditing (UV Prep):**
+   A specialized auditor (`massa_edge_auditor.py`) runs **before** UV checks to ensure complex 3D geometry has sufficient seams (Edge Slot 1 or 3) for unwrapping.
+   - **`CRITICAL_NO_SEAMS_ON_COMPLEX_MESH`**: The mesh is 3D and complex (>12 faces) but has ZERO seams defined. You MUST tag edges with `builder.tag_edge_role(1)` (Perimeter) or `(3)` (Guide) to fix this, otherwise UV unwrap will fail or produce distortion.
+
    **UV Auditing & Fixing:** The "Pinched UV" or distorted mapping issues can be diagnosed using the "Finalize & Inspect" operator. This tool condemns the procedural object (applying all modifiers) and immediately enters UV Editing mode with all faces selected and unpacked.
 
    **Topology Auditing:** The engine automatically removes zero-area and thin sliver faces during the generation pipeline. However, you MUST verify your cartridge logic produces clean topology natively.
