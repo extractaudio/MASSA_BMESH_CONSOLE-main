@@ -59,6 +59,13 @@ class MassaBuilder:
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
+        # Capture faces reliably
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret:
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
@@ -88,6 +95,12 @@ class MassaBuilder:
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret:
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
@@ -113,14 +126,22 @@ class MassaBuilder:
             cap_ends=cap_ends,
             cap_tris=False,
             segments=segments,
-            radius1=radius,
-            radius2=radius,
+            diameter1=radius * 2,
+            diameter2=radius * 2,
             depth=depth
         )
         verts = ret['verts']
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret: # Sometimes in 'geom'
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        elif 'geom' in ret:
+            self.active_faces = [f for f in ret['geom'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
@@ -147,14 +168,22 @@ class MassaBuilder:
             cap_ends=cap_ends,
             cap_tris=False,
             segments=segments,
-            radius1=radius_bottom,
-            radius2=radius_top,
+            diameter1=radius_bottom * 2,
+            diameter2=radius_top * 2,
             depth=depth
         )
         verts = ret['verts']
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
 
         self.active_verts = verts
+        self.bm.verts.ensure_lookup_table()
+        if 'faces' in ret:
+            self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        elif 'geom' in ret:
+            self.active_faces = [f for f in ret['geom'] if isinstance(f, bmesh.types.BMFace)]
+        else:
+            self.active_faces = list(set(f for v in verts for f in v.link_faces))
+
         self._update()
         return self
 
@@ -438,6 +467,76 @@ class MassaBuilder:
         if self.active_faces:
             for f in self.active_faces:
                 f[layer] = socket_id
+        return self
+
+    def tag_uvs(self, scale=1.0, projection='BOX'):
+        """
+        Projects UVs onto selected faces.
+        Supports: 'BOX' (Tri-planar), 'VIEW' (Planar Z), 'CYLINDER' (Basic polar).
+        """
+        uv_layer = self.bm.loops.layers.uv.verify()
+        target_faces = self.active_faces if self.active_faces else self.bm.faces
+
+        for f in target_faces:
+            n = f.normal
+            for l in f.loops:
+                v = l.vert.co
+                u, v_coord = 0.0, 0.0
+
+                if projection == 'BOX':
+                    # Tri-planar projection based on normal
+                    if abs(n.z) >= 0.5: # Top/Bottom
+                        u, v_coord = v.x, v.y
+                    elif abs(n.x) >= 0.5: # Left/Right
+                        u, v_coord = v.y, v.z
+                    else: # Front/Back
+                        u, v_coord = v.x, v.z
+
+                elif projection == 'VIEW':
+                    # Planar Z projection
+                    u, v_coord = v.x, v.y
+
+                elif projection == 'CYLINDER':
+                    # Polar projection
+                    # u = angle, v = z
+                    angle = math.atan2(v.y, v.x)
+                    u = angle / (2 * math.pi)
+                    v_coord = v.z
+
+                elif projection == 'FIT':
+                    # Per-face normalization (0..1)
+                    # Requires 2 passes per face
+                    pass
+
+                if projection != 'FIT':
+                    l[uv_layer].uv = (u * scale, v_coord * scale)
+
+            if projection == 'FIT':
+                # Handle FIT separately per face
+                u_vals, v_vals, loop_data = [], [], []
+                plane = 'XZ'
+                if abs(n.z) >= 0.5: plane = 'XY'
+                elif abs(n.x) >= 0.5: plane = 'YZ'
+
+                for l in f.loops:
+                    vv = l.vert.co
+                    if plane == 'XY': uu, vv_c = vv.x, vv.y
+                    elif plane == 'YZ': uu, vv_c = vv.y, vv.z
+                    else: uu, vv_c = vv.x, vv.z
+                    u_vals.append(uu)
+                    v_vals.append(vv_c)
+                    loop_data.append((l, uu, vv_c))
+
+                if not u_vals: continue
+                min_u, max_u = min(u_vals), max(u_vals)
+                min_v, max_v = min(v_vals), max(v_vals)
+                w, h = max_u - min_u, max_v - min_v
+
+                for l, uu, vv_c in loop_data:
+                    nu = (uu - min_u) / w if w > 0.0001 else 0.5
+                    nv = (vv_c - min_v) / h if h > 0.0001 else 0.5
+                    l[uv_layer].uv = (nu, nv)
+
         return self
 
     # =========================================================================

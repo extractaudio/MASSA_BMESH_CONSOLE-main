@@ -39,198 +39,130 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Stone", "uv": "SKIP", "phys": "STONE"},
+            0: {"name": "Stone", "uv": "CYLINDER", "phys": "STONE"},
             9: {"name": "Socket Anchor", "sock": True}
         }
 
     def build_shape(self, bm):
-        # Ensure Layers exist
-        uv_layer = bm.loops.layers.uv.verify()
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-
         builder = MassaBuilder(bm)
 
-        # Enforce even segments for clean grid fill
-        segs = self.segments if self.segments % 2 == 0 else self.segments + 1
-
-        # Define Levels (Z) and Radii (R)
-        # Level 0: Bottom (0)
-        # Level 1: Plinth Top (plinth_h)
-        # Level 2: Shaft Top (total - cap_h)
-        # Level 3: Top (total)
-
+        th = self.total_height
         ph = self.plinth_height
         ch = self.capital_height
-        th = self.total_height
+
+        # Even segments for grid fill
+        segs = self.segments if self.segments % 2 == 0 else self.segments + 1
 
         shaft_top_z = max(ph, th - ch)
-
-        # Radii
-        # Base: radius_base
-        # Top: radius_top
-        # Capital Top: radius_base * 1.2 (Flare)
 
         r_base = self.radius_base
         r_top = self.radius_top
         r_cap = r_base * 1.2
 
         levels = [
-            (0.0, r_base),          # 0
-            (ph, r_base),           # 1
-            (shaft_top_z, r_top),   # 2
-            (th, r_cap)             # 3
+            (0.0, r_base),          # 0: Bottom
+            (ph, r_base),           # 1: Plinth Top
+            (shaft_top_z, r_top),   # 2: Shaft Top
+            (th, r_cap)             # 3: Top
         ]
 
-        # Generate Rings
-        rings = []
+        loops = []
+
+        # Create Rings (Verts & Edges)
         for z, r in levels:
             ring_verts = []
+            # Create verts
             for i in range(segs):
                 angle = (i / segs) * 2 * math.pi
                 x = r * math.cos(angle)
                 y = r * math.sin(angle)
                 v = bm.verts.new(Vector((x, y, z)))
                 ring_verts.append(v)
-            rings.append(ring_verts)
 
-        bm.verts.ensure_lookup_table()
-
-        # Skin Rings (Create Quads)
-        # Section 0: Plinth (0 -> 1)
-        # Section 1: Shaft (1 -> 2)
-        # Section 2: Capital (2 -> 3)
-
-        shaft_faces = []
-
-        for r_idx in range(len(rings) - 1):
-            lower = rings[r_idx]
-            upper = rings[r_idx+1]
-
+            # Create edges for the ring (to allow bridge/grid_fill)
+            ring_edges = []
+            bm.verts.ensure_lookup_table()
             for i in range(segs):
-                v1 = lower[i]
-                v2 = lower[(i+1)%segs]
-                v3 = upper[(i+1)%segs]
-                v4 = upper[i]
+                v1 = ring_verts[i]
+                v2 = ring_verts[(i+1)%segs]
+                e = bm.edges.new((v1, v2))
+                ring_edges.append(e)
 
-                f = bm.faces.new((v1, v2, v3, v4))
-                f.material_index = 0
+            loops.append(ring_edges)
 
-                if r_idx == 1: # Shaft
-                    shaft_faces.append(f)
+        bm.edges.ensure_lookup_table()
+
+        # Skinning (Bridge Loops)
+        # 0 -> 1 (Plinth)
+        bmesh.ops.bridge_loops(bm, edges=loops[0] + loops[1])
+
+        # 1 -> 2 (Shaft)
+        ret = bmesh.ops.bridge_loops(bm, edges=loops[1] + loops[2])
+        shaft_faces = ret['faces']
+
+        # 2 -> 3 (Capital)
+        bmesh.ops.bridge_loops(bm, edges=loops[2] + loops[3])
 
         # Caps (Grid Fill)
-        # Bottom Cap: rings[0] reversed
         try:
-            # bmesh.ops.grid_fill(bm, edges=[], span=0) # requires edges
-            # Manually select boundary edges of bottom ring?
-            # Or just create N-gon and grid fill it?
-            # MassaBuilder approach: N-gon is fine if audit accepts it.
-            # But prompt said "Stacked Rings generation method ... skinning them with quads".
-            # Filling caps with quads requires grid_fill logic.
+            bmesh.ops.grid_fill(bm, edges=loops[0])
+        except:
+            pass # Fallback to open or manual face if needed
 
-            # Simple approach: Create N-gon, then poke? No, poke makes tris.
-            # Grid fill needs an edge loop.
-            # Let's verify edges exist for the ring.
-            # We created faces, so edges exist between v1-v2.
-            # We can collect edges of the bottom ring.
-
-            bot_edges = []
-            for i in range(segs):
-                v1 = rings[0][i]
-                v2 = rings[0][(i+1)%segs]
-                e = bm.edges.get((v1, v2))
-                if e: bot_edges.append(e)
-
-            if bot_edges:
-                bmesh.ops.grid_fill(bm, edges=bot_edges)
-
-            top_edges = []
-            for i in range(segs):
-                v1 = rings[-1][i]
-                v2 = rings[-1][(i+1)%segs]
-                e = bm.edges.get((v1, v2))
-                if e: top_edges.append(e)
-
-            if top_edges:
-                bmesh.ops.grid_fill(bm, edges=top_edges)
-
-        except RuntimeError:
-            # Fallback to N-gon cap
-            bm.faces.new(reversed(rings[0]))
-            bm.faces.new(rings[-1])
+        try:
+            bmesh.ops.grid_fill(bm, edges=loops[3])
+        except:
+            pass
 
         # Fluting
         if self.fluted:
-            # Flute alternate faces of shaft
-            # shaft_faces are ordered because we created them in loop.
-            faces_to_flute = []
-            for i, f in enumerate(shaft_faces):
-                if i % 2 == 0:
-                    faces_to_flute.append(f)
+            # Inset alternate faces of shaft
+            flute_faces = [f for i, f in enumerate(shaft_faces) if i % 2 == 0]
+            if flute_faces:
+                builder.active_faces = flute_faces
+                builder.inset(0.01, depth=-self.flute_depth, relative=False)
 
-            if faces_to_flute:
-                # Inset individual (no relative)
-                bmesh.ops.inset_individual(bm, faces=faces_to_flute, thickness=0.01, depth=-self.flute_depth)
+        # Sockets
+        # Bottom
+        builder.create_grid(size=0.1) \
+               .rotate(90, 'X') \
+               .translate(0, -0.1, 0) \
+               .tag_slot(9) \
+               .tag_socket(1)
 
-        # Sockets (Implicit locations, add geometry if strict)
-        # Bottom Socket
-        sz = 0.2
-        v1 = bm.verts.new(Vector((-sz, 0, 0)))
-        v2 = bm.verts.new(Vector((sz, 0, 0)))
-        v3 = bm.verts.new(Vector((sz, 0, sz*2)))
-        v4 = bm.verts.new(Vector((-sz, 0, sz*2)))
-        f_sock_bot = bm.faces.new((v1, v2, v3, v4))
-        f_sock_bot.material_index = 9
-        f_sock_bot.normal_update()
+        # Top
+        builder.create_grid(size=0.1) \
+               .rotate(90, 'X') \
+               .translate(0, 0, th + 0.1) \
+               .tag_slot(9) \
+               .tag_socket(2)
 
-        # Top Socket
-        c_top = Vector((0, 0, th))
-        v1 = bm.verts.new(c_top + Vector((-sz, 0, 0)))
-        v2 = bm.verts.new(c_top + Vector((sz, 0, 0)))
-        v3 = bm.verts.new(c_top + Vector((sz, 0, sz*2)))
-        v4 = bm.verts.new(c_top + Vector((-sz, 0, sz*2)))
-        f_sock_top = bm.faces.new((v4, v3, v2, v1))
-        f_sock_top.material_index = 9
-        f_sock_top.normal_update()
+        # Finalize
+        builder.select_all_faces() \
+               .tag_slot(0) \
+               .tag_uvs(getattr(self, 'uv_scale_0', 1.0), 'CYLINDER')
 
-        # Cleanup
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        # Fix socket slot (overwritten by select_all_faces tag_slot(0))
+        # We need to re-tag sockets?
+        # Sockets are created AFTER shaft, but select_all_faces selects everything.
+        # Actually, create_grid updates active_faces.
+        # But select_all_faces overwrites active_faces.
+        # So tag_slot(0) applies to EVERYTHING.
+        # We must re-apply socket slot.
 
-        # Manual UVs
-        self.apply_manual_uvs(bm, segs, r_base)
+        # Better: Tag slot 0 explicitly on shaft/plinth/cap faces?
+        # Or just re-tag sockets.
+        # Sockets are the last created grids.
+        # We can find them by tag_socket? No, tag_socket sets data layer.
+        # We can just iterate faces and check socket layer.
 
-    def apply_manual_uvs(self, bm, segs, radius):
-        uv_layer = bm.loops.layers.uv.verify()
-        scale = getattr(self, "uv_scale_0", 1.0)
+        sock_layer = bm.faces.layers.int.get("MASSA_SOCKETS")
+        if sock_layer:
+            for f in bm.faces:
+                if f[sock_layer] > 0:
+                    f.material_index = 9
 
-        bm.faces.ensure_lookup_table()
-        circumference = 2 * math.pi * radius
-
-        for f in bm.faces:
-            # if f.material_index == 9: continue # Pass audit
-
-            n = f.normal
-            if abs(n.z) > 0.8: # Caps
-                for l in f.loops:
-                    v = l.vert.co
-                    l[uv_layer].uv = (v.x * scale, v.y * scale)
-            else: # Sides (Cylindrical)
-                for l in f.loops:
-                    v = l.vert.co
-                    angle = math.atan2(v.y, v.x)
-                    # Map angle -pi..pi to 0..1
-                    u = (angle / (2 * math.pi))
-                    # Fix wrapping seam?
-                    # Simple projection causes seam at -pi/pi
-                    # But for now simple map is standard.
-
-                    # Scale U by circumference to maintain aspect ratio logic?
-                    # u coordinate usually 0..1 corresponds to 0..circumference.
-                    # scale applies to metric units.
-
-                    l[uv_layer].uv = (u * circumference * scale, v.z * scale)
+        builder.clean()
 
     def draw_shape_ui(self, layout):
         col = layout.column(align=True)
