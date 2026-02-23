@@ -466,262 +466,362 @@
 ## Warehouse & Industrial
 
 - **Rule:** Standard Loading Dock Height
-- **Value:** 1.22 m - 1.32 m
+- **Spatial Dimension & Constraint:** 1.22 m - 1.32 m (Standard: 48-52 inches / 1.22-1.32m)
+- **Placement & Adjacency:** Dock levelers or pads match the trailer bed height to the warehouse floor.
+- **Orientation & Alignment:** Perpendicular to the backing truck. OSHA requires guardrails (42" high) if the drop exceeds 4 feet when open.
+- **Materials & Properties:** Heavy-duty steel dock plates, heavy rubber bumpers to absorb impact forces from backing semi-trailers.
 - **Reasoning:** Matches standard freight carrier truck bed heights.
-- **Constraint:** Standard: 48-52 inches (1.22-1.32m)
 
 - **Rule:** Pallet Rack Aisle Width (Wide)
-- **Value:** 3.35 m - 3.96 m
+- **Spatial Dimension & Constraint:** 3.35 m - 3.96 m (Min: 11-13 feet / 3.35-3.96m)
+- **Placement & Adjacency:** Clear space between parallel racking structures.
+- **Orientation & Alignment:** Allows 90-degree turns and safe clearance for standard counterbalanced sit-down forklifts (forklift length + load + 12" clearance).
+- **Materials & Properties:** Racking systems must be bolted to the concrete slab (seismic anchoring) with visible load capacity markings.
 - **Reasoning:** Allows clearance for standard counterbalanced sit-down forklifts.
-- **Constraint:** Min: 11-13 feet (3.35-3.96m)
 
 - **Rule:** Pallet Rack Aisle Width (Narrow)
-- **Value:** 2.44 m - 3.05 m
+- **Spatial Dimension & Constraint:** 2.44 m - 3.05 m (Range: 8-10 feet / 2.44-3.05m)
+- **Placement & Adjacency:** Distance between rack faces.
+- **Orientation & Alignment:** Sized specifically for reach trucks, order pickers, and stand-up forklifts to maximize storage density.
+- **Materials & Properties:** Wire decking on shelves prevents small items from falling, and column protectors shield uprights from forklift strikes.
 - **Reasoning:** Sized for reach trucks and stand-up forklifts.
-- **Constraint:** Range: 8-10 feet (2.44-3.05m)
 
 - **Rule:** Industrial Walkway Width (General)
-- **Value:** 1.22 m
+- **Spatial Dimension & Constraint:** 1.22 m (Min OSHA: 4 feet / 1.22m, or 3ft wider than equipment)
+- **Placement & Adjacency:** Designated pedestrian circulation paths separate from heavy equipment operating zones.
+- **Orientation & Alignment:** Straight paths, clear of obstructions and tripping hazards.
+- **Materials & Properties:** Clearly marked on the floor using high-visibility yellow or white permanent striping paint or durable industrial tape.
 - **Reasoning:** OSHA recommendation: 3 feet wider than equipment or min 4 feet.
-- **Constraint:** Min: 4 feet (1.22m)
 
 - **Rule:** Shipping Container Dimensions (20ft)
-- **Value:** 6.05 m L x 2.43 m W
+- **Spatial Dimension & Constraint:** 6.06 m L x 2.44 m W (Fixed Standard 20' ~ 6.058m x 2.438m)
+- **Placement & Adjacency:** TEU (Twenty-foot Equivalent Unit) standardized footprint.
+- **Orientation & Alignment:** Stacking points at the four corners using twistlocks. Outer dimensions do not account for inner corrugated wall depth.
+- **Materials & Properties:** Corten weathering steel or aluminum, maritime-grade painting, marine plywood flooring over steel cross members.
 - **Reasoning:** Standard TEU ISO dimensions.
-- **Constraint:** Fixed Standard
 
 - **Rule:** Shipping Container Dimensions (40ft)
-- **Value:** 12.19 m L x 2.43 m W
+- **Spatial Dimension & Constraint:** 12.19 m L x 2.44 m W (Fixed Standard 40' ~ 12.192m x 2.438m)
+- **Placement & Adjacency:** FEU (Forty-foot Equivalent Unit) standard footprint.
+- **Orientation & Alignment:** Corner casting load points. Can be stacked securely up to 8-9 units high depending on weight limits.
+- **Materials & Properties:** Heavy corrugated steel with anti-corrosive treatments. Capable of supporting immense compressive stacking loads.
 - **Reasoning:** Standard FEU ISO dimensions.
-- **Constraint:** Fixed Standard
 
 - **Rule:** Industrial Egress Route Width
-- **Value:** 0.71 m
+- **Spatial Dimension & Constraint:** 0.71 m (Strict Min OSHA: 28 inches / 0.71m; ADA accesses often 32")
+- **Placement & Adjacency:** Continuous and unobstructed path of exit travel from any point within the workplace to a place of safety.
+- **Orientation & Alignment:** Direct routes, no dead ends. Doors must swing in the direction of exit travel if the room occupancy exceeds 50.
+- **Materials & Properties:** Self-illuminated or photoluminescent egress signs, emergency battery-backup lighting required along the route.
 - **Reasoning:** OSHA minimum for emergency exit access.
-- **Constraint:** Strict Min: 28 inches (0.71m)
 
 - **Rule:** Industrial Catwalk Width
-- **Value:** 0.46 m
+- **Spatial Dimension & Constraint:** 0.46 m - 0.91 m (OSHA Strict Min: 18" / 0.46m; IBC Stairs/Public: 36" / 0.91m)
+- **Placement & Adjacency:** Elevated runway over machinery or storage for maintenance access or crossing.
+- **Orientation & Alignment:** Horizontal pathway. Requires 42-inch high guardrails and 3.5-inch toeboards to prevent tools/personnel from falling.
+- **Materials & Properties:** Galvanized steel bar grating to prevent dust/debris accumulation and allow light/air passage. Anti-slip nosing.
 - **Reasoning:** OSHA minimum for safe passage on elevated runways.
-- **Constraint:** Strict Min: 18 inches (0.46m)
 
 - **Rule:** Warehouse Clear Height
-- **Value:** Varies (e.g., 6m - 12m)
+- **Spatial Dimension & Constraint:** Varies (e.g., 6m - 12m) (Critical Vertical Limit)
+- **Placement & Adjacency:** The unobstructed vertical distance from the finished floor to the lowest overhead item (joist, beam, duct, or sprinkler).
+- **Orientation & Alignment:** Dictates maximum racking height. NFPA strictly requires an 18-inch minimum gap between the top of stored goods and sprinkler heads.
+- **Materials & Properties:** Roof structures must be engineered to span large open areas without columns obstructing the racking layout.
 - **Reasoning:** Vertical distance from floor to lowest ceiling obstruction (sprinklers/beams).
-- **Constraint:** Critical Vertical Limit
 
 - **Rule:** Mezzanine Headroom Clearance
-- **Value:** 2.13 m
+- **Spatial Dimension & Constraint:** 2.13 m (Min IBC/OSHA: 7 feet / 2.13m above and below deck)
+- **Placement & Adjacency:** Clear walking height underneath the mezzanine structure and on top of the walking surface.
+- **Orientation & Alignment:** Cannot encompass more than 1/3 of the main floor area below it to remain classified as a mezzanine rather than a full story.
+- **Materials & Properties:** Supported by steel columns; requires code-compliant staircases, 42" guardrails, and integrated fire sprinklers underneath the deck.
 - **Reasoning:** Minimum clear height above and below mezzanine deck.
-- **Constraint:** Min: 7 feet (2.13m)
 
 ## Commercial & Retail
 
 - **Rule:** Standard Office Cubicle
-- **Value:** 1.83 m x 1.83 m
+- **Spatial Dimension & Constraint:** 1.83 m x 1.83 m (Standard: 6x6 feet)
+- **Placement & Adjacency:** Layout footprint per solitary worker.
+- **Orientation & Alignment:** Opening pathways must connect to an accessible route (minimum 36 inches wide) leading to fire exits.
+- **Materials & Properties:** Modular acoustic fabric panels (approx 65" high for privacy, 42" for collaboration) with integrated wire management raceways.
 - **Reasoning:** Common "6x6" layout for individual workstations.
-- **Constraint:** Standard: 6x6 feet
 
 - **Rule:** Conference Table Clearance
-- **Value:** 1.22 m
+- **Spatial Dimension & Constraint:** 1.22 m (Min: 48 inches / 1.22m)
+- **Placement & Adjacency:** Perimeter circulation space from the table edge to the nearest wall or credenza.
+- **Orientation & Alignment:** Allows people to walk comfortably behind seated individuals and pull out chairs. ADA requires a 30"x48" clear designated wheelchair space.
+- **Materials & Properties:** Commercial-grade carpet or LVT flooring to absorb sound and endure rolling chair casters.
 - **Reasoning:** Minimum perimeter space for walking behind seated participants.
-- **Constraint:** Min: 48 inches (1.22m)
 
 - **Rule:** Retail Aisle Width (ADA)
-- **Value:** 0.91 m (Min), 1.52 m (Passing)
+- **Spatial Dimension & Constraint:** 0.91 m - 1.52 m (Strict Min: 36 inches / 0.91m; Passing: 60" / 1.52m)
+- **Placement & Adjacency:** Traversible space between fixed merchandise shelving or display racks.
+- **Orientation & Alignment:** Dead-end aisles should be avoided. Aisles longer than 200 feet require passing spaces (60" x 60").
+- **Materials & Properties:** Smooth, slip-resistant commercial flooring. Avoid thick padding or high-pile carpets that hinder wheelchair movement.
 - **Reasoning:** 36" for single wheelchair; 60" for two to pass.
-- **Constraint:** Strict Min: 36 inches (0.91m)
 
 - **Rule:** Commercial Bar Height (ADA)
-- **Value:** 0.86 m
+- **Spatial Dimension & Constraint:** 0.86 m (Max ADA: 34 inches / 0.86m for accessible portion)
+- **Placement & Adjacency:** A designated 36-inch wide section of the bar counter lowered for wheelchair users to order and dine alongside standing patrons.
+- **Orientation & Alignment:** Integrated seamlessly into the main service counter so users do not feel isolated. Forward-facing access required.
+- **Materials & Properties:** Smooth, continuous counter material (wood, resin, stone) transitioning from the standard 42-inch standing bar height.
 - **Reasoning:** Maximum height for accessible bar counter section.
-- **Constraint:** Max: 34 inches (0.86m)
 
 - **Rule:** Commercial Bar Leg Clearance
-- **Value:** 0.48 m
+- **Spatial Dimension & Constraint:** 0.48 m (Min Knee Depth: 19 inches / 0.48m)
+- **Placement & Adjacency:** Clear space measured inward from the front edge of the ADA bar counter to accommodate a wheelchair user's knees/toes.
+- **Orientation & Alignment:** Must provide 27 inches of vertical height clearance and 30 inches of width to allow a forward approach.
+- **Materials & Properties:** The structural fascia (bar die) must be set back to accommodate this recess without exposing rough building materials.
 - **Reasoning:** Knee depth required for inclusivity at accessible bar.
-- **Constraint:** Min: 19 inches (0.48m)
 
 - **Rule:** Fitting Room Turning Space
-- **Value:** 1.52 m Diameter
+- **Spatial Dimension & Constraint:** 1.52 m Diameter (Min ADA: 60 inches / 1.52m)
+- **Placement & Adjacency:** An unobstructed circular area of clear floor space within the accessible dressing room.
+- **Orientation & Alignment:** Allows a wheelchair to pivot 360 degrees. Alternatively, a T-shaped turning space within a 60" square is acceptable.
+- **Materials & Properties:** Entry doors must swing outward or slide, as an inward swinging door cannot cross into this required clear turning space.
 - **Reasoning:** ADA requirement for 360-degree wheelchair turn.
-- **Constraint:** Min: 60 inches (1.52m)
 
 - **Rule:** Fitting Room Bench Size
-- **Value:** 1.07 m L x 0.51 m D
+- **Spatial Dimension & Constraint:** 1.07 m L x 0.51 m D (Min ADA: 42" x 20" / 1.07x0.51m)
+- **Placement & Adjacency:** Fixed to the wall parallel to the clear floor approach space.
+- **Orientation & Alignment:** Seat height must be 17-19 inches above the floor. Requires back support extending a minimum of 18" above the seat.
+- **Materials & Properties:** Structurally solid to withstand transfer weight (minimum 250 lbs capacity). Padding must be durable.
 - **Reasoning:** Accessible bench requirement for transfer.
-- **Constraint:** Min: 42" x 20" (1.07x0.51m)
 
 - **Rule:** Service Counter Height
-- **Value:** 0.91 m
+- **Spatial Dimension & Constraint:** 0.91 m (Max ADA: 36 inches / 0.91m)
+- **Placement & Adjacency:** Sales, transaction, or customer service desks must have an accessible portion.
+- **Orientation & Alignment:** Either a 36-inch long lowered counter for a parallel approach, or a 30-inch long section for a forward approach with knee space.
+- **Materials & Properties:** Durable laminate or solid surface to handle heavy package/purse placement. POS equipment must be within reach range.
 - **Reasoning:** Maximum height for transaction/service counters for accessibility.
-- **Constraint:** Max: 36 inches (0.91m)
 
 - **Rule:** Office Corridor Width
-- **Value:** 1.12 m
+- **Spatial Dimension & Constraint:** 1.12 m (Min IBC: 44 inches / 1.12m; ADA: 36")
+- **Placement & Adjacency:** Main circulation arteries connecting different office suites or to fire stairs.
+- **Orientation & Alignment:** 44" required for occupant loads < 50. High-occupancy floors quickly require larger corridor definitions.
+- **Materials & Properties:** Class A or B interior wall finishes (flame spread ratings) dependent on sprinkler systems. Objects cannot project > 4" off the wall.
 - **Reasoning:** Minimum width for egress capacity < 50 people.
-- **Constraint:** Min: 44 inches (1.12m)
 
 - **Rule:** Restaurant Booth Width
-- **Value:** 1.2 m - 1.8 m
+- **Spatial Dimension & Constraint:** 1.2 m - 1.8 m (Typical: 48-72 inches / 2-4 people)
+- **Placement & Adjacency:** Fixed seating structures. ADA mandates 5% of all seating (including booths/tables) must be accessible.
+- **Orientation & Alignment:** Back-to-back configurations maximize floorspace. Cannot block the 36-inch minimum accessible routing aisles.
+- **Materials & Properties:** Commercial-grade vinyl or treated upholstery for heavy wear and easy wipe-down cleaning.
 - **Reasoning:** Standard booth lengths for 2-4 people.
-- **Constraint:** Typical: 48-72 inches
 
 - **Rule:** Theater Wheelchair Space (Front/Rear Entry)
-- **Value:** 0.91 m W x 1.22 m D
+- **Spatial Dimension & Constraint:** 0.91 m W x 1.22 m D (Min ADA: 36" x 48" / 0.91x1.22m)
+- **Placement & Adjacency:** Integrated seamlessly into the seating plan, dispersed amongst different viewing areas and ticket prices.
+- **Orientation & Alignment:** Level floor space requiring an adjacent companion seat. Side-entry wheelchair spaces require 60 inches of depth instead of 48.
+- **Materials & Properties:** Floor surface must be flat, firm, and slip-resistant.
 - **Reasoning:** Floor space for wheelchair seating in assembly areas.
-- **Constraint:** Min: 36" x 48" (0.91x1.22m)
 
 ## Outdoor & Landscape
 
 - **Rule:** Standard Parking Space
-- **Value:** 2.74 m x 5.49 m
+- **Spatial Dimension & Constraint:** 2.74 m x 5.49 m (Typical: 9x18 feet / 2.74x5.49m)
+- **Placement & Adjacency:** Defined boundaries in a parking lot.
+- **Orientation & Alignment:** Perpendicular, angled, or parallel to the curb.
+- **Materials & Properties:** Asphalt or concrete marked with reflective traffic paint lines (4" width).
 - **Reasoning:** Standard dimension for passenger vehicles.
-- **Constraint:** Typical: 9x18 feet (2.74x5.49m)
 
 - **Rule:** ADA Parking Space Width
-- **Value:** 2.44 m
+- **Spatial Dimension & Constraint:** 2.44 m (Strict Min: 8 feet / 2.44m; Van-accessible requires an 8 ft access aisle)
+- **Placement & Adjacency:** Shortest accessible route to the building entrance.
+- **Orientation & Alignment:** Must connect seamlessly to the access aisle without intervening curbs.
+- **Materials & Properties:** Firm, stable, slip-resistant surface with slope < 1:48 (2%). Marked with the International Symbol of Accessibility.
 - **Reasoning:** Minimum width for the vehicle space itself (plus aisle).
-- **Constraint:** Strict Min: 8 feet (2.44m)
 
 - **Rule:** ADA Access Aisle Width
-- **Value:** 1.52 m
+- **Spatial Dimension & Constraint:** 1.52 m (Strict Min: 5 feet / 1.52m for standard ADA car spots)
+- **Placement & Adjacency:** Adjacent to the ADA parking space. Two spaces can share one aisle.
+- **Orientation & Alignment:** Level with the parking space. Must connect directly to the accessible route without barriers.
+- **Materials & Properties:** Painted with diagonal hatched lines to clearly indicate the no-parking zone.
 - **Reasoning:** Clear space beside parking spot for loading/unloading.
-- **Constraint:** Strict Min: 5 feet (1.52m)
 
 - **Rule:** Two-Way Drive Lane Width
-- **Value:** 7.32 m
+- **Spatial Dimension & Constraint:** 7.32 m (Min: 24 feet / 7.32m)
+- **Placement & Adjacency:** Primary vehicular circulation corridor within a parking lot or residential street.
+- **Orientation & Alignment:** Allows two opposing vehicles to pass safely while accommodating backing arcs out of 90-degree parking spots.
+- **Materials & Properties:** Graded for drainage (e.g., 2% crown). Thick asphalt or poured concrete base.
 - **Reasoning:** Allows two vehicles to pass safely (12' per lane).
-- **Constraint:** Min: 24 feet (7.32m)
 
 - **Rule:** Public Sidewalk Width
-- **Value:** 1.52 m
+- **Spatial Dimension & Constraint:** 1.52 m (Recommended: 5 feet / 1.52m; ADA absolute min continuous passage is 36" / 0.91m)
+- **Placement & Adjacency:** Along public rights-of-way, distinct from the street. Requires 60x60" passing zones if width is < 60".
+- **Orientation & Alignment:** General cross-slope max 2% (1:48) to shed water without causing wheelchair tip hazards.
+- **Materials & Properties:** Broom-finished concrete perpendicular to the path of travel to ensure slip resistance.
 - **Reasoning:** Preferred width allows two adults to walk side-by-side.
-- **Constraint:** Recommended: 5 feet (1.52m)
 
 - **Rule:** Residential Driveway Width (Single)
-- **Value:** 3.05 m - 3.66 m
+- **Spatial Dimension & Constraint:** 3.05 m - 3.66 m (Min: 10-12 feet / 3.05-3.66m)
+- **Placement & Adjacency:** Connects the street to a residential garage or parking pad.
+- **Orientation & Alignment:** The intersection where the driveway crosses the public sidewalk must maintain the 2% maximum ADA cross-slope.
+- **Materials & Properties:** Poured concrete, asphalt, or permeable paving stones. Limit slope to prevent vehicle bottoming out.
 - **Reasoning:** Minimum comfort width for parking and exiting vehicle.
-- **Constraint:** Min: 10-12 feet (3.05-3.66m)
 
 - **Rule:** Residential Driveway Width (Double)
-- **Value:** 6.10 m - 7.32 m
+- **Spatial Dimension & Constraint:** 6.10 m - 7.32 m (Min: 20-24 feet / 6.1-7.3m)
+- **Placement & Adjacency:** Sized to accommodate two standard vehicles side-by-side.
+- **Orientation & Alignment:** Flares slightly at the street curb cut to allow smoother turning radii.
+- **Materials & Properties:** Concrete or asphalt with integrated expansion/control joints every 10-12 feet to manage thermal cracking.
 - **Reasoning:** Allows two cars side-by-side with door opening space.
-- **Constraint:** Min: 20-24 feet (6.1-7.3m)
 
 - **Rule:** Retaining Wall Max Height (No Permit)
-- **Value:** 0.91 m - 1.22 m
+- **Spatial Dimension & Constraint:** 0.91 m - 1.22 m (Limit: 3-4 feet / 0.9-1.2m without engineering)
+- **Placement & Adjacency:** Holding back earth on sloping terrain. Must observe local setbacks from property lines.
+- **Orientation & Alignment:** Batter (leaning backward into the slope) is critical for gravity walls. Requires drainage directly behind the wall.
+- **Materials & Properties:** Segmental concrete blocks, natural stone, or treated timber backed by crushed gravel and perforated drain pipe.
 - **Reasoning:** Structural threshold often requiring engineering/permit above this.
-- **Constraint:** Limit: 3-4 feet (0.9-1.2m)
 
 - **Rule:** Patio Table Space Per Person
-- **Value:** 0.76 m x 0.76 m
+- **Spatial Dimension & Constraint:** 0.76 m x 0.76 m (Recommended Area per diner)
+- **Placement & Adjacency:** Open-air seating arrangements on a level surface.
+- **Orientation & Alignment:** Allows for chair push-back and waiter circulation around the dining perimeter.
+- **Materials & Properties:** Weather-resistant furniture (teak, powder-coated aluminum) on an even, firm foundation like stone pavers or a concrete slab.
 - **Reasoning:** Area allowance for outdoor dining comfort.
-- **Constraint:** Recommended Area
 
 ## Sports & Recreation
 
 - **Rule:** Tennis Court Playing Dimensions
-- **Value:** 23.77 m L x 10.97 m W
+- **Spatial Dimension & Constraint:** 23.77 m L x 10.97 m W (Fixed Standard bounds for doubles; Singles: 8.23m W)
+- **Placement & Adjacency:** Overall required footprint including safety overruns is typically 120 ft L x 60 ft W.
+- **Orientation & Alignment:** Ideally oriented North-South so players do not face the rising or setting sun directly.
+- **Materials & Properties:** Hard court (acrylic over asphalt/concrete), clay, or natural/artificial grass. Fenced with 10ft high chainlink. Built with a 0.5-1% slope.
 - **Reasoning:** Regulation size for doubles match (Singles width: 8.23m).
-- **Constraint:** Fixed Standard
 
 - **Rule:** Basketball Hoop Height
-- **Value:** 3.05 m
+- **Spatial Dimension & Constraint:** 3.05 m (Standard: 10 feet / 3.05m from ground to rim top edge)
+- **Placement & Adjacency:** Centered on the backboard, overhanging the court by several feet from the baseline post.
+- **Orientation & Alignment:** The backboard must be perfectly vertical and parallel to the baseline.
+- **Materials & Properties:** Breakaway steel rim mounted to a tempered glass or acrylic backboard (72"x42" for regulation).
 - **Reasoning:** Regulation rim height for ages 12+.
-- **Constraint:** Standard: 10 feet (3.05m)
 
 - **Rule:** Pool Table Room Clearance
-- **Value:** 1.52 m
+- **Spatial Dimension & Constraint:** 1.52 m (Min: 5 feet / 1.52m clearance around all sides of the table)
+- **Placement & Adjacency:** Unobstructed area factoring in standard 58-inch cue lengths.
+- **Orientation & Alignment:** Requires direct overhead task lighting (pendant fixtures hung ~32" above the felt).
+- **Materials & Properties:** Sturdy, level subfloor to support the immense weight of slate bed tables without sagging.
 - **Reasoning:** Minimum cueing clearance around all sides (5ft).
-- **Constraint:** Min: 5 feet (1.52m)
 
 - **Rule:** Bowling Lane Length
-- **Value:** 18.29 m
+- **Spatial Dimension & Constraint:** 18.29 m (Standard: 60 feet / 18.29m from foul line to headpin)
+- **Placement & Adjacency:** Preceded by a 15-foot approach area and followed by the pin deck/pit. Total installation length is ~86.5 ft.
+- **Orientation & Alignment:** Utterly flat playing surface bounded by gutters.
+- **Materials & Properties:** Hard rock maple (front) and pine (back), or modern synthetic laminates, coated in lane oil for friction profiles.
 - **Reasoning:** Distance from foul line to headpin.
-- **Constraint:** Standard: 60 feet (18.29m)
 
 - **Rule:** Bowling Lane Width
-- **Value:** 1.05 m
+- **Spatial Dimension & Constraint:** 1.05 m (Standard: 41.5-42 inches / 1.05m playing surface)
+- **Placement & Adjacency:** Defined span between the two 9.25-inch gutters.
+- **Orientation & Alignment:** Minimum width for a single lane installation (including ball returns and walks) is roughly 7 feet.
+- **Materials & Properties:** Smooth, polished wood or synthetic surface maintained for highly specific traction.
 - **Reasoning:** Regulation lane width (excluding gutters).
-- **Constraint:** Standard: 41.5 inches (1.05m)
 
 - **Rule:** Treadmill Rear Safety Clearance
-- **Value:** 1.52 m - 1.98 m
+- **Spatial Dimension & Constraint:** 1.52 m - 1.98 m (Min OSHA/General: 5-6 feet / 1.52-2.0m open space behind)
+- **Placement & Adjacency:** Unobstructed zone directly behind the spinning belt.
+- **Orientation & Alignment:** Ensures a user who falls or is ejected backward will not strike a wall or other equipment.
+- **Materials & Properties:** Shock-absorbing gym flooring (e.g., dense rubber tiles) below and behind the unit.
 - **Reasoning:** Area to prevent injury if user falls backward.
-- **Constraint:** Min: 5 feet (1.52m)
 
 - **Rule:** Treadmill Side Clearance
-- **Value:** 0.60 m
+- **Spatial Dimension & Constraint:** 0.60 m (Min: 2 feet / 0.6m on both sides)
+- **Placement & Adjacency:** Flanking space between adjacent machines.
+- **Orientation & Alignment:** Allows users to safely straddle the belt or dismount before stopping completely.
+- **Materials & Properties:** Avoid putting high-pile carpet underneath, as it traps descending motor heat and dust.
 - **Reasoning:** Space for safe mounting/dismounting.
-- **Constraint:** Min: 2 feet (0.6m)
 
 - **Rule:** Ping Pong Table Clearance
-- **Value:** 1.52 m (Ends), 0.91 m (Sides)
+- **Spatial Dimension & Constraint:** 1.52 m (Ends), 0.91 m (Sides) (Min bounds for play; Pro: 10 ft ends)
+- **Placement & Adjacency:** Clearance radius around the 9x5 foot regulation table.
+- **Orientation & Alignment:** Adequate overhead clearance > 8 ft to allow for lobs. Minimum room size ~19x11 ft.
+- **Materials & Properties:** Smooth, matte, dark-colored tabletop (wood or synthetic) to contrast with the ball.
 - **Reasoning:** Play area for shots away from table.
-- **Constraint:** Recommended
 
 - **Rule:** Swimming Lane Width (Competition)
-- **Value:** 2.5 m
+- **Spatial Dimension & Constraint:** 2.5 m (FINA Standard: 2.5m)
+- **Placement & Adjacency:** Individual racer boundaries within a 50m Olympic or 25m short-course pool.
+- **Orientation & Alignment:** Outermost lanes are bordered by a 0.2m gap or wider buffer lane to mitigate wave reflections off the walls.
+- **Materials & Properties:** Separated by continuous floating lane ropes designed specifically to absorb and dissipate wave turbulence.
 - **Reasoning:** FINA standard for Olympic pools.
-- **Constraint:** Standard: 2.5m
 
 - **Rule:** Golf Simulator Room Height
-- **Value:** 2.74 m - 3.05 m
+- **Spatial Dimension & Constraint:** 2.74 m - 3.05 m (Min: 9-10 feet / 2.7-3.0m)
+- **Placement & Adjacency:** Vertical clearance bounding the primary hitting bay.
+- **Orientation & Alignment:** Must clear the arc of a full driver swing for both right and left-handed players without ceiling interference.
+- **Materials & Properties:** Impact-resistant ceiling baffles and dense acoustic wall padding to contain wild shots.
 - **Reasoning:** Clearance for full driver swing arc.
-- **Constraint:** Min: 9-10 feet (2.7-3.0m)
 
 ## Education & Libraries
 
 - **Rule:** Classroom Desk Clearance (Rows)
-- **Value:** 0.76 m - 0.91 m
+- **Spatial Dimension & Constraint:** 0.76 m - 0.91 m (Min: 30-36 inches / 0.76-0.91m)
+- **Placement & Adjacency:** Circulation aisles separating clusters or rows of student desks.
+- **Orientation & Alignment:** At least 5% of desks must be wheelchair accessible (requiring 30x48" clear floor space and 24" knee depth).
+- **Materials & Properties:** Hard flooring like VCT or low-pile commercial carpet for easy rolling of chairs and equipment grids.
 - **Reasoning:** Circulation space between rows of desks.
-- **Constraint:** Min: 30-36 inches (0.76-0.91m)
 
 - **Rule:** Whiteboard Mounting Height
-- **Value:** 0.86 m - 0.91 m (Child) / 1.2 m (Adult)
+- **Spatial Dimension & Constraint:** 0.86 m - 0.91 m (Child) / 1.2 m (Adult) (Age Dependent display trays)
+- **Placement & Adjacency:** Anchored to the primary front focal wall of the instruction space.
+- **Orientation & Alignment:** For elementary ages, the tray sits ~34 inches AFF. Must consider visual line of sight for all seated students.
+- **Materials & Properties:** Dry-erase surface (porcelain-backed steel to allow magnets) with a low-glare finish to reduce eye strain from mounted projectors.
 - **Reasoning:** Distance from floor to tray based on user age.
-- **Constraint:** Age Dependent
 
 - **Rule:** ADA Library Aisle Width
-- **Value:** 0.91 m (Min), 1.07 m (Preferred)
+- **Spatial Dimension & Constraint:** 0.91 m (Min), 1.07 m (Preferred) (Strict ADA Min: 36 inches / 0.91m)
+- **Placement & Adjacency:** Floor space separating fixed or high-density rolling physical shelving stacks.
+- **Orientation & Alignment:** Long aisles over 200 feet require intermittent passing clear zones (60"x60").
+- **Materials & Properties:** Stacks must be securely anchored to the floor or wall to prevent extreme tipping hazards in high-traffic reading zones.
 - **Reasoning:** Clearance between book stacks for wheelchair access.
-- **Constraint:** Strict Min: 36 inches (0.91m)
 
 - **Rule:** School Locker Dimensions
-- **Value:** 0.30 m W x 0.30 m D x 1.52 m H
+- **Spatial Dimension & Constraint:** 0.30 m W x 0.30 m D x 1.52 m H (Standard: 12x12x60 inches)
+- **Placement & Adjacency:** Lined continuously along wide school corridors or embedded into alcove walls.
+- **Orientation & Alignment:** 5% must be ADA compliant with 30x48" floor space. ADA accessible hooks cannot exceed 48 inches AFF.
+- **Materials & Properties:** Heavy-gauge ventilated sheet steel to withstand severe impacts and deter tampering.
 - **Reasoning:** Standard full-tier locker size.
-- **Constraint:** Standard: 12x12x60 inches
 
 - **Rule:** Auditorium Seating Spacing
-- **Value:** 0.84 m - 0.91 m (Back-to-Back)
+- **Spatial Dimension & Constraint:** 0.84 m - 0.91 m (Back-to-Back) (Min: 33 inches / 0.84m pitch)
+- **Placement & Adjacency:** Distance from the back of one chair to the back of the chair directly in front of it.
+- **Orientation & Alignment:** Defines legroom. ADA wheelchair spaces (36"x48" min) must be dispersed across seating sections/prices with companion seats.
+- **Materials & Properties:** Sound-absorbing upholstered folding seats. Floor must slope or step to maintain sightlines over the rows ahead.
 - **Reasoning:** Standard row depth for comfort.
-- **Constraint:** Min: 33 inches (0.84m)
 
 - **Rule:** Classroom Chair Clearance
-- **Value:** 0.91 m
+- **Spatial Dimension & Constraint:** 0.91 m (Min: 36 inches / 0.91m)
+- **Placement & Adjacency:** Clear circulation space behind a fully pulled-out seated chair.
+- **Orientation & Alignment:** Ensures emergency egress routes between rows are not choked when the classroom is fully occupied.
+- **Materials & Properties:** Stackable, durable contour molded plastics or woods on glides to withstand continuous abuse and reduce scratching.
 - **Reasoning:** Space to back out chair and access behind.
-- **Constraint:** Min: 36 inches (0.91m)
 
 - **Rule:** Teacher Podium Clearance
-- **Value:** 1.22 m
+- **Spatial Dimension & Constraint:** 1.22 m (Recommended: 48 inches / 1.22m)
+- **Placement & Adjacency:** Instructors' dynamic teaching area at the front of the classroom near the primary display board.
+- **Orientation & Alignment:** Should not block egress routes. ADA compliant podiums allow mechanical height adjustments (28-34" worksurface).
+- **Materials & Properties:** Wood/laminate casing often integrating AV racking systems, cable management raceways, and lockable storage.
 - **Reasoning:** Action zone for teaching movement.
-- **Constraint:** Recommended: 48 inches (1.22m)
 
 - **Rule:** Cafeteria Table Spacing
-- **Value:** 1.52 m
+- **Spatial Dimension & Constraint:** 1.52 m (Min: 60 inches / 1.52m main aisles)
+- **Placement & Adjacency:** Primary circulation arteries between banks of lunch tables allowing crowds and food carts to pass easily.
+- **Orientation & Alignment:** 5% of tables must be ADA accessible (30"x48" pull-up clear space and 19" minimum forward knee depth).
+- **Materials & Properties:** Fold-and-roll mechanical tables with integrated seating using high-pressure laminate tops that sanitize easily.
 - **Reasoning:** Main traffic aisle between banks of tables.
-- **Constraint:** Min: 60 inches (1.52m)
 
 - **Rule:** Study Carrel Dimensions
-- **Value:** 0.91 m W x 0.61 m D
+- **Spatial Dimension & Constraint:** 0.91 m W x 0.61 m D (Typical: 36x24 inches footprint)
+- **Placement & Adjacency:** Individual focus pods scattered in quiet areas or aligned continuously along perimeter walls.
+- **Orientation & Alignment:** 5% must be ADA compliant, offering a 27" high x 30" wide knee space underneath for forward approach.
+- **Materials & Properties:** Acoustic partition panels (typically 18-24" high above the desk) to mitigate visual distractions and dampen sound.
 - **Reasoning:** Standard individual quiet study space.
-- **Constraint:** Typical: 36x24 inches
 
 - **Rule:** Kindergarten Chair Height
-- **Value:** 0.25 m - 0.35 m
+- **Spatial Dimension & Constraint:** 0.25 m - 0.35 m (Range: 10-14 inches seat height)
+- **Placement & Adjacency:** Nested around low-height collaborative instruction tables (approx 20-22 inches high).
+- **Orientation & Alignment:** Focuses strictly on ergonomics for 4-6 year olds, ensuring their feet sit completely flat on the floor.
+- **Materials & Properties:** Lightweight, tip-resistant, vibrantly colored one-piece plastics that can be easily sanitized and stacked.
 - **Reasoning:** Seat height appropriate for 4-6 year olds.
-- **Constraint:** Range: 10-14 inches
 
 ## Retail & Commercial
 
