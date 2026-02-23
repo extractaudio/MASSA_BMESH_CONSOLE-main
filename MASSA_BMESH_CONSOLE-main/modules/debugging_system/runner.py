@@ -13,6 +13,7 @@ import bmesh
 
 # 1. Setup Path to import your attached 'auditors' folder
 current_dir = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(os.path.dirname(current_dir)) # Up 2 levels: modules/debugging_system -> modules -> root
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
@@ -432,7 +433,36 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
         start_time = time.perf_counter()
         if os.path.exists(cartridge_path) and cartridge_path != "global_skill_placeholder.py":
             with open(cartridge_path) as f:
-                exec(f.read(), globals())
+                code = f.read()
+
+                exec(code, globals())
+
+                # [AUTO-EXECUTE] If we just loaded an Operator, run it to generate the mesh
+                op_class = None
+                for name, val in globals().items():
+                    if name.startswith("MASSA_OT_") and isinstance(val, type):
+                        op_class = val
+                        break
+
+                if op_class:
+                    try:
+                        # Ensure bpy is real
+                        if hasattr(bpy, "utils") and hasattr(bpy, "ops"):
+                            try:
+                                bpy.utils.register_class(op_class)
+                            except ValueError:
+                                pass # Already registered
+
+                            # Call Operator
+                            idname = op_class.bl_idname
+                            if "." in idname:
+                                cat, name = idname.split(".")
+                                if hasattr(bpy.ops, cat):
+                                    func = getattr(getattr(bpy.ops, cat), name)
+                                    func() # Run!
+                    except Exception as e:
+                        print(f"Runner Execution Error: {e}")
+
         else:
              # If cartridge doesn't exist (and we aren't in SKILL_EXEC), it's okay if we just want to audit existing?
              # But usually audit runs the cartridge.
