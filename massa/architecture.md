@@ -1291,3 +1291,85 @@ This section defines the strict geometric and behavioral contracts for the core 
   "tolerance": 0.3
 }
 ```
+
+## IND_06: Conveyor
+
+```json
+{
+  "id": "ind_06_conveyor",
+  "behavior": "Linear Transport",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "length": 4.0,
+      "width": 1.0,
+      "height": 0.8
+  },
+  "expected_dimensions": [1.0, 4.0, 0.8],
+  "tolerance": 0.2
+}
+```
+
+## IND_07: Pipe Junction
+
+```json
+{
+  "id": "ind_07_pipe_junction",
+  "behavior": "Fluid Connector",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "radius": 0.2,
+      "length": 0.5
+  },
+  "expected_dimensions": [1.0, 1.0, 0.4],
+  "tolerance": 0.5
+}
+```
+
+## IND_08: Tank
+
+```json
+{
+  "id": "ind_08_tank",
+  "behavior": "Storage Vessel",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "radius": 1.5,
+      "height": 4.0
+  },
+  "expected_dimensions": [3.0, 3.0, 5.0],
+  "tolerance": 1.0
+}
+```
+
+## IND_09: Fan
+
+```json
+{
+  "id": "ind_09_fan",
+  "behavior": "Air Mover",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "size": 1.0,
+      "depth": 0.5
+  },
+  "expected_dimensions": [1.0, 0.5, 1.0],
+  "tolerance": 0.3
+}
+```
+
+## IND_10: Generator
+
+```json
+{
+  "id": "ind_10_generator",
+  "behavior": "Power Unit",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "length": 2.5,
+      "width": 1.2,
+      "height": 1.5
+  },
+  "expected_dimensions": [1.2, 2.5, 1.5],
+  "tolerance": 0.5
+}
+```
