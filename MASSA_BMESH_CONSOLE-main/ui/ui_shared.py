@@ -433,6 +433,7 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
     row.label(text="Global Overrides", icon="PREFERENCES")
     row.prop(owner, "auto_unwrap", text="Auto Smart UV", toggle=True)
     if owner.auto_unwrap:
+        box.prop(owner, "auto_unwrap_use_slots", text="Use Slots (Seams)")
         box.prop(owner, "auto_unwrap_margin", text="Margin")
 
     # [ARCHITECT NEW] Finalize & Audit

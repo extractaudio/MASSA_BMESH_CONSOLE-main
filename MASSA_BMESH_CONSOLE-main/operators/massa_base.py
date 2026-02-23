@@ -51,6 +51,11 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
 
     # Global UV Overrides
     auto_unwrap: BoolProperty(name="Auto Smart UV", default=False, description="Force Smart UV Project on result")
+    auto_unwrap_use_slots: BoolProperty(
+        name="Use Edge Slots",
+        default=True,
+        description="If True, uses Edge Slots 1, 3, 5 as Seams and runs LSCM Unwrap.",
+    )
     auto_unwrap_margin: FloatProperty(
         name="Margin", default=0.02, min=0.001, max=0.5, description="Island Margin for Auto Unwrap"
     )
@@ -174,6 +179,9 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         all_keys.extend(
             [
                 "ui_tab",
+                "auto_unwrap",
+                "auto_unwrap_use_slots",
+                "auto_unwrap_margin",
                 "edge_slot_1_action",
                 "edge_slot_2_action",
                 "edge_slot_3_action",

@@ -353,6 +353,21 @@ def _generate_output(op, context, bm, socket_data, manifest):
         except Exception as e:
             print(f"Socket Collection Error: {e}")
 
+    # [ARCHITECT FIX] Force Seams from Slots (Auto-Unwrap)
+    # If enabled, we bake Slot 1/3/5 as Seams onto the BMesh before generating the Mesh.
+    # This ensures LSCM Unwrap has the correct boundaries.
+    if getattr(op, "auto_unwrap", False) and getattr(op, "auto_unwrap_use_slots", True):
+        try:
+             edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+             if edge_slots:
+                 for e in bm.edges:
+                     sid = e[edge_slots]
+                     # Slot 1 (Perimeter), 3 (Guide), 5 (Fold) -> Seam
+                     if sid in {1, 3, 5}:
+                         e.seam = True
+        except:
+            pass
+
     bm.to_mesh(mesh)
     bm.free()
 
@@ -446,7 +461,9 @@ def _generate_output(op, context, bm, socket_data, manifest):
                 # [ARCHITECT LOGIC] Decide Strategy
                 # If Auto-Unwrap is ON and NO Seams are active, use Smart Project.
                 # If Seams are active, trust them (LSCM).
-                use_smart = (force_auto_unwrap and not getattr(op, "seam_active", False))
+                # [UPDATED] If "Use Slots" is ON, we force LSCM (assuming seams are present).
+
+                use_smart = (force_auto_unwrap and not getattr(op, "seam_active", False) and not getattr(op, "auto_unwrap_use_slots", True))
 
                 if use_smart:
                     try:
