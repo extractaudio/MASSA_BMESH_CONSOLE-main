@@ -474,7 +474,7 @@ class MassaBuilder:
                 f[layer] = socket_id
         return self
 
-    def tag_uvs(self, scale=1.0, projection='BOX'):
+    def tag_uvs(self, scale=1.0, projection='BOX', axis='Z'):
         """
         Projects UVs onto selected faces.
         Supports: 'BOX' (Tri-planar), 'VIEW' (Planar Z), 'CYLINDER' (Basic polar).
@@ -503,10 +503,22 @@ class MassaBuilder:
 
                 elif projection == 'CYLINDER':
                     # Polar projection
-                    # u = angle, v = z
-                    angle = math.atan2(v.y, v.x)
+                    if axis == 'Z':
+                        angle = math.atan2(v.y, v.x)
+                        v_coord = v.z
+                    elif axis == 'X':
+                        # Along X. Circle in YZ.
+                        angle = math.atan2(v.z, v.y)
+                        v_coord = v.x
+                    elif axis == 'Y':
+                        # Along Y. Circle in XZ.
+                        angle = math.atan2(v.x, v.z)
+                        v_coord = v.y
+                    else: # Default Z
+                        angle = math.atan2(v.y, v.x)
+                        v_coord = v.z
+
                     u = angle / (2 * math.pi)
-                    v_coord = v.z
 
                 elif projection == 'FIT':
                     # Per-face normalization (0..1)
