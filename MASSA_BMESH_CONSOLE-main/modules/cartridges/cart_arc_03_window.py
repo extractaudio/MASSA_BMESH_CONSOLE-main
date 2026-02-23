@@ -106,7 +106,7 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
         
         # 4. Sockets
         # Center of window
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'X') \
                .translate(W/2, 0, H/2) \
                .tag_slot(9) \

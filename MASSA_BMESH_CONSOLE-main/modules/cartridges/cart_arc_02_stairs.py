@@ -123,7 +123,7 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
 
         # 3. Sockets
         # Bottom
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'X') \
                .translate(0, -0.1, 0) \
                .tag_slot(9) \
@@ -131,7 +131,7 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
 
         # Top
         end_y = count * depth
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'X') \
                .translate(0, end_y + 0.1, h) \
                .tag_slot(9) \

@@ -147,7 +147,7 @@ class MASSA_OT_ArcDoorway(Massa_OT_Base):
                 builder.translate(pivot.x, pivot.y, pivot.z)
 
         # 5. Sockets
-        builder.create_grid(size=0.5) \
+        builder.create_grid(size=0.1) \
                .rotate(90, 'X') \
                .translate(0, -0.1, 0) \
                .tag_slot(9) \
