@@ -49,9 +49,9 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Treads", "uv": "UNWRAP", "phys": "DEBUG_1"},
-            1: {"name": "Risers", "uv": "UNWRAP", "phys": "DEBUG_2"},
-            2: {"name": "Stringers", "uv": "UNWRAP", "phys": "DEBUG_3"},
+            0: {"name": "Treads", "uv": "SKIP", "phys": "DEBUG_1"},
+            1: {"name": "Risers", "uv": "SKIP", "phys": "DEBUG_2"},
+            2: {"name": "Stringers", "uv": "SKIP", "phys": "DEBUG_3"},
             9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
@@ -73,10 +73,8 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
             # Create first step base
             builder.create_box(w, depth, rise) \
                    .translate(0, depth/2, rise/2) \
-                   .tag_slot(0)
-
-            # Tag initial boundary
-            builder.select_boundary().tag_edge_role(1)
+                   .tag_slot(0) \
+                   .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # Extrude subsequent steps
             # We need to find the "Top Front" face to extrude?
@@ -105,7 +103,7 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
                 builder.create_box(w, depth, rise) \
                        .translate(0, y_pos + depth/2, z_pos + rise/2) \
                        .tag_slot(0) \
-                       .select_boundary().tag_edge_role(1) # Mark each block's perimeter
+                       .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX') # Mark each block's perimeter
 
         else:
             # STANDARD / FLOATING
@@ -119,20 +117,20 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
                     builder.create_box(w, depth, thick_tread) \
                            .translate(0, y_pos + depth/2, z_pos + rise) \
                            .tag_slot(0) \
-                           .select_boundary().tag_edge_role(1)
+                           .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
                 else: # STANDARD
                     # Riser
                     builder.create_box(w, riser_thick, rise) \
                            .translate(0, y_pos + riser_thick/2, z_pos + rise/2) \
                            .tag_slot(1) \
-                           .select_boundary().tag_edge_role(1)
+                           .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
                     # Tread
                     builder.create_box(w, depth + nosing, tread_thick) \
                            .translate(0, y_pos + (depth + nosing)/2, z_pos + rise + tread_thick/2) \
                            .tag_slot(0) \
-                           .select_boundary().tag_edge_role(1)
+                           .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
         # 2. Stringers / Supports
         if self.stair_style == 'FLOATING':
@@ -152,7 +150,7 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
                    .rotate(math.degrees(angle), 'X') \
                    .translate(0, cy, cz - 0.2) \
                    .tag_slot(2) \
-                   .select_boundary().tag_edge_role(1) # Seam on perimeter
+                   .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX') # Seam on perimeter
 
         elif self.stair_style == 'STANDARD' and self.has_stringer:
             total_y = count * depth
@@ -175,14 +173,14 @@ class MASSA_OT_ArcStairs(Massa_OT_Base):
                    .rotate(math.degrees(angle), 'X') \
                    .translate(-w/2 - sw/2, cy, cz_shift) \
                    .tag_slot(2) \
-                   .select_boundary().tag_edge_role(1)
+                   .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # Right Stringer
             builder.create_box(sw, length + 0.5, sh) \
                    .rotate(math.degrees(angle), 'X') \
                    .translate(w/2 + sw/2, cy, cz_shift) \
                    .tag_slot(2) \
-                   .select_boundary().tag_edge_role(1)
+                   .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
         # 3. Sockets (Tag Existing Faces)
         builder.clean()

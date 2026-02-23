@@ -47,9 +47,9 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Frame", "uv": "UNWRAP", "phys": "DEBUG_1"},
-            3: {"name": "Glass", "uv": "FIT", "phys": "DEBUG_4"}, # Keep FIT for Glass
-            4: {"name": "Louver", "uv": "UNWRAP", "phys": "DEBUG_2"},
+            0: {"name": "Frame", "uv": "SKIP", "phys": "DEBUG_1"},
+            3: {"name": "Glass", "uv": "SKIP", "phys": "DEBUG_4"}, # FIT is manual
+            4: {"name": "Louver", "uv": "SKIP", "phys": "DEBUG_2"},
             9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
@@ -78,7 +78,7 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                 builder.create_box(ft, fd, H) \
                        .translate(cx, fd/2, H/2) \
                        .tag_slot(0) \
-                       .select_boundary().tag_edge_role(1)
+                       .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # 2. Horizontal Transoms
             for j in range(rows + 1):
@@ -89,7 +89,7 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                     builder.create_box(pane_w, fd, ft) \
                            .translate(px, fd/2, cz) \
                            .tag_slot(0) \
-                           .select_boundary().tag_edge_role(1)
+                           .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # 3. Glass Panes (Keep FIT)
             gt = 0.02
@@ -104,13 +104,13 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
         elif self.window_style == 'PICTURE':
             # Frame Perimeter
             # Left
-            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
             # Right
-            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
             # Bottom
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
             # Top
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # Glass
             gt = 0.02
@@ -118,10 +118,10 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
 
         elif self.window_style == 'LOUVER':
             # Frame Perimeter
-            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
-            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # Slats
             rows = self.mullion_y * 2
@@ -133,7 +133,7 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                        .translate(W/2, fd/2, cz) \
                        .rotate(-30, 'X') \
                        .tag_slot(4) \
-                       .select_boundary().tag_edge_role(1)
+                       .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
         # Sockets (Tag Existing Faces)
         builder.clean()
