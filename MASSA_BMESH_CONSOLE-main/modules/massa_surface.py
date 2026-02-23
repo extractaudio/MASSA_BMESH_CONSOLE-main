@@ -390,8 +390,21 @@ def auto_detect_edge_slots(bm):
 
         # Determine if we are on a Rim
         if is_cap1 != is_cap2:
-            # One cap, one wall -> This is the rim
-            e[edge_slots] = 1
+            # [ARCHITECT REFINED] Convexity Check
+            # Only mark as Perimeter (1) if it's a CONVEX angle (Ridge).
+            # If it's Concave (Valley), it's likely a Fold or Contour, not a Silhouette.
+
+            # Simple Dot Check: (Center2 - Center1) . Normal1
+            # Convex < 0, Concave > 0
+            c1 = f1.calc_center_median()
+            c2 = f2.calc_center_median()
+            if (c2 - c1).dot(f1.normal) < -0.0001:
+                # Convex -> Perimeter
+                e[edge_slots] = 1
+            else:
+                # Concave -> Contour (Sharp Valley)
+                e[edge_slots] = 2
+
             continue
 
         # [ARCHITECT DEBUG] Closed Cylinder Special Case
