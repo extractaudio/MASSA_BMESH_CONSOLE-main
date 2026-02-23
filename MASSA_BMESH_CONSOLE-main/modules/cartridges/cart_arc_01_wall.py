@@ -40,11 +40,23 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
     baseboard_height: FloatProperty(name="Baseboard H", default=0.15, min=0.0)
     baseboard_depth: FloatProperty(name="Baseboard D", default=0.02, min=0.0)
 
+    # Styles
+    wall_style: EnumProperty(
+        name="Style",
+        items=[
+            ("STANDARD", "Standard", "Plain Wall"),
+            ("REINFORCED", "Reinforced", "Tech/Industrial Panel"),
+            ("BRICK", "Brick", "Brick-like structure"),
+        ],
+        default="STANDARD"
+    )
+
     def get_slot_meta(self):
         return {
-            0: {"name": "Wall Plaster", "uv": "BOX", "phys": "CONCRETE"},
-            2: {"name": "Trim", "uv": "BOX", "phys": "WOOD"},  # Baseboard
-            9: {"name": "Socket Anchor", "sock": True}
+            0: {"name": "Wall Surface", "uv": "BOX", "phys": "DEBUG_1"},
+            1: {"name": "Detail", "uv": "BOX", "phys": "DEBUG_2"},
+            2: {"name": "Trim", "uv": "BOX", "phys": "DEBUG_3"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
     def build_shape(self, bm):
@@ -95,6 +107,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
 
         # Build Wall Segments
         uv_s0 = getattr(self, "uv_scale_0", 1.0)
+        uv_s1 = getattr(self, "uv_scale_1", 1.0)
 
         for r in rects:
             if r['w'] <= 0.001 or r['h'] <= 0.001: continue
@@ -107,6 +120,36 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                    .translate(cx, cy, cz) \
                    .tag_slot(0) \
                    .tag_uvs(uv_s0, 'BOX')
+
+            # Style Variations
+            if self.wall_style == 'REINFORCED':
+                # Add a central ridge
+                if r['w'] > 0.5 and r['h'] > 0.5:
+                    builder.select_faces_by_normal(Vector((0, 1, 0))) \
+                           .inset(0.1, depth=0.05) \
+                           .tag_slot(1) \
+                           .tag_uvs(uv_s1, 'BOX') \
+                           .select_boundary().tag_edge_role(2) # Contour
+
+            elif self.wall_style == 'BRICK':
+                # Add horizontal indents (Simulated Courses)
+                # We can't easily cut the existing box without bmesh surgery.
+                # Instead, let's just inset the main face to create a 'framed' look for now,
+                # or maybe just add a horizontal rail.
+                # Actually, let's create a 'Wainscot' effect.
+                if r['h'] > 1.2:
+                    # Create a rail at 1m height
+                    rail_h = 0.1
+                    rail_z = 1.0
+                    if r['z'] < rail_z and (r['z'] + r['h']) > (rail_z + rail_h):
+                        # Create the rail geometry
+                        builder.create_box(r['w'], t * 1.2, rail_h) \
+                               .translate(cx, t/2, rail_z + rail_h/2) \
+                               .tag_slot(2).tag_uvs(uv_s1, 'BOX') \
+                               .select_boundary().tag_edge_role(2)
+
+            # Tag Perimeter Edges
+            builder.select_all_faces().select_boundary().tag_edge_role(1)
 
         # Build Baseboards
         bh = self.baseboard_height
@@ -158,27 +201,25 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                        .tag_slot(2) \
                        .tag_uvs(uv_s2, 'BOX')
 
-        # Sockets
-        # Start (x=0)
-        builder.create_grid(size=0.1) \
-               .rotate(90, 'Y') \
-               .translate(0, t/2, h/2) \
-               .tag_slot(9) \
+        # Sockets (Tagging existing faces)
+        builder.clean() # Merge first
+
+        # Start Socket (x=0) - Find face at x=0
+        builder.select_faces_by_normal(Vector((-1, 0, 0)), tolerance=0.1) \
                .tag_socket(1)
 
-        # End (x=l)
-        builder.create_grid(size=0.1) \
-               .rotate(90, 'Y') \
-               .translate(l, t/2, h/2) \
-               .tag_slot(9) \
+        # End Socket (x=l) - Find face at x=l
+        builder.select_faces_by_normal(Vector((1, 0, 0)), tolerance=0.1) \
                .tag_socket(2)
 
-        builder.clean()
+        # Anchor Check (Ensure bottom faces are 0)
+        # builder.select_faces_by_height(min_z=-0.01, max_z=0.01).tag_slot(9) # Optional tagging
 
     def draw_shape_ui(self, layout):
         box_dim = layout.box()
         box_dim.label(text="Dimensions", icon='MESH_CUBE')
         col = box_dim.column(align=True)
+        col.prop(self, "wall_style") # Added Style
         col.prop(self, "wall_length")
         col.prop(self, "wall_height")
         col.prop(self, "wall_thick")

@@ -34,13 +34,25 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
     plinth_height: FloatProperty(name="Plinth H", default=0.3, min=0.0)
     capital_height: FloatProperty(name="Capital H", default=0.4, min=0.0)
 
+    # Styles
+    column_style: EnumProperty(
+        name="Style",
+        items=[
+            ("ROUND", "Round", "Classic Column"),
+            ("SQUARE", "Square", "Modern Pillar"),
+            ("H_BEAM", "H-Beam", "Industrial Beam"),
+        ],
+        default="ROUND"
+    )
+
     fluted: BoolProperty(name="Fluted Shaft", default=False)
     flute_depth: FloatProperty(name="Flute Depth", default=0.02, min=0.001)
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Stone", "uv": "CYLINDER", "phys": "STONE"},
-            9: {"name": "Socket Anchor", "sock": True}
+            0: {"name": "Column Shaft", "uv": "CYLINDER", "phys": "DEBUG_1"},
+            1: {"name": "Cap/Base", "uv": "BOX", "phys": "DEBUG_2"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
     def build_shape(self, bm):
@@ -49,131 +61,115 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
         th = self.total_height
         ph = self.plinth_height
         ch = self.capital_height
-
-        # Even segments for grid fill
-        segs = self.segments if self.segments % 2 == 0 else self.segments + 1
-
-        shaft_top_z = max(ph, th - ch)
-
         r_base = self.radius_base
-        r_top = self.radius_top
-        r_cap = r_base * 1.2
+        uv_s0 = getattr(self, "uv_scale_0", 1.0)
+        uv_s1 = getattr(self, "uv_scale_1", 1.0)
 
-        levels = [
-            (0.0, r_base),          # 0: Bottom
-            (ph, r_base),           # 1: Plinth Top
-            (shaft_top_z, r_top),   # 2: Shaft Top
-            (th, r_cap)             # 3: Top
-        ]
+        if self.column_style == 'SQUARE':
+            w = r_base * 2
+            # Base
+            builder.create_box(w*1.2, w*1.2, ph).translate(0, 0, ph/2).tag_slot(1).tag_uvs(uv_s1, 'BOX')
+            # Shaft
+            shaft_h = th - ph - ch
+            if shaft_h > 0:
+                builder.create_box(w, w, shaft_h).translate(0, 0, ph + shaft_h/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Cap
+            builder.create_box(w*1.2, w*1.2, ch).translate(0, 0, th - ch/2).tag_slot(1).tag_uvs(uv_s1, 'BOX')
 
-        loops = []
+        elif self.column_style == 'H_BEAM':
+            # Industrial H-Beam
+            w = r_base * 2
+            d = w
+            flange_t = w * 0.1
+            web_t = w * 0.1
 
-        # Create Rings (Verts & Edges)
-        for z, r in levels:
-            ring_verts = []
-            # Create verts
-            for i in range(segs):
-                angle = (i / segs) * 2 * math.pi
-                x = r * math.cos(angle)
-                y = r * math.sin(angle)
-                v = bm.verts.new(Vector((x, y, z)))
-                ring_verts.append(v)
+            # Simple H-Profile construction: 3 boxes
+            # Web
+            builder.create_box(web_t, d - 2*flange_t, th).translate(0, 0, th/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Flanges
+            builder.create_box(w, flange_t, th).translate(0, d/2 - flange_t/2, th/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            builder.create_box(w, flange_t, th).translate(0, -d/2 + flange_t/2, th/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
 
-            # Create edges for the ring (to allow bridge/grid_fill)
-            ring_edges = []
-            bm.verts.ensure_lookup_table()
-            for i in range(segs):
-                v1 = ring_verts[i]
-                v2 = ring_verts[(i+1)%segs]
-                e = bm.edges.new((v1, v2))
-                ring_edges.append(e)
+            # Base Plate
+            builder.create_box(w*1.4, d*1.4, ph).translate(0, 0, ph/2).tag_slot(1).tag_uvs(uv_s1, 'BOX')
 
-            loops.append(ring_edges)
+        else: # ROUND
+            # Even segments for grid fill
+            segs = self.segments if self.segments % 2 == 0 else self.segments + 1
+            shaft_top_z = max(ph, th - ch)
+            r_top = self.radius_top
+            r_cap = r_base * 1.2
 
-        bm.edges.ensure_lookup_table()
+            # Helper to build cylinder sections
+            def build_cyl_section(z_start, z_end, r_start, r_end, slot):
+                h = z_end - z_start
+                if h <= 0.001: return
+                r_mid = (r_start + r_end) / 2
+                cz = z_start + h/2
+                # Note: creating cone/cylinder
+                builder.create_cone(radius_bottom=r_start, radius_top=r_end, depth=h, segments=segs, center=Vector((0,0,cz))) \
+                       .tag_slot(slot).tag_uvs(uv_s0, 'CYLINDER')
 
-        # Skinning (Bridge Loops)
-        # 0 -> 1 (Plinth)
-        bmesh.ops.bridge_loops(bm, edges=loops[0] + loops[1])
+                # Fluting logic (simplified for builder usage)
+                if self.fluted and slot == 0:
+                     # Select active faces (just created cone faces)
+                     # Filter vertical faces (ignore caps)
+                     flute_candidates = []
+                     for f in builder.active_faces:
+                         # Check normal perpendicular to Z (abs(n.z) < 0.1)
+                         if abs(f.normal.z) < 0.1:
+                             flute_candidates.append(f)
 
-        # 1 -> 2 (Shaft)
-        ret = bmesh.ops.bridge_loops(bm, edges=loops[1] + loops[2])
-        shaft_faces = ret['faces']
+                     if flute_candidates:
+                         builder.active_faces = flute_candidates
+                         # Inset with depth to create flutes
+                         try:
+                             builder.inset(0.02 * r_start, depth=-self.flute_depth, relative=False)
+                         except:
+                             pass
 
-        # 2 -> 3 (Capital)
-        bmesh.ops.bridge_loops(bm, edges=loops[2] + loops[3])
+            # Plinth
+            if ph > 0.001:
+                builder.create_cylinder(radius=r_base*1.1, depth=ph, segments=segs, center=Vector((0,0,ph/2))) \
+                       .tag_slot(1).tag_uvs(uv_s1, 'CYLINDER')
 
-        # Caps (Grid Fill)
-        try:
-            bmesh.ops.grid_fill(bm, edges=loops[0])
-        except:
-            pass # Fallback to open or manual face if needed
+            # Shaft
+            shaft_h = shaft_top_z - ph
+            if shaft_h > 0.001:
+                builder.create_cone(radius_bottom=r_base, radius_top=r_top, depth=shaft_h, segments=segs, center=Vector((0,0,ph + shaft_h/2))) \
+                       .tag_slot(0).tag_uvs(uv_s0, 'CYLINDER')
 
-        try:
-            bmesh.ops.grid_fill(bm, edges=loops[3])
-        except:
-            pass
+            # Capital
+            cap_h = th - shaft_top_z
+            if cap_h > 0.001:
+                builder.create_cone(radius_bottom=r_top, radius_top=r_cap, depth=cap_h, segments=segs, center=Vector((0,0,shaft_top_z + cap_h/2))) \
+                       .tag_slot(1).tag_uvs(uv_s1, 'CYLINDER')
 
-        # Fluting
-        if self.fluted:
-            # Inset alternate faces of shaft
-            flute_faces = [f for i, f in enumerate(shaft_faces) if i % 2 == 0]
-            if flute_faces:
-                builder.active_faces = flute_faces
-                builder.inset(0.01, depth=-self.flute_depth, relative=False)
+        # Tag Edges
+        builder.select_all_faces().select_boundary().tag_edge_role(1)
 
-        # Sockets
-        # Bottom
-        builder.create_grid(size=0.1) \
-               .rotate(90, 'X') \
-               .translate(0, -0.1, 0) \
-               .tag_slot(9) \
-               .tag_socket(1)
-
-        # Top
-        builder.create_grid(size=0.1) \
-               .rotate(90, 'X') \
-               .translate(0, 0, th + 0.1) \
-               .tag_slot(9) \
-               .tag_socket(2)
-
-        # Finalize
-        builder.select_all_faces() \
-               .tag_slot(0) \
-               .tag_uvs(getattr(self, 'uv_scale_0', 1.0), 'CYLINDER')
-
-        # Fix socket slot (overwritten by select_all_faces tag_slot(0))
-        # We need to re-tag sockets?
-        # Sockets are created AFTER shaft, but select_all_faces selects everything.
-        # Actually, create_grid updates active_faces.
-        # But select_all_faces overwrites active_faces.
-        # So tag_slot(0) applies to EVERYTHING.
-        # We must re-apply socket slot.
-
-        # Better: Tag slot 0 explicitly on shaft/plinth/cap faces?
-        # Or just re-tag sockets.
-        # Sockets are the last created grids.
-        # We can find them by tag_socket? No, tag_socket sets data layer.
-        # We can just iterate faces and check socket layer.
-
-        sock_layer = bm.faces.layers.int.get("MASSA_SOCKETS")
-        if sock_layer:
-            for f in bm.faces:
-                if f[sock_layer] > 0:
-                    f.material_index = 9
-
+        # Sockets (Tag Existing Faces)
         builder.clean()
+
+        # Bottom Socket (Z=0, Normal -Z)
+        builder.select_faces_by_normal(Vector((0, 0, -1)), tolerance=0.1).tag_socket(1)
+
+        # Top Socket (Z=H, Normal +Z)
+        builder.select_faces_by_normal(Vector((0, 0, 1)), tolerance=0.1).tag_socket(2)
 
     def draw_shape_ui(self, layout):
         col = layout.column(align=True)
+        col.prop(self, "column_style")
         col.prop(self, "total_height")
         col.prop(self, "radius_base")
-        col.prop(self, "radius_top")
-        col.prop(self, "segments")
+        if self.column_style == 'ROUND':
+            col.prop(self, "radius_top")
+            col.prop(self, "segments")
+            layout.separator()
+            col.prop(self, "fluted")
+            if self.fluted:
+                col.prop(self, "flute_depth")
+
         layout.separator()
         col.prop(self, "plinth_height")
         col.prop(self, "capital_height")
-        layout.separator()
-        col.prop(self, "fluted")
-        if self.fluted:
-            col.prop(self, "flute_depth")
