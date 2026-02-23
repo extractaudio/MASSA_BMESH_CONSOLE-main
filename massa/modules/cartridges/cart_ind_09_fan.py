@@ -38,6 +38,12 @@ class MASSA_OT_IndFan(Massa_OT_Base):
 
     blade_count: IntProperty(name="Blades", default=6, min=2, max=12)
 
+    # New Parameters
+    hub_radius: FloatProperty(name="Hub Radius", default=0.2, min=0.1, description="Size of center hub")
+    blade_pitch: FloatProperty(name="Blade Pitch", default=20.0, min=-45.0, max=45.0)
+    casing_thickness: FloatProperty(name="Casing Thick", default=0.05, min=0.01)
+    grill_bars: IntProperty(name="Grill Bars", default=5, min=2, max=10)
+
     has_grill: BoolProperty(name="Add Grill", default=True)
 
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
@@ -63,8 +69,15 @@ class MASSA_OT_IndFan(Massa_OT_Base):
         layout.separator()
         layout.label(text="COMPONENTS", icon="MOD_PARTICLES")
         col = layout.column(align=True)
-        col.prop(self, "blade_count")
+        col.prop(self, "hub_radius")
+        col.prop(self, "casing_thickness")
+
+        layout.prop(self, "blade_count")
+        col.prop(self, "blade_pitch")
+
         layout.prop(self, "has_grill")
+        if self.has_grill:
+            col.prop(self, "grill_bars")
 
     def build_shape(self, bm):
         builder = MassaBuilder(bm)
@@ -75,7 +88,7 @@ class MASSA_OT_IndFan(Massa_OT_Base):
         # Helper: Create Fan Assembly (Hub + Blades)
         def create_fan(center, radius, axis_vec):
             # Hub
-            hub_r = radius * 0.2
+            hub_r = radius * self.hub_radius
             hub_d = 0.1
             builder.create_cylinder(radius=hub_r, depth=hub_d, segments=12, center=Vector((0,0,0)))
             # Safe UVs
@@ -90,10 +103,6 @@ class MASSA_OT_IndFan(Massa_OT_Base):
             builder.translate(center.x, center.y, center.z)
 
             # Blades
-            # Create one blade at origin, then copy/rotate?
-            # MassaBuilder doesn't have copy/instance easily for separate meshes without loop.
-            # Loop for blades.
-
             blade_len = radius - hub_r - 0.02
             blade_w = radius * 0.3
             blade_thick = 0.02
@@ -102,10 +111,9 @@ class MASSA_OT_IndFan(Massa_OT_Base):
                 angle = (2 * math.pi / self.blade_count) * i
 
                 # Create blade at X axis
-                # Rotate 20 deg pitch for air push
                 builder.create_box(blade_w, blade_thick, blade_len, center=Vector((0, 0, hub_r + blade_len/2)))
                 # Pitch
-                builder.rotate(20, 'Y') # Pitch
+                builder.rotate(self.blade_pitch, 'Y')
                 # Rotate around Hub Z to position
                 builder.rotate(math.degrees(angle), 'Z')
 
@@ -154,9 +162,10 @@ class MASSA_OT_IndFan(Massa_OT_Base):
             # Grill
             if self.has_grill:
                 # Simple bars
-                for i in range(5):
-                    gx = (i - 2) * (rim_r * 0.4)
-                    builder.create_box(0.02, 0.02, s*0.9, center=Vector((gx, 0, s/2))) \
+                gb = self.grill_bars
+                for i in range(gb):
+                    offset = (i - (gb-1)/2) * (rim_r * 1.5 / gb)
+                    builder.create_box(0.02, 0.02, s*0.9, center=Vector((offset, 0, s/2))) \
                            .tag_slot(2).tag_uvs(scale=self.uv_scale, projection='BOX')
 
             # Socket (Back)

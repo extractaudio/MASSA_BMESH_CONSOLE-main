@@ -37,6 +37,12 @@ class MASSA_OT_IndGenerator(Massa_OT_Base):
     width: FloatProperty(name="Width (X)", default=1.2, min=0.5)
     height: FloatProperty(name="Height (Z)", default=1.5, min=0.5)
 
+    # New Parameters
+    exhaust_height: FloatProperty(name="Exhaust Height", default=0.5, min=0.1)
+    panel_inset: FloatProperty(name="Panel Inset", default=0.05, min=0.0)
+    skid_width: FloatProperty(name="Skid Width", default=0.2, min=0.05)
+    frame_tube_radius: FloatProperty(name="Tube Radius", default=0.05, min=0.01)
+
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
 
     def get_slot_meta(self):
@@ -58,6 +64,16 @@ class MASSA_OT_IndGenerator(Massa_OT_Base):
         col.prop(self, "width")
         col.prop(self, "height")
 
+        layout.separator()
+        layout.label(text="DETAILS", icon="MOD_BUILD")
+        col = layout.column(align=True)
+        col.prop(self, "exhaust_height")
+        col.prop(self, "panel_inset")
+        col.prop(self, "skid_width")
+
+        if self.style == 'PORTABLE':
+            col.prop(self, "frame_tube_radius")
+
     def build_shape(self, bm):
         builder = MassaBuilder(bm)
 
@@ -66,7 +82,7 @@ class MASSA_OT_IndGenerator(Massa_OT_Base):
         if self.style == 'DIESEL':
             # Boxy housing
             # Base/Skid
-            skid_h = 0.2
+            skid_h = self.skid_width
             builder.create_box(w, l, skid_h, center=Vector((0, l/2, skid_h/2))) \
                    .tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
 
@@ -76,8 +92,6 @@ class MASSA_OT_IndGenerator(Massa_OT_Base):
                    .tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
 
             # Vents (Inset on sides)
-            # Select Side faces (X)
-            # Hard to select from scratch. Just create new thin boxes as vents.
             vent_w = 0.05
             vent_h = box_h * 0.6
             vent_l = l * 0.3
@@ -91,7 +105,7 @@ class MASSA_OT_IndGenerator(Massa_OT_Base):
 
             # Exhaust Pipe (Top)
             pipe_r = 0.1
-            pipe_h = 0.5
+            pipe_h = self.exhaust_height
             builder.create_cylinder(radius=pipe_r, depth=pipe_h, segments=12, center=Vector((0,0,0)))
 
             cyl_faces = builder.active_faces[:]
@@ -103,10 +117,25 @@ class MASSA_OT_IndGenerator(Massa_OT_Base):
             builder.translate(0, l*0.8, h + pipe_h/2)
 
             # Control Panel (Front)
+            # Use panel_inset to inset front face instead of new box if possible?
+            # Or just position new box.
             panel_w = w * 0.6
             panel_h = h * 0.4
-            builder.create_box(panel_w, 0.1, panel_h, center=Vector((0, l*0.05, h*0.6))) \
-                   .tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
+            # If panel_inset is large, maybe negative extrude?
+            # Let's stick to additive for now, or inset logic.
+            # "Panel Inset" usually implies sunken.
+            # Select Front Face of Main Box? Hard to target specifically among all boxes.
+            # Additive Panel Box slightly protruded or sunk.
+
+            # Let's make a sunken frame if inset > 0
+            if self.panel_inset > 0.01:
+                # Create frame
+                builder.create_box(panel_w, self.panel_inset, panel_h, center=Vector((0, l*0.05, h*0.6))) \
+                       .tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
+            else:
+                # Flush/Protruding
+                builder.create_box(panel_w, 0.05, panel_h, center=Vector((0, l*0.05, h*0.6))) \
+                       .tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
 
             # Sockets
             # Power Output (Front Panel)
@@ -154,7 +183,7 @@ class MASSA_OT_IndGenerator(Massa_OT_Base):
 
         elif self.style == 'PORTABLE':
             # Open Frame (Red/Black tubes)
-            frame_thick = 0.05
+            frame_thick = self.frame_tube_radius
 
             corners = [
                 Vector((-w/2, 0, 0)),

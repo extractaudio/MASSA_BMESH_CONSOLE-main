@@ -39,6 +39,12 @@ class MASSA_OT_IndPipeJunction(Massa_OT_Base):
     flange_radius: FloatProperty(name="Flange Radius", default=0.28, min=0.05)
     flange_thick: FloatProperty(name="Flange Thick", default=0.05, min=0.01)
 
+    # New Parameters
+    bolt_count: IntProperty(name="Bolt Count", default=6, min=3, max=16)
+    weld_size: FloatProperty(name="Weld Size", default=0.01, min=0.0)
+    segment_res: IntProperty(name="Resolution", default=16, min=6, max=64)
+    flange_offset: FloatProperty(name="Flange Offset", default=0.0, min=0.0, description="Pull flange back from end")
+
     bolts: BoolProperty(name="Add Bolts", default=True)
 
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
@@ -66,7 +72,16 @@ class MASSA_OT_IndPipeJunction(Massa_OT_Base):
         col = layout.column(align=True)
         col.prop(self, "flange_radius")
         col.prop(self, "flange_thick")
+        col.prop(self, "flange_offset")
+        col.prop(self, "weld_size")
+
         layout.prop(self, "bolts")
+        if self.bolts:
+            layout.prop(self, "bolt_count")
+
+        layout.separator()
+        layout.label(text="QUALITY", icon="MOD_SUBSURF")
+        layout.prop(self, "segment_res")
 
     def build_shape(self, bm):
         builder = MassaBuilder(bm)
@@ -78,36 +93,63 @@ class MASSA_OT_IndPipeJunction(Massa_OT_Base):
 
         # Helper: Create Flange at position with orientation
         def create_flange(pos, direction):
-            # Direction is normal vector of flange face
-            # Flange is a cylinder
-            # We create at origin, align Z to direction, then translate
-            builder.create_cylinder(radius=fr, depth=ft, segments=16, center=Vector((0,0,0)))
+            actual_pos = pos - (direction * self.flange_offset)
 
-            # Safe UV Tagging
-            all_faces = builder.active_faces[:]
+            assembly_faces = []
+
+            # 1. Flange
+            builder.create_cylinder(radius=fr, depth=ft, segments=self.segment_res, center=Vector((0,0,0)))
+            assembly_faces.extend(builder.active_faces)
+
+            # UVs
             builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='CYLINDER')
-            caps = [f for f in all_faces if abs(f.normal.z) > 0.8]
+            caps = [f for f in builder.active_faces if abs(f.normal.z) > 0.8]
             builder.active_faces = caps
             builder.tag_uvs(scale=self.uv_scale, projection='BOX')
 
-            # Bolts?
+            # 2. Bolts
             if self.bolts:
-                # Add bolts on the face facing AWAY from pipe?
-                # Actually simpler: standard flange has bolts around perimeter
-                # We can simulate with texture or small cubes/cylinders
-                pass
+                bolt_r = (fr + self.radius) / 2
+                b_size = min(0.04, (fr - self.radius) * 0.3)
+                for i in range(self.bolt_count):
+                    angle = (2 * math.pi / self.bolt_count) * i
+                    bx = bolt_r * math.cos(angle)
+                    by = bolt_r * math.sin(angle)
 
-            # Restore and Transform
-            builder.active_faces = all_faces
-            builder.align_normal_to_vector(direction) # Aligns Z to direction
-            builder.translate(pos.x, pos.y, pos.z)
+                    builder.create_cylinder(radius=b_size, depth=ft*1.4, segments=6, center=Vector((bx, by, 0)))
+                    assembly_faces.extend(builder.active_faces)
+                    builder.tag_slot(2).tag_uvs(scale=self.uv_scale, projection='BOX')
 
-            # Create Socket at this end
-            # Socket should point OUTWARD (Direction)
-            # Create a grid slightly offset
-            sock_pos = pos + (direction * (ft/2 + 0.01))
+            # 3. Weld Bead (Ring)
+            if self.weld_size > 0.001:
+                # Torus or Ring
+                # Simple ring: Cylinder with hole? Or Tube.
+                # Create Tube: Cylinder - Inner Cylinder?
+                # Or just a larger thin cylinder behind flange.
+                weld_r = self.radius + self.weld_size
+                weld_d = self.weld_size * 2
+                # Position: Behind flange (Z negative side if flange is centered)
+                # Flange depth is ft. Z range -ft/2 to ft/2.
+                # Weld at -ft/2 - weld_d/2.
+                wz = -ft/2 - weld_d/2
+                builder.create_cylinder(radius=weld_r, depth=weld_d, segments=self.segment_res, center=Vector((0,0,wz)))
+                assembly_faces.extend(builder.active_faces)
+                builder.tag_slot(0).tag_uvs(scale=self.uv_scale, projection='CYLINDER')
+
+            # 4. Transform Assembly
+            builder.active_faces = [f for f in assembly_faces if f.is_valid]
+            builder.align_normal_to_vector(direction)
+            builder.translate(actual_pos.x, actual_pos.y, actual_pos.z)
+
+            # Socket
+            sock_pos = actual_pos + (direction * (ft/2 + 0.01))
             builder.create_grid(1, 1, size=r*1.5).align_normal_to_vector(direction).move_center_to(sock_pos) \
                    .tag_slot(9).tag_socket(9).tag_uvs(scale=1.0, projection='BOX')
+
+            # Apply UV Box projection again to everything we just built to fix pinched UVs on new geometry
+            # This is a brute force fix for complex assemblies
+            if builder.active_faces:
+                builder.tag_uvs(scale=self.uv_scale, projection='BOX')
 
         # Helper: Create Pipe Arm
         def create_arm(start, end):
@@ -116,7 +158,7 @@ class MASSA_OT_IndPipeJunction(Massa_OT_Base):
             if dist < 0.001: return
             mid = (start + end) / 2
 
-            builder.create_cylinder(radius=r, depth=dist, segments=16, center=Vector((0,0,0)))
+            builder.create_cylinder(radius=r, depth=dist, segments=self.segment_res, center=Vector((0,0,0)))
 
             all_faces = builder.active_faces[:]
             builder.tag_slot(0).tag_uvs(scale=self.uv_scale, projection='CYLINDER')
@@ -168,7 +210,7 @@ class MASSA_OT_IndPipeJunction(Massa_OT_Base):
             # But create_cylinder makes a cylinder. We can select top face and extrude.
 
             # Create a very thin cylinder at start to act as "Face"
-            builder.create_cylinder(radius=r, depth=0.01, segments=16, center=Vector((0,0,0)))
+            builder.create_cylinder(radius=r, depth=0.01, segments=self.segment_res, center=Vector((0,0,0)))
             # Align to X (so normal is X)
             builder.rotate(90, 'Y')
             builder.translate(-l, 0, 0)

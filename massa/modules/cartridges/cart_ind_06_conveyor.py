@@ -40,6 +40,12 @@ class MASSA_OT_IndConveyor(Massa_OT_Base):
     rail_height: FloatProperty(name="Rail Height", default=0.15, min=0.05)
     rail_thick: FloatProperty(name="Rail Thickness", default=0.05, min=0.01)
 
+    # New Parameters
+    rail_width: FloatProperty(name="Rail Width (Ext)", default=0.0, min=0.0, description="Extra width on rails")
+    leg_thickness: FloatProperty(name="Leg Thickness", default=0.1, min=0.02)
+    guard_rail_height: FloatProperty(name="Guard Height", default=0.05, min=0.0)
+    motor_scale: FloatProperty(name="Motor Scale", default=1.0, min=0.1)
+
     roller_radius: FloatProperty(name="Roller Radius", default=0.04, min=0.01)
     roller_spacing: FloatProperty(name="Roller Spacing", default=0.15, min=0.05)
 
@@ -70,6 +76,9 @@ class MASSA_OT_IndConveyor(Massa_OT_Base):
         col = layout.column(align=True)
         col.prop(self, "rail_height")
         col.prop(self, "rail_thick")
+        col.prop(self, "rail_width")
+        col.prop(self, "guard_rail_height")
+        col.prop(self, "motor_scale")
 
         if self.style == 'ROLLER' or self.style == 'SLAT':
             layout.prop(self, "roller_radius", text="Element Size")
@@ -80,21 +89,40 @@ class MASSA_OT_IndConveyor(Massa_OT_Base):
         layout.prop(self, "has_legs")
         if self.has_legs:
             layout.prop(self, "leg_spacing")
+            layout.prop(self, "leg_thickness")
 
     def build_shape(self, bm):
         builder = MassaBuilder(bm)
 
         l, w, h = self.length, self.width, self.height
         rh, rt = self.rail_height, self.rail_thick
+        rw_ext = self.rail_width
 
         # 1. Side Rails (Frame) - Slot 0
         # Left Rail
-        builder.create_box(rt, l, rh, center=Vector((-w/2 + rt/2, l/2, h - rh/2))) \
+        builder.create_box(rt + rw_ext, l, rh, center=Vector((-w/2 + (rt+rw_ext)/2, l/2, h - rh/2))) \
                .tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
 
         # Right Rail
-        builder.create_box(rt, l, rh, center=Vector((w/2 - rt/2, l/2, h - rh/2))) \
+        builder.create_box(rt + rw_ext, l, rh, center=Vector((w/2 - (rt+rw_ext)/2, l/2, h - rh/2))) \
                .tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        # Guard Rails (Top of Side Rails)
+        if self.guard_rail_height > 0:
+            gh = self.guard_rail_height
+            gt = max(0.01, rt * 0.2)
+            # Left Guard
+            builder.create_box(gt, l, gh, center=Vector((-w/2 + gt/2, l/2, h + gh/2))) \
+                   .tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
+            # Right Guard
+            builder.create_box(gt, l, gh, center=Vector((w/2 - gt/2, l/2, h + gh/2))) \
+                   .tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        # Motor Box (Side)
+        if self.motor_scale > 0.1:
+            ms = 0.3 * self.motor_scale
+            builder.create_box(ms, ms, ms, center=Vector((-w/2 - ms/2, l * 0.1, h - rh/2))) \
+                   .tag_slot(2).tag_uvs(scale=self.uv_scale, projection='BOX')
 
         # 2. Conveyor Surface - Slot 1
         inner_w = w - (rt * 2) - 0.02 # Gap
@@ -160,8 +188,8 @@ class MASSA_OT_IndConveyor(Massa_OT_Base):
 
         # 3. Legs - Slot 0
         if self.has_legs:
-            leg_w = 0.1
-            leg_d = 0.1
+            leg_w = self.leg_thickness
+            leg_d = self.leg_thickness
             leg_h = h - rh
             if leg_h > 0:
                 spacing = self.leg_spacing
@@ -174,11 +202,11 @@ class MASSA_OT_IndConveyor(Massa_OT_Base):
                     y = i * real_spacing
 
                     # Left Leg
-                    builder.create_box(leg_w, leg_d, leg_h, center=Vector((-w/2 + rt/2, y, leg_h/2))) \
+                    builder.create_box(leg_w, leg_d, leg_h, center=Vector((-w/2 + (rt+rw_ext)/2, y, leg_h/2))) \
                            .tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
 
                     # Right Leg
-                    builder.create_box(leg_w, leg_d, leg_h, center=Vector((w/2 - rt/2, y, leg_h/2))) \
+                    builder.create_box(leg_w, leg_d, leg_h, center=Vector((w/2 - (rt+rw_ext)/2, y, leg_h/2))) \
                            .tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
 
                     # Cross brace (low)
@@ -189,11 +217,11 @@ class MASSA_OT_IndConveyor(Massa_OT_Base):
 
         # 4. Sockets (Start/End)
         # Start (Y=0)
-        builder.create_grid(1, 1, size=0.1).rotate(math.radians(-90), 'X').translate(0, 0, h/2) \
+        builder.create_grid(1, 1, size=0.1).rotate(-90, 'X').translate(0, 0, h/2) \
                .tag_slot(9).tag_socket(9).tag_uvs(scale=1.0, projection='BOX') # Socket pointing -Y (Back)
 
         # End (Y=L)
-        builder.create_grid(1, 1, size=0.1).rotate(math.radians(90), 'X').translate(0, l, h/2) \
+        builder.create_grid(1, 1, size=0.1).rotate(90, 'X').translate(0, l, h/2) \
                .tag_slot(9).tag_socket(9).tag_uvs(scale=1.0, projection='BOX') # Socket pointing +Y (Forward)
 
         # Anchor (Bottom Center)
