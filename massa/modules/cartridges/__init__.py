@@ -62,6 +62,11 @@ from . import cart_arc_02_stairs
 from . import cart_arc_03_window
 from . import cart_arc_04_doorway
 from . import cart_arc_05_column
+from . import cart_arc_06_skylight
+from . import cart_arc_07_mezzanine
+from . import cart_arc_08_pipe_support
+from . import cart_arc_09_blast_door
+from . import cart_arc_10_smoke_vent
 
 # --- INDUSTRIAL SUITE (cart_ind_*) ---
 from . import cart_ind_01_truss
@@ -181,6 +186,11 @@ MODULES = [
     cart_arc_03_window,
     cart_arc_04_doorway,
     cart_arc_05_column,
+    cart_arc_06_skylight,
+    cart_arc_07_mezzanine,
+    cart_arc_08_pipe_support,
+    cart_arc_09_blast_door,
+    cart_arc_10_smoke_vent,
     # Ind
     cart_ind_01_truss,
     cart_ind_02_duct,
@@ -292,6 +302,11 @@ CLASSES = [
     cart_arc_03_window.MASSA_OT_ArcWindow,
     cart_arc_04_doorway.MASSA_OT_ArcDoorway,
     cart_arc_05_column.MASSA_OT_ArcColumn,
+    cart_arc_06_skylight.MASSA_OT_ArcSkylight,
+    cart_arc_07_mezzanine.MASSA_OT_ArcMezzanine,
+    cart_arc_08_pipe_support.MASSA_OT_ArcPipeSupport,
+    cart_arc_09_blast_door.MASSA_OT_ArcBlastDoor,
+    cart_arc_10_smoke_vent.MASSA_OT_ArcSmokeVent,
     # Ind
     cart_ind_01_truss.MASSA_OT_IndTruss,
     cart_ind_02_duct.MASSA_OT_IndDuct,

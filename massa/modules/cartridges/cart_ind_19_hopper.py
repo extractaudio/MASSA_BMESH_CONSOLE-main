@@ -244,28 +244,28 @@ class MASSA_OT_IndHopper(Massa_OT_Base):
                     builder.create_box(curr_w + 0.1, curr_d + 0.1, 0.1, center=Vector((cx, 0, z)))
                 builder.tag_slot(0)
 
-    # 3.5 Ladder
-    if self.ladder:
-        lad_h = z_funnel_top
-        lad_w = 0.4
+        # 3.5 Ladder
+        if self.ladder:
+            lad_h = z_funnel_top
+            lad_w = 0.4
 
-        # Position: Front side (Y-)
-        lad_y = -frame_d/2 - 0.2
+            # Position: Front side (Y-)
+            lad_y = -frame_d/2 - 0.2
 
-        # Rails
-        builder.create_box(0.05, 0.05, lad_h, center=Vector((-lad_w/2, lad_y, lad_h/2)))
-        builder.tag_slot(1)
-        builder.create_box(0.05, 0.05, lad_h, center=Vector((lad_w/2, lad_y, lad_h/2)))
-        builder.tag_slot(1)
+            # Rails
+            builder.create_box(0.05, 0.05, lad_h, center=Vector((-lad_w/2, lad_y, lad_h/2)))
+            builder.tag_slot(1)
+            builder.create_box(0.05, 0.05, lad_h, center=Vector((lad_w/2, lad_y, lad_h/2)))
+            builder.tag_slot(1)
 
-        # Rungs
-        rung_step = 0.3
-        num_rungs = int(lad_h / rung_step)
-        for i in range(num_rungs):
-            rz = (i+1)*rung_step
-            if rz < lad_h:
-                builder.create_box(lad_w, 0.03, 0.03, center=Vector((0, lad_y, rz)))
-                builder.tag_slot(1)
+            # Rungs
+            rung_step = 0.3
+            num_rungs = int(lad_h / rung_step)
+            for i in range(num_rungs):
+                rz = (i+1)*rung_step
+                if rz < lad_h:
+                    builder.create_box(lad_w, 0.03, 0.03, center=Vector((0, lad_y, rz)))
+                    builder.tag_slot(1)
 
         # 4. Gate Housing
         if self.gate_box:
