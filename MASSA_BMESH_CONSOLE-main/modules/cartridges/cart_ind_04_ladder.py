@@ -4,6 +4,7 @@ import math
 from mathutils import Vector, Matrix
 from bpy.props import FloatProperty, EnumProperty, BoolProperty, IntProperty
 from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
 CARTRIDGE_META = {
     "name": "IND_04: Ladder",
@@ -36,181 +37,239 @@ class MASSA_OT_IndLadder(Massa_OT_Base):
     cage_radius: FloatProperty(name="Cage Radius", default=0.4, min=0.1)
     cage_strips: IntProperty(name="Cage Strips", default=5, min=3)
 
-    # === REDO-PANEL SAFE UI ELEMENTS ===
-    massa_hide_ui: bpy.props.BoolProperty(name="Hide UI (Redo Trap)", default=False)
-    massa_scene_proxy: bpy.props.StringProperty(name="Scene Proxy", default="null")
+    # UV
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Metal", "uv": "BOX", "phys": "METAL_STEEL"},
-            6: {"name": "Warning Paint", "uv": "BOX", "phys": "PAINT"},
-            9: {"name": "Socket Anchor", "sock": True}
+            0: {"name": "Metal", "uv": "SKIP", "phys": "METAL_STEEL"},
+            6: {"name": "Warning Paint", "uv": "SKIP", "phys": "PAINT"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
-    def build_shape(self, bm):
-        # 1. Initialize Layers
-        uv_layer = bm.loops.layers.uv.verify()
-
-        # 2. Rails (Vertical)
-        # Create Two Cubes/Cylinders
-        w = self.width
-        h = self.height
-        rt = self.rail_thick
-
-        # Left Rail
-        res_L = bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(bm, vec=Vector((rt, rt, h)), verts=res_L['verts'])
-        bmesh.ops.translate(bm, vec=Vector((-w/2, 0, h/2)), verts=res_L['verts'])
-
-        # Right Rail
-        res_R = bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(bm, vec=Vector((rt, rt, h)), verts=res_R['verts'])
-        bmesh.ops.translate(bm, vec=Vector((w/2, 0, h/2)), verts=res_R['verts'])
-
-        # 3. Rungs (Horizontal)
-        num_rungs = int(h / self.rung_spacing)
-        for i in range(num_rungs):
-            z = (i + 0.5) * self.rung_spacing
-            if z > h: break
-
-            # Create Cylinder Rung
-            # Using create_cube for low poly industrial look? Or cylinder.
-            # Cylinder is better.
-            res_rung = bmesh.ops.create_cube(bm, size=1.0) # Simple box rung
-            # Scale: (w - rt, rr, rr) so the rung fits perfectly between the inner edges of the rails
-            rr = self.rung_radius * 2 # diameter
-            bmesh.ops.scale(bm, vec=Vector((w - rt, rr, rr)), verts=res_rung['verts'])
-            bmesh.ops.translate(bm, vec=Vector((0, 0, z)), verts=res_rung['verts'])
-
-        # 4. Safety Cage
-        if self.has_cage and h > self.cage_start_height:
-            # Generate Hoops
-            hoop_spacing = 1.0 # Every meter?
-            start_z = self.cage_start_height
-
-            # Cage starts at start_z and goes up to h
-            current_z = start_z
-            hoops = []
-
-            while current_z <= h:
-                # Create Hoop
-                # Half Circle or 3/4 Circle attached to rails?
-                # Usually attached to rails at back.
-                # Center is (0, -cage_radius, current_z) relative to ladder face (Y=0)?
-                # Ladder is at Y=0. User climbs on -Y side? Or +Y side?
-                # Usually ladder stands off wall. Assume wall at +Y. User climbs on -Y side.
-                # Cage encloses user on -Y side.
-
-                # Arc from Rail L to Rail R via -Y.
-
-                # Create Circle
-                # Create Circle (Redundant)
-                # res_hoop = bmesh.ops.create_circle(bm, cap_ends=False, radius=self.cage_radius, segments=12) # REMOVED
-                # Rotate 90 X? Circle is XY. Correct.
-                # Cut circle to be an arc?
-                # Let's keep full circle for now or simplify.
-
-                # Usually cage is U-shape.
-                # Let's use `spin` or manual verts.
-
-                # Verts for Hoop:
-                # 5 points in semi-circle + connection to rails.
-
-                # Easier: Create Cylinder (Thin Strip) bent into U shape.
-                # Or Torus segment.
-
-                # Placeholder: Create Ring
-                # Scale Z to make flat strip
-                # Position at z
-
-                # Let's use simple approach: A few torus segments? No too heavy.
-
-                # Build vertices manually for the hoop profile.
-                vs = []
-                steps = 7 # Half circle
-                for s in range(steps + 1):
-                    angle = math.pi + (s / steps) * math.pi # 180 to 360 (Back side)?
-                    # We want front side (negative Y).
-                    # Angle 0 is +X. Angle 90 is +Y. Angle 180 is -X. Angle 270 is -Y.
-                    # Rails are at -w/2 (Left) and w/2 (Right).
-                    # Left is -X. Right is +X.
-                    # We want arc from Left to Right via Front (-Y).
-                    # So angle from 180 to 360 (0).
-
-                    a = math.pi + (s / steps) * math.pi
-                    x = math.cos(a) * self.cage_radius
-                    y = math.sin(a) * self.cage_radius
-
-                    # Offset to align with rails?
-                    # Rails are at +/- w/2.
-                    # If cage radius > w/2, we need to bridge.
-
-                    # Assume center of cage arc is (0,0).
-                    v = bm.verts.new(Vector((x, y, current_z)))
-                    vs.append(v)
-
-                # Connect
-                edges_hoop = []
-                for k in range(len(vs)-1):
-                    e = bm.edges.new((vs[k], vs[k+1]))
-                    edges_hoop.append(e)
-
-                # Extrude edges to make strip
-                res_ext = bmesh.ops.extrude_edge_only(bm, edges=edges_hoop)
-                # Translate up slightly to give thickness
-                verts_up = [e for e in res_ext['geom'] if isinstance(e, bmesh.types.BMVert)]
-                bmesh.ops.translate(bm, vec=Vector((0, 0, 0.05)), verts=verts_up)
-
-                # Assign Material 6 (Warning Paint)
-                for f in res_ext['geom']:
-                    if isinstance(f, bmesh.types.BMFace):
-                        f.material_index = 6
-
-                current_z += hoop_spacing
-
-            # Vertical Strips connecting hoops
-            # Add vertical lines at intervals along the arc.
-            pass
-
-        # 5. Sockets
-        # Top and Bottom of Rails
-
-        # 6. Manual UVs
-        scale = getattr(self, "uv_scale_0", 1.0)
-        for f in bm.faces:
-            n = f.normal
-            mat_idx = f.material_index
-
-            # Box map everything
-            if abs(n.x) > 0.5:
-                l_uv = lambda v: (v.y, v.z)
-            elif abs(n.y) > 0.5:
-                l_uv = lambda v: (v.x, v.z)
-            else:
-                l_uv = lambda v: (v.x, v.y)
-
-            for l in f.loops:
-                u, v = l_uv(l.vert.co)
-                l[uv_layer].uv = (u * scale, v * scale)
-
     def draw_shape_ui(self, layout):
-        if self.massa_hide_ui:
-            layout.label(text="UI Hidden (Redo Trap)", icon='ERROR')
-            layout.prop(self, "massa_hide_ui", toggle=True, text="Show UI", icon='RESTRICT_VIEW_OFF')
-            return
-
-        box = layout.box()
-        row = box.row()
-        row.prop(self, "massa_hide_ui", text="Lock UI", icon='LOCKED')
-        row.label(text="Ladder Configuration")
-
-        col = box.column(align=True)
+        col = layout.column(align=True)
         col.prop(self, "height")
         col.prop(self, "width")
         col.prop(self, "rail_thick")
         col.prop(self, "rung_spacing")
-        col.separator()
+        col.prop(self, "rung_radius")
+        layout.separator()
         col.prop(self, "has_cage")
         if self.has_cage:
             col.prop(self, "cage_start_height")
             col.prop(self, "cage_radius")
+            col.prop(self, "cage_strips")
+
+    def build_shape(self, bm):
+        if not bm.faces.layers.int.get("MASSA_SOCKETS"):
+            bm.faces.layers.int.new("MASSA_SOCKETS")
+        if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
+            bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        builder = MassaBuilder(bm)
+
+        h = self.height
+        w = self.width
+        rt = self.rail_thick
+        rr = self.rung_radius
+
+        # 1. Rails (Vertical)
+        # Left (-w/2)
+        # Using Square rails for industrial look
+        builder.create_box(rt, rt, h, center=Vector((-w/2, 0, h/2)))
+        builder.tag_slot(0).select_boundary().tag_edge_role(1)
+
+        # Right (w/2)
+        builder.create_box(rt, rt, h, center=Vector((w/2, 0, h/2)))
+        builder.tag_slot(0).select_boundary().tag_edge_role(1)
+
+        # 2. Rungs
+        # Create cylinder connecting rails
+        # Oriented X
+        num_rungs = int(h / self.rung_spacing)
+
+        # Pre-calculate rotation for X-aligned cylinder
+        # create_cylinder makes Z-aligned. rotate 90 deg on Y.
+        rot_mat = Matrix.Rotation(math.radians(90), 4, 'Y')
+
+        for i in range(num_rungs):
+            z = (i + 0.5) * self.rung_spacing
+            if z > h - 0.1: continue
+
+            # Rung length = w - rt (fits between rails)
+            # Center = (0, 0, z)
+
+            # Create cylinder at origin, rotate, translate
+            builder.create_cylinder(radius=rr, depth=w - rt, segments=8, center=Vector((0,0,0)))
+            builder.transform(rot_mat)
+            builder.translate(0, 0, z)
+
+            builder.tag_slot(0)
+            # Mark ends as Seams?
+            builder.select_boundary().tag_edge_role(1)
+
+        # 3. Cage
+        if self.has_cage and h > self.cage_start_height:
+            c_rad = self.cage_radius
+            c_start = self.cage_start_height
+
+            # Cage Hoops
+            hoop_dist = 1.0 # Spacing
+
+            # Calculate hoop positions
+            z_positions = []
+            curr_z = c_start
+            while curr_z < h:
+                z_positions.append(curr_z)
+                curr_z += hoop_dist
+            # Always add one at top if not close
+            if z_positions and (h - z_positions[-1]) > 0.3:
+                z_positions.append(h)
+            elif not z_positions:
+                z_positions.append(h)
+
+            # Helper for Hoop Segment
+            # Arc from angle Pi (Left) to 2Pi (Right) via 1.5Pi (Back/Front?)
+            # Ladder at Y=0. User climbs on -Y side (Front)? Or +Y (Back)?
+            # Usually ladder is mounted to wall at +Y. User climbs on -Y side.
+            # Cage encloses user on -Y side.
+            # So Arc is in -Y half.
+            # Angles: 180 (Left/ -X) -> 270 (Front / -Y) -> 360/0 (Right / +X).
+            # So range 180 to 360 degrees.
+
+            # We construct hoop from small straight segments (pipe approximations)
+            # Or simplified: use torus segment logic?
+            # Let's use pipe segments for "Solid" geometry.
+
+            steps = 8
+            angle_start = math.pi
+            angle_end = 0 # 2*pi
+            angle_span = -math.pi # Clockwise?
+            # Math:
+            # Angle 180 is (-1, 0).
+            # Angle 270 is (0, -1).
+            # Angle 360 is (1, 0).
+            # Standard cos/sin:
+            # 180 -> x=-1, y=0.
+            # 270 -> x=0, y=-1.
+            # 0 -> x=1, y=0.
+
+            for z in z_positions:
+                prev_pt = None
+
+                # Create arc points
+                for s in range(steps + 1):
+                    t = s / steps
+                    angle = angle_start + t * angle_span # 180 -> 0 (via negative?)
+                    # Wait, 180 + (-180) = 0.
+                    # Range is Pi to 0.
+
+                    # x = cos(angle) * r
+                    # y = sin(angle) * r
+                    # This gives semi-circle in -Y if we go 180 -> 0 via 270?
+                    # 180 -> (-1, 0)
+                    # 90 -> (0, 1) -- Wrong side
+                    # 270 -> (0, -1) -- Correct side
+                    # 0 -> (1, 0)
+
+                    # We need to go 180 -> 270 -> 360 (0).
+                    # 180 is Pi. 360 is 2Pi.
+                    # So range Pi to 2Pi.
+
+                    angle = math.pi + t * math.pi
+
+                    lx = math.cos(angle) * c_rad
+                    ly = math.sin(angle) * c_rad
+
+                    curr_pt = Vector((lx, ly, z))
+
+                    if prev_pt:
+                        # Create segment from prev_pt to curr_pt
+                        # Thickness of hoop = 0.02
+                        hoop_thick = 0.02
+
+                        # Use create_strut logic (inline here)
+                        vec = curr_pt - prev_pt
+                        dist = vec.length
+                        mid = (prev_pt + curr_pt) / 2
+
+                        direction = vec.normalized()
+                        q = Vector((0,0,1)).rotation_difference(direction)
+                        m = Matrix.Translation(mid) @ q.to_matrix().to_4x4()
+
+                        builder.create_cylinder(radius=hoop_thick/2, depth=dist, segments=6, center=Vector((0,0,0)))
+                        builder.transform(m)
+                        builder.tag_slot(6) # Paint
+
+                    prev_pt = curr_pt
+
+            # Cage Vertical Strips
+            # Connect hoops vertically
+            num_strips = self.cage_strips
+            for i in range(num_strips):
+                # Distribute along the arc
+                t = i / (num_strips - 1)
+                angle = math.pi + t * math.pi
+
+                lx = math.cos(angle) * c_rad
+                ly = math.sin(angle) * c_rad
+
+                # Strip goes from c_start to h
+                # Create Box/Cylinder
+                strip_len = h - c_start
+                if strip_len > 0:
+                    center_z = c_start + strip_len/2
+                    pos = Vector((lx, ly, center_z))
+
+                    # Flat strip oriented to normal?
+                    # Normal is (lx, ly, 0).normalized()
+                    # Tangent Z.
+
+                    # Box 0.04 wide, 0.005 thick
+                    strip_w = 0.04
+                    strip_t = 0.005
+
+                    builder.create_box(strip_w, strip_t, strip_len, center=Vector((0,0,0)))
+
+                    # Rotate to face center
+                    # Default box faces Y (depth).
+                    # We want depth (Y) to align with radius vector (lx, ly).
+                    # Or width (X) to align with tangent.
+
+                    normal = Vector((lx, ly, 0)).normalized()
+                    # Box Front is -Y.
+                    # We want -Y to point to Center (0,0)? Or +Y to Center?
+                    # Usually strips are flat against the hoop.
+                    # So normal of strip face (Y) should align with radius (normal).
+
+                    q = Vector((0,1,0)).rotation_difference(normal)
+                    m = Matrix.Translation(pos) @ q.to_matrix().to_4x4()
+
+                    builder.transform(m)
+                    builder.tag_slot(6)
+
+        # 4. Sockets
+        # Top/Bottom of rails
+        # Since rails are boxes, we can select faces.
+        # Bottom (-Z? No, Z=0)
+        # Rails start at 0, go to h.
+        # But rail box created at center h/2.
+        # So bottom is at 0.
+
+        builder.select_faces_by_normal(Vector((0, 0, -1)), tolerance=0.1) \
+               .tag_socket(9).tag_slot(9)
+
+        builder.select_faces_by_normal(Vector((0, 0, 1)), tolerance=0.1) \
+               .tag_socket(9).tag_slot(9)
+
+        # 5. Manual UVs
+        # Slot 0 (Metal): Box
+        builder.select_faces_by_slot(0) \
+               .tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        # Slot 6 (Paint): Box
+        builder.select_faces_by_slot(6) \
+               .tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        builder._update()
