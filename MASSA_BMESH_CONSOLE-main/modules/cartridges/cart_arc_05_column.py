@@ -50,7 +50,7 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Column Shaft", "uv": "UNWRAP", "phys": "DEBUG_1"},
+            0: {"name": "Column Shaft", "uv": "SKIP", "phys": "DEBUG_1"},
             1: {"name": "Cap/Base", "uv": "UNWRAP", "phys": "DEBUG_2"},
             9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
@@ -72,7 +72,7 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
             shaft_h = th - ph - ch
             if shaft_h > 0:
                 builder.create_box(w, w, shaft_h).translate(0, 0, ph + shaft_h/2).tag_slot(0) \
-                       .select_boundary().tag_edge_role(2) # Sharp corners (will zipper later)
+                       .select_boundary().tag_edge_role(2).tag_uvs(1.0, 'BOX') # Sharp corners (will zipper later)
             # Cap
             builder.create_box(w*1.2, w*1.2, ch).translate(0, 0, th - ch/2).tag_slot(1) \
                    .select_boundary().tag_edge_role(1)
@@ -85,10 +85,10 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
             web_t = w * 0.1
 
             # Web
-            builder.create_box(web_t, d - 2*flange_t, th).translate(0, 0, th/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(web_t, d - 2*flange_t, th).translate(0, 0, th/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
             # Flanges
-            builder.create_box(w, flange_t, th).translate(0, d/2 - flange_t/2, th/2).tag_slot(0).select_boundary().tag_edge_role(1)
-            builder.create_box(w, flange_t, th).translate(0, -d/2 + flange_t/2, th/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(w, flange_t, th).translate(0, d/2 - flange_t/2, th/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(w, flange_t, th).translate(0, -d/2 + flange_t/2, th/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # Base Plate
             builder.create_box(w*1.4, d*1.4, ph).translate(0, 0, ph/2).tag_slot(1).select_boundary().tag_edge_role(1)
@@ -109,7 +109,7 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
             shaft_h = shaft_top_z - ph
             if shaft_h > 0.001:
                 builder.create_cone(radius_bottom=r_base, radius_top=r_top, depth=shaft_h, segments=segs, center=Vector((0,0,ph + shaft_h/2))) \
-                       .tag_slot(0)
+                       .tag_slot(0).tag_uvs(1.0, 'CYLINDER')
 
                 # Fluting logic
                 if self.fluted:
