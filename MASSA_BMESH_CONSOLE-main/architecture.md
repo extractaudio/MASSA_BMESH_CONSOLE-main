@@ -3,253 +3,347 @@
 ## Residential Circulation
 
 - **Rule:** Residential Hallway Width
-- **Value:** 0.91 m (Min), 1.07-1.22 m (Ideal)
+- **Spatial Dimension & Constraint:** 0.91 m (Min: 0.91m / 36"; Ideal: 1.07-1.22m / 42-48")
+- **Placement & Adjacency:** Connects distinct living areas (e.g., bedrooms to living rooms). If a 180-degree wheelchair turn is required, the width/diameter must expand to 60 inches.
+- **Orientation & Alignment:** Linear passage. Any wall-mounted protrusions (like sconces or frames) must not reduce the clear width below 36" and can extend a maximum of 4".
+- **Materials & Properties:** Flooring should withstand high transit wear (e.g., hardwood, laminate). Use high-contrast trim to aid navigation for visually impaired individuals.
 - **Reasoning:** Minimum required by code (36"); wider allows furniture movement and two people to pass comfortably.
-- **Constraint:** Strict Min: 0.91m
 
 - **Rule:** ADA Ramp Slope
-- **Value:** 1:12 Ratio
+- **Spatial Dimension & Constraint:** 1:12 Ratio (Max Slope: 4.8 degrees / 1" rise per 12" run; max rise per run: 30")
+- **Placement & Adjacency:** Installed at elevation changes along accessible routes (e.g., building entrances, porches). Requires level landings at the top and bottom.
+- **Orientation & Alignment:** Straight runs are preferred. If a ramp changes direction, a 60" x 60" landing is required at the turn. Cross slope cannot exceed 1:48.
+- **Materials & Properties:** The ramp surface must be firm, stable, and highly slip-resistant in all weather conditions (e.g., brushed concrete, specialized grip tape/coating).
 - **Reasoning:** Max slope for wheelchair safety (1 inch rise per 12 inches run).
-- **Constraint:** Max Slope: 4.8 degrees
 
 - **Rule:** ADA Ramp Landing Length
-- **Value:** 1.52 m
+- **Spatial Dimension & Constraint:** 1.52 m (Min: 60 inches / 1.52m)
+- **Placement & Adjacency:** Located at the top and bottom of each ramp run, and any location where the ramp changes direction.
+- **Orientation & Alignment:** Landing must be at least as wide as the ramp itself and perfectly level (max slope 1:48 in any direction).
+- **Materials & Properties:** Must share the same firm, slip-resistant properties as the main ramp runs, preventing water accumulation.
 - **Reasoning:** Minimum length for resting or turning a wheelchair.
-- **Constraint:** Min: 60 inches (1.52m)
 
 ## Kitchens (NKBA Guidelines)
 
 - **Rule:** Work Triangle Leg
-- **Value:** 1.22 m - 2.74 m
+- **Spatial Dimension & Constraint:** 1.22 m - 2.74 m (Min: 1.22m, Max: 2.74m)
+- **Placement & Adjacency:** Connects the three main work centers (sink, refrigerator, cooking surface). No major traffic patterns should cross through the triangle.
+- **Orientation & Alignment:** Unobstructed path between nodes; no single leg should intersect an island or peninsula by more than 12 inches.
+- **Materials & Properties:** Flooring within the triangle should be slip-resistant (DCOF >0.42); free from throw rugs that pose tripping hazards.
 - **Reasoning:** To ensure appliances are within efficient reach but not too close to cramp movement.
-- **Constraint:** Min: 1.22m, Max: 2.74m
 
 - **Rule:** Work Triangle Perimeter
-- **Value:** 4.0 m - 7.9 m
+- **Spatial Dimension & Constraint:** 4.0 m - 7.9 m (Max: 7.9m)
+- **Placement & Adjacency:** Encompasses the primary prep, cooking, and cleanup zones. Should not be separated by full-height, full-depth obstacles like tall oven cabinets.
+- **Orientation & Alignment:** Bounded within the primary functional kitchen footprint, visually connecting the three main stations.
+- **Materials & Properties:** Continuous resilient flooring material recommended for comfort during extensive travel within the perimeter.
 - **Reasoning:** Total travel distance efficiency.
-- **Constraint:** Max: 7.9m
 
 - **Rule:** Work Aisle Width (Single Cook)
-- **Value:** 1.07 m
+- **Spatial Dimension & Constraint:** 1.07 m (Min: 1.07m / 42 inches)
+- **Placement & Adjacency:** Measured between the counter frontage, tall cabinets, and/or appliances within the primary work zone.
+- **Orientation & Alignment:** Parallel to primary workstations like the sink, stove, or island to allow full clearance for open appliance doors.
+- **Materials & Properties:** Flooring should be durable and easy to clean (e.g., tile, sealed wood, vinyl) to withstand high foot traffic.
 - **Reasoning:** Minimum width for one person to work comfortably.
-- **Constraint:** Min: 1.07m
 
 - **Rule:** Work Aisle Width (Multiple Cooks)
-- **Value:** 1.22 m
+- **Spatial Dimension & Constraint:** 1.22 m (Min: 1.22m / 48 inches)
+- **Placement & Adjacency:** Placed between opposing counters/appliances where two cooks share the space, especially near cooktops and prep sinks.
+- **Orientation & Alignment:** Allows users to stand back-to-back or pass each other fluidly with open appliance doors.
+- **Materials & Properties:** Heavy-duty, slip-resistant flooring is crucial due to increased activity and potential spills.
 - **Reasoning:** Allows two people to work back-to-back or pass each other.
-- **Constraint:** Min: 1.22m
 
 - **Rule:** Walkway Width
-- **Value:** 0.91 m
+- **Spatial Dimension & Constraint:** 0.91 m (Min: 0.91m / 36 inches)
+- **Placement & Adjacency:** Located outside the primary work zones, serving as a passageway connecting doors, adjacent rooms, or functional areas.
+- **Orientation & Alignment:** Directed away from converging traffic or major appliance openings. If two walkways are perpendicular, one must be at least 42 inches wide.
+- **Materials & Properties:** Flooring should transition smoothly without high thresholds that inhibit ADA accessibility.
 - **Reasoning:** Clearance for traffic flow through a kitchen (no cooking).
-- **Constraint:** Min: 0.91m
 
 - **Rule:** Base Counter Height
-- **Value:** 0.91 m
+- **Spatial Dimension & Constraint:** 0.91 m (Fixed Standard: 36 inches / 0.91m)
+- **Placement & Adjacency:** Positioned around the perimeter walls or forming a central island workspace.
+- **Orientation & Alignment:** Formally horizontal, aligning with the elbows of a standing user. Ends should have clipped or rounded corners for safety.
+- **Materials & Properties:** Durable, non-porous surfaces (e.g., quartz, granite, solid surface) with electrical receptacles featuring GFCI protection.
 - **Reasoning:** Standard ergonomic height for standing work.
-- **Constraint:** Fixed Standard: 36 inches (0.91m)
 
 - **Rule:** Upper Cabinet Clearance
-- **Value:** 0.46 m
+- **Spatial Dimension & Constraint:** 0.46 m (Standard: 18 inches / 0.46m)
+- **Placement & Adjacency:** Vertical space between the base countertop and the bottom of wall-mounted cabinets. Increases to 24-30 inches above cooking surfaces.
+- **Orientation & Alignment:** Aligns vertically to allow unobstructed sightlines to the back of the counter workspace.
+- **Materials & Properties:** Space must often accommodate under-cabinet LED task lighting and a backsplash (e.g., ceramic tile, glass) resistant to cooking splatters.
 - **Reasoning:** Space for countertop appliances and workspace visibility.
-- **Constraint:** Standard: 18 inches (0.46m)
 
 - **Rule:** Island Seating Overhang
-- **Value:** 0.25 m - 0.38 m
+- **Spatial Dimension & Constraint:** 0.25 m - 0.38 m (Min: 10 inches, Ideal: 15 inches / 36" counter height)
+- **Placement & Adjacency:** Placed on the "social" side of the island, away from the primary prep/cooking zone to prevent traffic conflicts.
+- **Orientation & Alignment:** Extends outward from the island base. Requires at least 24 inches of width per seated diner. Allow 32"-44" clearance behind diners for traffic.
+- **Materials & Properties:** Overhangs greater than 10-12 inches may require structural corbels or steel supports under the countertop material (e.g., heavy stone).
 - **Reasoning:** Leg clearance for comfortable seating at counter height.
-- **Constraint:** Min: 10 inches (0.25m), Ideal: 15 inches (0.38m)
 
 - **Rule:** Kitchen Pendant Height (Above Island)
-- **Value:** 0.76 m - 0.91 m
+- **Spatial Dimension & Constraint:** 0.76 m - 0.91 m (Range: 30-36 inches above counter)
+- **Placement & Adjacency:** Centered over the island depth. Spaced 24 to 30 inches apart from the center of each fixture, and 6 to 12 inches from the island edge.
+- **Orientation & Alignment:** Adjusted vertically so the light cone adequately illuminates the work surface without creating glare at eye level for standing or seated users.
+- **Materials & Properties:** Fixtures should be easy to clean (glass, metal) as they accumulate kitchen grease and dust.
 - **Reasoning:** Clear sightlines while providing task lighting.
-- **Constraint:** Range: 30-36 inches above counter
 
 - **Rule:** Kitchen Toe Kick Dimensions
-- **Value:** 8.9 cm H x 7.6 cm D
+- **Spatial Dimension & Constraint:** 8.9 cm H x 7.6 cm D (Standard: 3.5" to 4" H x 3" D)
+- **Placement & Adjacency:** Recessed at the bottom front edge of all base cabinets, islands, and peninsulas where users stand to work.
+- **Orientation & Alignment:** Horizontal indentation running parallel to the cabinet face, allowing the user's center of gravity to shift closer to the work surface.
+- **Materials & Properties:** Often covered in the same cabinetry finish or a durable, scuff-resistant material like rubber or vinyl base molding.
 - **Reasoning:** Ergonomic recess for feet while standing at counter.
-- **Constraint:** Standard: 3.5" H x 3" D
 
 ## Bathrooms
 
 - **Rule:** Toilet Front Clearance
-- **Value:** 0.53 m
+- **Spatial Dimension & Constraint:** 0.53 m (Strict Min: 0.53m / 21" (Code), Recommended: 0.61m / 24", ADA Comm: 56" from rear wall)
+- **Placement & Adjacency:** Measured directly in front of the toilet bowl to any facing wall, fixture, or door swing.
+- **Orientation & Alignment:** Requires a clear, unobstructed path forward for approaching and transferring, especially critical for wheelchair access.
+- **Materials & Properties:** Floor material in clearance zone must be slip-resistant; no structural barriers or thick rugs that impede mobility.
 - **Reasoning:** Legroom and space to stand up.
-- **Constraint:** Strict Min: 0.53m (Code), Recommended: 0.61m
 
 - **Rule:** Toilet Side Clearance (Center to Wall)
-- **Value:** 0.38 m
+- **Spatial Dimension & Constraint:** 0.38 m (Strict Min: 0.38m / 15", ADA Comm: 16-18")
+- **Placement & Adjacency:** Measured from the toilet's centerline to the nearest side wall, partition, vanity, or tub.
+- **Orientation & Alignment:** Placed to allow comfortable seating without elbow interference on either side; ADA requires a 60-inch total clear width around the toilet.
+- **Materials & Properties:** Side walls/partitions must be structurally reinforced to allow future installation of safety grab bars supporting at least 250 lbs.
 - **Reasoning:** Elbow room and access.
-- **Constraint:** Strict Min: 0.38m
 
 - **Rule:** Double Vanity Center-to-Center
-- **Value:** 0.76 m
+- **Spatial Dimension & Constraint:** 0.76 m (Min Code: 30", NKBA Rec: 36" / 0.91m)
+- **Placement & Adjacency:** Spacing between two adjacent sink basins within a shared countertop space. Minimum 4 inches required between freestanding sink edges.
+- **Orientation & Alignment:** Placed side-by-side facing the user. Requires a clear floor space of at least 30"x48" in front of each sink for accessibility.
+- **Materials & Properties:** Surrounding countertop material should be water-resistant (e.g., stone, solid surface) to manage splashing between basins.
 - **Reasoning:** Minimum distance between two sinks to allow simultaneous use.
-- **Constraint:** Min: 0.76m
 
 - **Rule:** Shower Dimensions
-- **Value:** 0.76 m x 0.76 m (Min), 0.91 m x 0.91 m (Ideal)
+- **Spatial Dimension & Constraint:** 0.76 m x 0.76 m (Min: 30x30"), Ideal: 0.91 m x 0.91 m (36x36" NKBA), ADA Roll-in: 30x60"
+- **Placement & Adjacency:** Typically located in bathroom corners or alcoves. Requires at least 24 inches (NKBA) to 36x48 inches (ADA transfer) of clear floor space outside the entry.
+- **Orientation & Alignment:** Entry threshold should be flush (ADA roll-in max 1/2" beveled) to ensure safe pedestrian or wheelchair access.
+- **Materials & Properties:** Walls require waterproof surround at least 3" above showerhead or 72" AFF. Floors must have slip-resistant texturing and proper drainage slope.
 - **Reasoning:** Minimum space to stand and turn; larger for elbow room.
-- **Constraint:** Strict Min: 30x30 inches (0.76m)
 
 - **Rule:** Shower Bench Dimensions
-- **Value:** 0.38 m x 0.51 m (Min)
+- **Spatial Dimension & Constraint:** 0.38 m x 0.51 m (Min Depth: 15-16", Height: 17-19" AFF)
+- **Placement & Adjacency:** For transfer showers, mounted on the wall opposite the controls or adjacent to them; extends from back wall to within 3 inches of the entry.
+- **Orientation & Alignment:** Can be rectangular or L-shaped. ADA seats are typically folding to maximize standing room when not in use.
+- **Materials & Properties:** Must withstand a minimum static load of 250 lbs. Surfaces should be water-shedding, non-slip, and easy to sanitize (e.g., phenolic, teak, reinforced plastic).
 - **Reasoning:** ADA standard for safe transfer and seating.
-- **Constraint:** Min Depth: 15-16 inches (0.38-0.41m)
 
 - **Rule:** Shower Head Height
-- **Value:** 2.03 m - 2.13 m
+- **Spatial Dimension & Constraint:** 2.03 m - 2.13 m (Standard: 80-84", ADA/Handheld: 38-48" minimum attachment)
+- **Placement & Adjacency:** Mounted on the wall within the wet zone. ADA guidelines require controls/handheld attachments on the wall adjacent to a shower seat.
+- **Orientation & Alignment:** Angled downward toward the center of the stall. Accessible handheld units must have a hose at least 59 inches long to reach all areas.
+- **Materials & Properties:** Corrosion-resistant metal or durable plastic finishes. ADA handhelds must be operable with one hand and not require tight grasping/twisting.
 - **Reasoning:** Height to accommodate taller users; ADA range lower (38-48").
-- **Constraint:** Standard: 80-84 inches (2.0-2.1m)
 
-- **Rule:** Grab Bar Height (Shower)
-- **Value:** 0.84 m - 0.91 m
+- **Rule:** Grab Bar Height (Shower/Toilet)
+- **Spatial Dimension & Constraint:** 0.84 m - 0.91 m (Standard ADA: 33-36 inches / 0.84-0.91m AFF)
+- **Placement & Adjacency:** Horizontally mounted on back and side walls around toilets, tubs, and inside showers. Must not overlap a folding shower seat.
+- **Orientation & Alignment:** 1.5 inches of clearance required between the grab bar and the wall. Diameter must be strictly 1.25 to 2 inches for ergonomic gripping.
+- **Materials & Properties:** Non-slip, anti-corrosive metals (stainless steel, brass). Must support a minimum 250 lb static load, secured directly to wall blocking.
 - **Reasoning:** Accessible height for support and balance.
-- **Constraint:** Standard: 33-36 inches (0.84-0.91m)
 
 - **Rule:** Towel Ring Height
-- **Value:** 1.22 m - 1.32 m
+- **Spatial Dimension & Constraint:** 1.22 m - 1.32 m (Standard: 48-52", ADA Max Forward Reach: 48")
+- **Placement & Adjacency:** Wall-mounted adjacent to sinks and lavatories, usually within immediate arm's reach (approx. 20" above counter).
+- **Orientation & Alignment:** Face out prominently for quick access. ADA requires operable parts of dispensers/rings to sit at or below 48" for wheelchair users.
+- **Materials & Properties:** Rust-resistant hardware (brass, stainless). Ring should swing freely but be firmly anchored to withstand pulling.
 - **Reasoning:** Accessible reach near vanity; often 20" above counter.
-- **Constraint:** Standard: 48-52 inches (1.2-1.3m)
 
 - **Rule:** Robe Hook Height
-- **Value:** 1.52 m - 1.78 m
+- **Spatial Dimension & Constraint:** 1.52 m - 1.78 m (Standard: 60-70", ADA Max: 48" forward / 54" side reach)
+- **Placement & Adjacency:** Mounted on the back of bathroom doors, inside shower anterooms, or on adjacent empty walls.
+- **Orientation & Alignment:** Placed high enough to prevent long garments from dragging on floors. ADA accessible hooks are placed lower (centerline ~44").
+- **Materials & Properties:** Robust metal casting required to hold heavy wet towels or thick robes without bending.
 - **Reasoning:** High enough for long robes; 66" ideal.
-- **Constraint:** Standard: 60-70 inches (1.5-1.7m)
 
 - **Rule:** ADA Toilet Stall Width
-- **Value:** 1.52 m
-- **Reasoning:** Minimum width for wheelchair maneuverability.
-- **Constraint:** Strict Min: 60 inches (1.52m)
+- **Spatial Dimension & Constraint:** 1.52 m (Strict Min: 60 inches / 1.52m)
+- **Placement & Adjacency:** Defines the interior side-to-side dimension of a wheelchair-accessible stall. Ambulatory stalls require 35-37 inches.
+- **Orientation & Alignment:** Toilet must be offset with its centerline 16-18 inches from the side wall. Requires a door with minimum 32-inch clear opening that swings outward.
+- **Materials & Properties:** Stall partitions must be durable, non-porous, and easy to clean (e.g., solid plastic, powder-coated steel, phenolic core).
+- **Reasoning:** Minimum width for wheelchair maneuverability including a 60-inch circular turning space.
 
 - **Rule:** ADA Toilet Stall Depth (Wall-Hung)
-- **Value:** 1.42 m
+- **Spatial Dimension & Constraint:** 1.42 m (Strict Min: 56 inches / 1.42m; Floor-mounted requires 59 inches)
+- **Placement & Adjacency:** Defines the interior front-to-back dimension of a wheelchair-accessible stall.
+- **Orientation & Alignment:** Deep enough to accommodate a front-approach or diagonal transfer to the toilet, leaving sufficient room to close the door (if swinging inward, depth increases).
+- **Materials & Properties:** Wall assemblies supporting wall-hung toilets require robust concealed steel carriers to support the cantilevered weight limit safely (often >500 lbs).
 - **Reasoning:** Minimum depth for wheelchair clearance with wall-hung toilet.
-- **Constraint:** Strict Min: 56 inches (1.42m)
 
 ## Staircases
 
 - **Rule:** Riser Height (Residential)
-- **Value:** 0.197 m
+- **Spatial Dimension & Constraint:** 0.197 m (Max IRC: 7.75" / 0.197m; ADA ranges 4" to 7")
+- **Placement & Adjacency:** Vertical dimension measured between the leading edges of adjacent staircase treads.
+- **Orientation & Alignment:** Must be strictly uniform. The greatest riser height in a flight cannot exceed the smallest by more than 3/8 inch.
+- **Materials & Properties:** Risers are typically solid (wood, concrete, steel); open risers are restricted by code to prevent objects (or small children) passing through.
 - **Reasoning:** Maximum step height ensures safety and regularity.
-- **Constraint:** Max: 7.75 inches (0.197m)
 
 - **Rule:** Tread Depth
-- **Value:** 0.254 m
+- **Spatial Dimension & Constraint:** 0.254 m (Min IRC: 10" / 0.254m; Min ADA: 11" / 0.28m)
+- **Placement & Adjacency:** Horizontal dimension measured from the nosing of one step to the nosing of the next.
+- **Orientation & Alignment:** Must be consistent; widest tread cannot exceed narrowest by more than 3/8 inch. Must be level from side-to-side (max 1:48 slope).
+- **Materials & Properties:** Tread surfaces must be secure and slip-resistant. Applied nosings or carpet must be tightly fastened without loose edges.
 - **Reasoning:** Provides sufficient foothold for safe descent.
-- **Constraint:** Min: 10 inches (0.254m)
 
 - **Rule:** Handrail Height
-- **Value:** 0.86 m - 0.97 m
+- **Spatial Dimension & Constraint:** 0.86 m - 0.97 m (Range: 34-38 inches above stair nosing)
+- **Placement & Adjacency:** Mounted continuously along the length of the stair flight. Stairs 44"+ wide require handrails on both sides.
+- **Orientation & Alignment:** Follows the ascent/descent angle perfectly. Commercial/ADA requires the rail to extend horizontally 12 inches beyond the top/bottom treads.
+- **Materials & Properties:** Must be "greppable" (circular: 1.25"-2" diameter) with 1.5 inches of wall clearance. End points must return to the wall to prevent snagging.
 - **Reasoning:** Natural height for gripping while walking.
-- **Constraint:** Range: 34-38 inches
 
 - **Rule:** Headroom Clearance
-- **Value:** 2.03 m
+- **Spatial Dimension & Constraint:** 2.03 m (Min: 80 inches / 2.03m / 6'8")
+- **Placement & Adjacency:** Measured vertically from an imaginary sloped line connecting the outer edges (nosings) of all treads up to the lowest overhead ceiling or obstacle.
+- **Orientation & Alignment:** Must be maintained over the full width of the stairways and landings, continuing one step beyond the end of the flight.
+- **Materials & Properties:** Overhead structures (beams, drywall drop-downs) must be completely rigid and finished to ensure this strict minimum is uncompromised.
 - **Reasoning:** Prevents head impact while using stairs.
-- **Constraint:** Min: 80 inches (2.03m)
 
 ## Closets & Storage
 
 - **Rule:** Hanger Depth (Standard)
-- **Value:** 0.61 m
+- **Spatial Dimension & Constraint:** 0.61 m (Min: 0.61m / 24 inches)
+- **Placement & Adjacency:** Measured from the back wall of the closet to the inside face of the door or frame.
+- **Orientation & Alignment:** Perpendicular to the closet rod to allow hangers to sit perfectly straight without fabric bunching against walls.
+- **Materials & Properties:** Interior walls often clad in cedar or finished drywall; rods should be rigid metal or thick wood to prevent bowing under the weight of deep coats.
 - **Reasoning:** Accommodates standard hangers without clothing touching the back wall.
-- **Constraint:** Min: 0.61m (24 inches)
 
 - **Rule:** Walk-in Closet Width (Single Side)
-- **Value:** 1.22 m - 1.52 m
+- **Spatial Dimension & Constraint:** 1.22 m - 1.52 m (Min: 1.22m / 4-5 feet)
+- **Placement & Adjacency:** Assumes storage (24" depth) on one wall, leaving a minimum 24-36" clear walkway beside it.
+- **Orientation & Alignment:** Linear layout; walkway runs parallel to the storage wall. ADA requires 30"x48" clear space.
+- **Materials & Properties:** Soft, warm flooring (carpet or rugs) preferred for bare feet. Consider moisture-resistant paint if adjacent to a bathroom.
 - **Reasoning:** Allows for one row of hanging (0.61m) plus walking space.
-- **Constraint:** Min: 1.22m
 
 - **Rule:** Walk-in Closet Width (Double Side)
-- **Value:** 1.83 m
+- **Spatial Dimension & Constraint:** 1.83 m (Min: 1.83m / 6 feet)
+- **Placement & Adjacency:** Storage (24" depth each) on two opposing walls with a central 24-36" aisle between them.
+- **Orientation & Alignment:** Galley style layout; the passage runs down the center facing the back wall.
+- **Materials & Properties:** Bright, high-CRI overhead lighting is crucial to distinguish fabric colors in the enclosed central aisle.
 - **Reasoning:** Two rows of hanging (1.22m total) plus a 0.61m central aisle.
-- **Constraint:** Min: 1.83m
 
 - **Rule:** Closet Rod Height (Single)
-- **Value:** 1.63 m - 1.68 m
+- **Spatial Dimension & Constraint:** 1.63 m - 1.68 m (Standard: 64-66 inches / 1.63-1.68m)
+- **Placement & Adjacency:** Vertically mounted from the floor. ADA accessible rods are placed lower, max 54" and typically 48".
+- **Orientation & Alignment:** Horizontal. Usually accompanied by a shelf mounted 2-3 inches above the rod for structural support and storage.
+- **Materials & Properties:** Heavy-duty steel or extruded aluminum rods with a plastic sleeve to reduce hanger sliding noise.
 - **Reasoning:** Accommodates long garments (dresses/coats).
-- **Constraint:** Standard: 64-66 inches (1.63-1.68m)
 
 - **Rule:** Closet Rod Heights (Double)
-- **Value:** 2.03 m (Top) / 1.02 m (Bottom)
+- **Spatial Dimension & Constraint:** 2.03 m (Top) / 1.02 m (Bottom) (Standard: 80" Top, 40" Bottom)
+- **Placement & Adjacency:** Two horizontally parallel rods mounted on the same wall.
+- **Orientation & Alignment:** Maximizes vertical storage. Upper rod holds shirts/blouses, lower holds folded pants or skirts.
+- **Materials & Properties:** Requires a central vertical support board (typically 3/4" melamine or plywood) if the rod spans wider than 36-40 inches to prevent sagging.
 - **Reasoning:** Maximizes vertical space for shirts/pants.
-- **Constraint:** Standard: 80" Top, 40" Bottom
 
 - **Rule:** Bookshelf Spacing (Vertical)
-- **Value:** 0.20 m - 0.30 m
+- **Spatial Dimension & Constraint:** 0.20 m - 0.30 m (Standard: 8-12 inches; Oversized: 14-16 inches)
+- **Placement & Adjacency:** Distance between horizontal shelves. Deeper spacing placed at the bottom for visual stability.
+- **Orientation & Alignment:** Horizontal stacking. Bookshelves should ideally be placed against solid walls, avoiding blocking walkways (allow 18" clearance) or natural light.
+- **Materials & Properties:** 3/4-inch solid hardwood or plywood to resist sagging. MDF or particleboard will sag under heavy textbook/art book loads unless supported frequently.
 - **Reasoning:** Fits standard hardcovers and paperbacks.
-- **Constraint:** Standard: 8-12 inches
 
 ## Media & Living
 
 - **Rule:** 4K TV Viewing Distance
-- **Value:** 1.2x - 1.5x Diagonal Screen Size
+- **Spatial Dimension & Constraint:** 1.2x - 1.5x Diagonal Screen Size (Optimal Range; THX recommends 1.2x)
+- **Placement & Adjacency:** Distance from the primary seating headrest to the screen surface.
+- **Orientation & Alignment:** Screen should be parallel to the viewer's face. Center of the screen should ideally be at seated eye level (approx. 42" from floor).
+- **Materials & Properties:** Avoid placing opposite large unshaded windows. Use anti-glare screen coatings and install blackout curtains to control lighting.
 - **Reasoning:** Closer sitting distance possible due to high pixel density.
-- **Constraint:** Optimal Range
 
 - **Rule:** 1080p TV Viewing Distance
-- **Value:** 1.5x - 2.5x Diagonal Screen Size
+- **Spatial Dimension & Constraint:** 1.5x - 2.5x Diagonal Screen Size (Optimal Range)
+- **Placement & Adjacency:** Distance from seating to screen. Requires a longer setback than 4K to avoid resolving individual pixels.
+- **Orientation & Alignment:** Center or bottom-third of the screen aligned with seated eye level. Avoid high mounting (e.g., above fireplaces) which causes neck strain.
+- **Materials & Properties:** Standard LED/LCD panels; ambient bias lighting behind the TV (6500K color temp) reduces eye fatigue.
 - **Reasoning:** Further distance required to avoid seeing pixel grid.
-- **Constraint:** Optimal Range
 
 - **Rule:** Coffee Table Distance
-- **Value:** 0.36 m - 0.46 m
+- **Spatial Dimension & Constraint:** 0.36 m - 0.46 m (Range: 14-18 inches / 0.36-0.46m)
+- **Placement & Adjacency:** Gap between the front edge of the sofa/chair seating and the edge of the coffee table.
+- **Orientation & Alignment:** Parallel to the longest sofa. Height should match or be within 1-2 inches of the sofa seat cushion height.
+- **Materials & Properties:** Glass tops expand small spaces visually; durable solid wood or stone grounds larger rooms. Padded ottomans double as tables if topped with a tray.
 - **Reasoning:** Legroom and reachability from sofa.
-- **Constraint:** Range: 14-18 inches (0.36-0.46m)
 
 - **Rule:** Picture Hanging Height
-- **Value:** 1.45 m - 1.52 m
+- **Spatial Dimension & Constraint:** 1.45 m - 1.52 m (Center at 57-60 inches / 1.45-1.52m)
+- **Placement & Adjacency:** Height from the floor to the absolute center of the art piece or gallery grouping.
+- **Orientation & Alignment:** If placed above furniture, the bottom edge should sit 4 to 8 inches above the top of the sofa or console.
+- **Materials & Properties:** Use French cleats or D-rings into wall studs for pieces over 20 lbs. Standard picture wire with drywall hooks is sufficient for lighter frames.
 - **Reasoning:** Eye level for gallery viewing (center of art).
-- **Constraint:** Center: 57-60 inches (1.45-1.52m)
 
 - **Rule:** Curtain Rod Height
-- **Value:** 0.10 m - 0.15 m (Above Window)
+- **Spatial Dimension & Constraint:** 0.10 m - 0.15 m Above Window (Min: 4-6", Maximize height: 12-16" or 1/2 to 2/3 distance to ceiling)
+- **Placement & Adjacency:** Mounted on the wall above the window trim to draw the eye upward.
+- **Orientation & Alignment:** Horizontal perfectly level line. Curtains should casually "puddle" or strictly "kiss" the floor.
+- **Materials & Properties:** Rigid metal or thick wood poles. Heavy blackout drapes require secure wall anchors or studs, and center support brackets for wide windows.
 - **Reasoning:** Creates illusion of height; or mount at ceiling.
-- **Constraint:** Min: 4-6 inches above trim
 
 - **Rule:** Curtain Rod Width Extension
-- **Value:** 0.15 m - 0.25 m (Per Side)
+- **Spatial Dimension & Constraint:** 0.15 m - 0.25 m Per Side (Min: 6-10" / 8-12" beyond trim)
+- **Placement & Adjacency:** Extends past the left and right outer edges of the window casing.
+- **Orientation & Alignment:** Allows curtain panels to pull back completely off the glass (stackback), maximizing daylight and making windows appear wider.
+- **Materials & Properties:** Rod finials (decorative ends) dictate exactly how much side clearance is needed. Ensure the rod diameter visually supports the curtain fabric weight.
 - **Reasoning:** Allows curtains to stack clear of the glass (max light).
-- **Constraint:** Min: 6-10 inches beyond trim
 
 ## Dining & Seating
 
 - **Rule:** Table Width Per Person
-- **Value:** 0.61 m
+- **Spatial Dimension & Constraint:** 0.61 m (Min: 0.61m / 24 inches, Ideal: 30 inches)
+- **Placement & Adjacency:** Linear edge space allocated per dining chair along the table perimeter.
+- **Orientation & Alignment:** Side-by-side seating. Needs at least 12 inches of depth per person inward toward the table center for place settings.
+- **Materials & Properties:** Table surfaces require durable, stain-resistant finishes (polyurethane, sealed stone) to withstand heat and spills while accommodating diningware.
 - **Reasoning:** Minimum elbow room for eating comfortably.
-- **Constraint:** Min: 0.61m (24 inches)
 
 - **Rule:** Chair Push-Back Clearance
-- **Value:** 0.61 m (Min), 0.76 m (Comfort)
+- **Spatial Dimension & Constraint:** 0.61 m (Min), 0.76 m (Comfort) (Min: 36 inches / 0.91m from table edge to wall)
+- **Placement & Adjacency:** Defined as the space from the table edge to the nearest wall or heavy furniture.
+- **Orientation & Alignment:** Allows a diner to slide the chair backward and stand without hitting the wall.
+- **Materials & Properties:** Consider wainscoting or durable chair rails on the walls to prevent damage from chair backs repeatedly striking the drywall.
 - **Reasoning:** Space required to slide chair back and stand up.
-- **Constraint:** Min: 0.61m
 
 - **Rule:** Dining Passage Clearance (Behind Seated)
-- **Value:** 0.91 m - 1.22 m
+- **Spatial Dimension & Constraint:** 0.91 m - 1.22 m (Min: 0.91m / 36", Ideal: 42-48" / 1.07-1.22m)
+- **Placement & Adjacency:** The circulating pathway behind a pulled-out occupied chair.
+- **Orientation & Alignment:** Runs continuously around the dining group. Critical for open-plan service aisles and entertaining flows.
+- **Materials & Properties:** Flooring should be continuous and smooth to prevent tripping while carrying hot food or heavy dishes.
 - **Reasoning:** Allows a person to traffic behind a seated diner (service or exit).
-- **Constraint:** Min: 0.91m
 
 - **Rule:** Dining Chandelier Height (Above Table)
-- **Value:** 0.76 m - 0.91 m
+- **Spatial Dimension & Constraint:** 0.76 m - 0.91 m (Range: 30-36 inches above table for 8ft ceilings)
+- **Placement & Adjacency:** Bottom point of the lighting fixture measured to the top surface of the dining table. Add 3" height per extra foot of ceiling over 8ft.
+- **Orientation & Alignment:** Centered directly over the table axis. Width should be roughly 1/2 to 3/4 the width of the table to avoid head-bumping.
+- **Materials & Properties:** Diffused glass or fabric shades recommended to avoid harsh glare in diners' eyes. Dimmable LED fixtures provide ambient control.
 - **Reasoning:** Clear sightlines for seated diners; ambience.
-- **Constraint:** Range: 30-36 inches above table
 
 ## Bedroom
 
 - **Rule:** Bed Length (Standard Queen/King)
-- **Value:** 2.03 m
+- **Spatial Dimension & Constraint:** 2.03 m (Fixed Standard: 80 inches)
+- **Placement & Adjacency:** Headboard typically against the primary wall, extending outward into the room.
+- **Orientation & Alignment:** Requires a minimum of 36 inches clearance at the foot of the bed for main circulation.
+- **Materials & Properties:** Standard mattresses require a supportive box spring or slatted platform base to ensure longevity and ergonomic support.
 - **Reasoning:** Standard mattress length (80 inches).
-- **Constraint:** Fixed Standard
 
 - **Rule:** Bed Side Clearance
-- **Value:** 0.61 m - 0.91 m
+- **Spatial Dimension & Constraint:** 0.61 m - 0.91 m (Min: 0.61m / 24 inches; Ideal: 30-36 inches)
+- **Placement & Adjacency:** Walkway space flanking the left and right sides of the mattress.
+- **Orientation & Alignment:** Parallel to the bed. Allows room to pull back covers, walk, and position a nightstand. ADA requires 36 inches minimum on one side.
+- **Materials & Properties:** Soft rugs positioned alongside the bed provide thermal comfort when stepping out barefoot.
 - **Reasoning:** Space to walk, make the bed, and access nightstands.
-- **Constraint:** Min: 0.61m
 
 - **Rule:** Dresser Drawer Clearance
-- **Value:** 0.91 m
+- **Spatial Dimension & Constraint:** 0.91 m (Min: 0.91m / 36 inches)
+- **Placement & Adjacency:** Clear floor space originating from the front face of the dresser.
+- **Orientation & Alignment:** Depth must accommodate a fully extended drawer (approx 16-18") plus a standing adult (18-20") without forcing the user to stand sideways.
+- **Materials & Properties:** Dressers taller than 30 inches must be securely anchored to wall studs with anti-tip hardware, especially on carpeted floors.
 - **Reasoning:** Space to stand in front of open drawers.
-- **Constraint:** Min: 0.91m
 
 ## Doors & Electrical
 
@@ -814,6 +908,7 @@
 This section defines the strict geometric and behavioral contracts for the core architectural cartridges. The auditing system parses these JSON blocks to validate generated meshes.
 
 ## ARC_01: Wall
+
 ```json
 {
   "id": "arc_01_wall",
@@ -830,6 +925,7 @@ This section defines the strict geometric and behavioral contracts for the core 
 ```
 
 ## ARC_02: Stairs
+
 ```json
 {
   "id": "arc_02_stairs",
@@ -847,6 +943,7 @@ This section defines the strict geometric and behavioral contracts for the core 
 ```
 
 ## ARC_03: Window
+
 ```json
 {
   "id": "arc_03_window",
@@ -863,6 +960,7 @@ This section defines the strict geometric and behavioral contracts for the core 
 ```
 
 ## ARC_04: Doorway
+
 ```json
 {
   "id": "arc_04_doorway",
@@ -880,6 +978,7 @@ This section defines the strict geometric and behavioral contracts for the core 
 ```
 
 ## ARC_05: Column
+
 ```json
 {
   "id": "arc_05_column",
