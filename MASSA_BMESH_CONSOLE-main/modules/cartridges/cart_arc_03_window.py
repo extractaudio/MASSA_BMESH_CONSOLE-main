@@ -34,11 +34,23 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
     frame_width: FloatProperty(name="Frame Width", default=0.1, min=0.01)
     mullion_thick: FloatProperty(name="Frame Depth", default=0.1, min=0.01)
 
+    # Styles
+    window_style: EnumProperty(
+        name="Style",
+        items=[
+            ("GRID", "Grid", "Standard Mullions"),
+            ("PICTURE", "Picture", "Large central pane"),
+            ("LOUVER", "Louver", "Horizontal Slats"),
+        ],
+        default="GRID"
+    )
+
     def get_slot_meta(self):
         return {
-            0: {"name": "Frame", "uv": "BOX", "phys": "METAL_ALUMINUM"},
-            3: {"name": "Glass", "uv": "FIT", "phys": "GLASS"}, # Fit UVs
-            9: {"name": "Socket Anchor", "sock": True}
+            0: {"name": "Frame", "uv": "BOX", "phys": "DEBUG_1"},
+            3: {"name": "Glass", "uv": "FIT", "phys": "DEBUG_4"}, # Slot 3 is typically Glass
+            4: {"name": "Louver", "uv": "BOX", "phys": "DEBUG_2"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
     def build_shape(self, bm):
@@ -46,85 +58,105 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
         
         W = self.win_width
         H = self.win_height
-        
-        cols = self.mullion_x
-        rows = self.mullion_y
-
         ft = self.frame_width
         fd = self.mullion_thick
-
-        # Calculate Pane Sizes
-        # W = (cols * pane_w) + (cols + 1) * ft
-        # pane_w = (W - (cols+1)*ft) / cols
-
-        if W <= (cols + 1) * ft:
-            pane_w = 0.001
-        else:
-            pane_w = (W - (cols + 1) * ft) / cols
-
-        if H <= (rows + 1) * ft:
-            pane_h = 0.001
-        else:
-            pane_h = (H - (rows + 1) * ft) / rows
-
         uv_s0 = getattr(self, "uv_scale_0", 1.0)
 
-        # 1. Vertical Mullions
-        for i in range(cols + 1):
-            x_left = i * (pane_w + ft)
-            cx = x_left + ft/2
+        if self.window_style == 'GRID':
+            cols = self.mullion_x
+            rows = self.mullion_y
 
-            builder.create_box(ft, fd, H) \
-                   .translate(cx, fd/2, H/2) \
-                   .tag_slot(0) \
-                   .tag_uvs(uv_s0, 'BOX')
+            if W <= (cols + 1) * ft: pane_w = 0.001
+            else: pane_w = (W - (cols + 1) * ft) / cols
 
-        # 2. Horizontal Transoms (Segments)
-        for j in range(rows + 1):
-            z_bot = j * (pane_h + ft)
-            cz = z_bot + ft/2
+            if H <= (rows + 1) * ft: pane_h = 0.001
+            else: pane_h = (H - (rows + 1) * ft) / rows
 
+            # 1. Vertical Mullions
+            for i in range(cols + 1):
+                x_left = i * (pane_w + ft)
+                cx = x_left + ft/2
+                builder.create_box(ft, fd, H) \
+                       .translate(cx, fd/2, H/2) \
+                       .tag_slot(0).tag_uvs(uv_s0, 'BOX')
+
+            # 2. Horizontal Transoms
+            for j in range(rows + 1):
+                z_bot = j * (pane_h + ft)
+                cz = z_bot + ft/2
+                for i in range(cols):
+                    px = (i * (pane_w + ft)) + ft + pane_w/2
+                    builder.create_box(pane_w, fd, ft) \
+                           .translate(px, fd/2, cz) \
+                           .tag_slot(0).tag_uvs(uv_s0, 'BOX')
+
+            # 3. Glass Panes
+            gt = 0.02
             for i in range(cols):
-                px = (i * (pane_w + ft)) + ft + pane_w/2
+                for j in range(rows):
+                    px = (i * (pane_w + ft)) + ft + pane_w/2
+                    pz = (j * (pane_h + ft)) + ft + pane_h/2
+                    builder.create_box(pane_w, gt, pane_h) \
+                           .translate(px, fd/2, pz) \
+                           .tag_slot(3).tag_uvs(1.0, 'FIT')
 
-                builder.create_box(pane_w, fd, ft) \
-                       .translate(px, fd/2, cz) \
-                       .tag_slot(0) \
-                       .tag_uvs(uv_s0, 'BOX')
+        elif self.window_style == 'PICTURE':
+            # Frame Perimeter
+            # Left
+            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Right
+            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Bottom
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Top
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
 
-        # 3. Glass Panes
-        gt = 0.02 # Glass Thickness
-        for i in range(cols):
+            # Glass
+            gt = 0.02
+            builder.create_box(W - 2*ft, gt, H - 2*ft).translate(W/2, fd/2, H/2).tag_slot(3).tag_uvs(1.0, 'FIT')
+
+        elif self.window_style == 'LOUVER':
+            # Frame Perimeter
+            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+
+            # Slats
+            rows = self.mullion_y * 2
+            slat_h = (H - 2*ft) / rows
+            slat_d = fd * 0.8
             for j in range(rows):
-                px = (i * (pane_w + ft)) + ft + pane_w/2
-                pz = (j * (pane_h + ft)) + ft + pane_h/2
+                cz = ft + j * slat_h + slat_h/2
+                builder.create_box(W - 2*ft, slat_d, slat_h * 0.8) \
+                       .translate(W/2, fd/2, cz) \
+                       .rotate(-30, 'X') \
+                       .tag_slot(4).tag_uvs(uv_s0, 'BOX') # Slot 4 for louvers
 
-                builder.create_box(pane_w, gt, pane_h) \
-                       .translate(px, fd/2, pz) \
-                       .tag_slot(3) \
-                       .tag_uvs(1.0, 'FIT')
+        # Tag Edges
+        builder.select_all_faces().select_boundary().tag_edge_role(1)
         
-        # 4. Sockets
-        # Center of window
-        builder.create_grid(size=0.1) \
-               .rotate(90, 'X') \
-               .translate(W/2, 0, H/2) \
-               .tag_slot(9) \
-               .tag_socket(1)
-
+        # Sockets (Tag Existing Faces)
         builder.clean()
+
+        # Center Socket (Front/Back)
+        builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1).tag_socket(1)
+        builder.select_faces_by_normal(Vector((0, -1, 0)), tolerance=0.1).tag_socket(2)
 
     def draw_shape_ui(self, layout):
         box = layout.box()
         box.label(text="Configuration", icon='MESH_GRID')
         col = box.column(align=True)
+        col.prop(self, "window_style")
         col.prop(self, "win_width")
         col.prop(self, "win_height")
 
-        box_grid = layout.box()
-        box_grid.label(text="Grid & Frame", icon='MOD_WIREFRAME')
-        col = box_grid.column(align=True)
-        col.prop(self, "mullion_x")
-        col.prop(self, "mullion_y")
-        col.prop(self, "frame_width")
-        col.prop(self, "mullion_thick")
+        if self.window_style in {'GRID', 'LOUVER'}:
+            box_grid = layout.box()
+            box_grid.label(text="Grid & Frame", icon='MOD_WIREFRAME')
+            col = box_grid.column(align=True)
+            if self.window_style == 'GRID':
+                col.prop(self, "mullion_x")
+            col.prop(self, "mullion_y") # Used for louvers count too
+            col.prop(self, "frame_width")
+            col.prop(self, "mullion_thick")
