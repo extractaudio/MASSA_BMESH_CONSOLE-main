@@ -4,6 +4,7 @@ import math
 from mathutils import Vector, Matrix
 from bpy.props import FloatProperty, EnumProperty, BoolProperty, IntProperty
 from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
 CARTRIDGE_META = {
     "name": "URB_03: Streetlight",
@@ -24,126 +25,180 @@ class MASSA_OT_UrbStreetlight(Massa_OT_Base):
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
     # Dimensions
-    mast_height: FloatProperty(name="Mast Height", default=6.0, min=1.0)
-    mast_base_r: FloatProperty(name="Base R", default=0.15, min=0.05)
-    mast_top_r: FloatProperty(name="Top R", default=0.08, min=0.05)
+    height: FloatProperty(name="Height", default=6.0, min=2.0)
+    overhang: FloatProperty(name="Overhang", default=1.5, min=0.1)
 
-    arm_length: FloatProperty(name="Arm Length", default=2.0, min=0.5)
-    arm_angle: FloatProperty(name="Arm Angle", default=15.0, min=0.0) # Upward tilt
-    arm_curve: BoolProperty(name="Curved Arm", default=True)
+    # Style
+    style: EnumProperty(
+        name="Style",
+        items=[
+            ("CLASSIC", "Classic", "Ornate Single Arm"),
+            ("MODERN_LED", "Modern LED", "Sleek Angled"),
+            ("CYBERPUNK", "Cyberpunk", "Industrial Tech"),
+        ],
+        default="MODERN_LED"
+    )
 
-    lamp_size: FloatProperty(name="Lamp Size", default=0.3, min=0.1)
+    # Details
+    base_radius: FloatProperty(name="Base Radius", default=0.2, min=0.1)
+    pole_radius: FloatProperty(name="Pole Radius", default=0.1, min=0.02)
+
+    # UV
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Metal Mast", "uv": "SKIP", "phys": "METAL_GALVANIZED"},
-            4: {"name": "Light Bulb", "uv": "SKIP", "phys": "GLASS_EMISSIVE"},
-            9: {"name": "Socket Anchor", "sock": True}
+            0: {"name": "Pole Metal", "uv": "SKIP", "phys": "METAL_PAINTED"},
+            4: {"name": "Light Emitter", "uv": "SKIP", "phys": "EMISSIVE"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
-
-    def build_shape(self, bm):
-        # 1. Initialize Layers
-        uv_layer = bm.loops.layers.uv.verify()
-
-        h = self.mast_height
-        br = self.mast_base_r
-        tr = self.mast_top_r
-        al = self.arm_length
-        aa = math.radians(self.arm_angle)
-
-        # 2. Mast (Tapered Cylinder)
-        ret = bmesh.ops.create_circle(bm, cap_ends=True, radius=br, segments=12)
-        verts_mast = ret['verts']
-        base_face = list(verts_mast[0].link_faces)[0]
-
-        ret_ext = bmesh.ops.extrude_face_region(bm, geom=[base_face])
-        verts_ext = [e for e in ret_ext['geom'] if isinstance(e, bmesh.types.BMVert)]
-        bmesh.ops.translate(bm, vec=Vector((0, 0, h)), verts=verts_ext)
-
-        sf = tr / br if br > 0 else 1.0
-        bmesh.ops.scale(bm, vec=Vector((sf, sf, 1.0)), space=Matrix.Translation(Vector((0,0,h))), verts=verts_ext)
-
-        top_face = None
-        for f in ret_ext['geom']:
-            if isinstance(f, bmesh.types.BMFace):
-                top_face = f
-                break
-
-        if not top_face: return
-
-        # 3. Arm (Extrusion / Spin)
-        # Elbow/Joint
-        ret_j = bmesh.ops.extrude_face_region(bm, geom=[top_face])
-        verts_j = [e for e in ret_j['geom'] if isinstance(e, bmesh.types.BMVert)]
-        bmesh.ops.translate(bm, vec=Vector((0, 0, 0.2)), verts=verts_j)
-
-        joint_face = [f for f in ret_j['geom'] if isinstance(f, bmesh.types.BMFace)][0]
-
-        rot_deg = -90 + self.arm_angle
-        c = joint_face.calc_center_median()
-        bmesh.ops.rotate(bm, cent=c, matrix=Matrix.Rotation(math.radians(rot_deg), 3, 'X'), verts=verts_j)
-
-        # Extrude Arm
-        ret_arm = bmesh.ops.extrude_face_region(bm, geom=[joint_face])
-        verts_arm = [e for e in ret_arm['geom'] if isinstance(e, bmesh.types.BMVert)]
-
-        norm = joint_face.normal
-        bmesh.ops.translate(bm, vec=norm * al, verts=verts_arm)
-
-        arm_end_face = [f for f in ret_arm['geom'] if isinstance(f, bmesh.types.BMFace)][0]
-
-        # 4. Lamp Housing
-        c_end = arm_end_face.calc_center_median()
-        bmesh.ops.rotate(bm, cent=c_end, matrix=Matrix.Rotation(math.radians(-90 - self.arm_angle), 3, 'X'), verts=verts_arm)
-
-        ret_house = bmesh.ops.extrude_face_region(bm, geom=[arm_end_face])
-        verts_house = [e for e in ret_house['geom'] if isinstance(e, bmesh.types.BMVert)]
-        bmesh.ops.translate(bm, vec=Vector((0, 0, -0.2)), verts=verts_house)
-
-        bmesh.ops.scale(bm, vec=Vector((2.0, 2.0, 1.0)), space=Matrix.Translation(c_end - Vector((0,0,0.2))), verts=verts_house)
-
-        bulb_face = [f for f in ret_house['geom'] if isinstance(f, bmesh.types.BMFace)][0]
-        bulb_face.material_index = 4 # Emission
-
-        # 5. Sockets (Back of Joint)
-        # Z = h + 0.1
-        # Back is -Y side of mast. (Arm goes +Y)
-        # Create small face at (0, -tr, h + 0.1)
-        # Facing -Y
-
-        c_sock = Vector((0, -tr - 0.05, h + 0.1))
-        sz = 0.05
-
-        v1 = bm.verts.new(c_sock + Vector((-sz, 0, -sz)))
-        v2 = bm.verts.new(c_sock + Vector((sz, 0, -sz)))
-        v3 = bm.verts.new(c_sock + Vector((sz, 0, sz)))
-        v4 = bm.verts.new(c_sock + Vector((-sz, 0, sz)))
-        f_sock = bm.faces.new((v4, v3, v2, v1))
-        f_sock.material_index = 9
-
-        # 6. Manual UVs
-        scale = getattr(self, "uv_scale_0", 1.0)
-        for f in bm.faces:
-            mat_idx = f.material_index
-            if mat_idx == 9: continue
-
-            if mat_idx == 4: # Bulb
-                # Planar XY
-                for l in f.loops:
-                    l[uv_layer].uv = (l.vert.co.x, l.vert.co.y)
-            else:
-                # Cylinder Mapping
-                for l in f.loops:
-                    angle = math.atan2(l.vert.co.y, l.vert.co.x)
-                    u = (angle / (2*math.pi)) * br * 3.14
-                    v = l.vert.co.z
-                    l[uv_layer].uv = (u * scale, v * scale)
 
     def draw_shape_ui(self, layout):
         col = layout.column(align=True)
-        col.prop(self, "mast_height")
-        col.prop(self, "mast_base_r")
-        col.prop(self, "mast_top_r")
+        col.prop(self, "style")
         layout.separator()
-        col.prop(self, "arm_length")
-        col.prop(self, "arm_angle")
+        col.prop(self, "height")
+        col.prop(self, "overhang")
+        col.prop(self, "base_radius")
+        col.prop(self, "pole_radius")
+
+    def build_shape(self, bm):
+        # Ensure Layers
+        if not bm.faces.layers.int.get("MASSA_SOCKETS"):
+            bm.faces.layers.int.new("MASSA_SOCKETS")
+        if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
+            bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        builder = MassaBuilder(bm)
+
+        h = self.height
+        oh = self.overhang
+        pr = self.pole_radius
+        br = self.base_radius
+
+        # 1. Base
+        # Cylinder at origin
+        base_h = 0.5
+        builder.create_cylinder(radius=br, depth=base_h, segments=12, center=Vector((0,0,base_h/2)))
+        builder.tag_slot(0)
+
+        # 2. Pole
+        pole_h = h - base_h
+        # Tapered?
+        builder.create_cylinder(radius=pr, depth=pole_h, segments=12, center=Vector((0,0,base_h + pole_h/2)))
+        # Mark vertical seam
+        builder.tag_slot(0)
+
+        top_z = h
+
+        # 3. Arm & Head (Style Dependent)
+
+        if self.style == 'CLASSIC':
+            # Curved Arm
+            # Use Torus segment or approximate with cylinder segments.
+            # "Overhang" is horizontal reach.
+
+            # Simple Arc
+            steps = 6
+            start_p = Vector((0, 0, top_z - 0.5)) # Attach slightly below top
+            end_p = Vector((oh, 0, top_z + 0.5)) # Rise slightly
+
+            # Bezier-ish points
+            p0 = start_p
+            p1 = Vector((0, 0, top_z + 0.5)) # Up
+            p2 = Vector((oh*0.5, 0, top_z + 1.0)) # Peak
+            p3 = end_p
+
+            # Just segmented connection p0 -> p3
+            # Linear for now, curve is hard without spline lib in builder.
+            # Let's do 2 segments: Vertical then Horizontal? Or Angled.
+
+            # Angled Arm
+            builder.create_cylinder(radius=pr*0.8, depth=math.hypot(oh, 1.0), segments=8, center=Vector((0,0,0)))
+            # Rotate to angle
+            angle = math.atan2(1.0, oh) # Rise 1.0 over run oh
+            # Vector is (oh, 0, 1.0)
+            target = Vector((oh, 0, 1.0)).normalized()
+            q = Vector((0,0,1)).rotation_difference(target)
+            mid = (start_p + end_p) / 2
+
+            mat = Matrix.Translation(mid) @ q.to_matrix().to_4x4()
+            builder.transform(mat)
+            builder.tag_slot(0)
+
+            # Head (Lantern)
+            head_pos = end_p
+            # Lantern box
+            builder.create_box(0.3, 0.3, 0.5, center=head_pos)
+            builder.tag_slot(4) # Emissive (Glass)
+            # Cap
+            builder.create_cylinder(radius=0.25, depth=0.1, segments=6, center=head_pos + Vector((0,0,0.3)))
+            builder.tag_slot(0)
+
+        elif self.style == 'MODERN_LED':
+            # Sleek 90 degree arm or angled
+            # Arm
+            arm_thick = pr * 0.8
+
+            # Horizontal Arm
+            builder.create_box(oh + pr, arm_thick, arm_thick, center=Vector((oh/2, 0, top_z)))
+            builder.tag_slot(0)
+
+            # LED Panel (Underneath)
+            # Thin plate under the arm tip
+            # Tip is at X = oh.
+            panel_len = 0.6
+            panel_w = 0.25
+            panel_center = Vector((oh - panel_len/2, 0, top_z - arm_thick/2 - 0.01))
+
+            builder.create_box(panel_len, panel_w, 0.02, center=panel_center)
+            builder.tag_slot(4) # Emissive
+
+        elif self.style == 'CYBERPUNK':
+            # Techy, chunky, maybe multiple heads
+            # Angled support strut
+
+            # Main Arm
+            builder.create_box(oh, pr*2, pr*2, center=Vector((oh/2, 0, top_z)))
+            builder.tag_slot(0)
+
+            # Support Strut (Diagonal under)
+            # From (0,0,top_z - 1) to (oh/2, 0, top_z)
+            p1 = Vector((0,0,top_z - 1.0))
+            p2 = Vector((oh/2, 0, top_z))
+            vec = p2 - p1
+            l_strut = vec.length
+            mid = (p1 + p2) / 2
+
+            builder.create_cylinder(radius=pr*0.5, depth=l_strut, segments=6, center=Vector((0,0,0)))
+            q = Vector((0,0,1)).rotation_difference(vec.normalized())
+            builder.transform(Matrix.Translation(mid) @ q.to_matrix().to_4x4())
+            builder.tag_slot(0)
+
+            # Light Bar
+            # Vertical drop? Or horizontal strip?
+            # Horizontal strip with "Glow"
+            strip_center = Vector((oh - 0.5, 0, top_z - pr - 0.05))
+            builder.create_box(1.0, 0.1, 0.05, center=strip_center)
+            builder.tag_slot(4)
+
+        # 4. Sockets
+        # Base Bottom
+        builder.select_faces_by_normal(Vector((0,0,-1)), tolerance=0.1) \
+               .tag_socket(9).tag_slot(9)
+
+        # Pole Top (for stacking?)
+        # Only if needed.
+
+        # 5. Manual UVs
+        # Slot 0 (Metal): Cylinder Projection for vertical parts?
+        # But we have horizontal arms too.
+        # Box Projection is safest for complex assemblies.
+
+        builder.select_faces_by_slot(0) \
+               .tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        builder.select_faces_by_slot(4) \
+               .tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        builder._update()

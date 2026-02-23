@@ -4,6 +4,7 @@ import math
 from mathutils import Vector, Matrix
 from bpy.props import FloatProperty, EnumProperty, BoolProperty, IntProperty
 from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
 CARTRIDGE_META = {
     "name": "URB_02: Railing",
@@ -24,174 +25,156 @@ class MASSA_OT_UrbRailing(Massa_OT_Base):
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
     # Dimensions
-    length: FloatProperty(name="Length", default=2.0, min=0.1)
-    height: FloatProperty(name="Height", default=1.1, min=0.1)
+    length: FloatProperty(name="Length", default=2.0, min=0.5)
+    height: FloatProperty(name="Height", default=1.1, min=0.5)
+
+    # Style
+    style: EnumProperty(
+        name="Style",
+        items=[
+            ("MODERN", "Modern", "Horizontal Cables/Bars"),
+            ("ORNATE", "Ornate", "Classic Vertical Pickets"),
+            ("INDUSTRIAL", "Industrial", "Pipe Railing"),
+        ],
+        default="MODERN"
+    )
 
     # Details
-    rail_thick: FloatProperty(name="Rail Thick", default=0.05, min=0.01)
-    post_thick: FloatProperty(name="Post Thick", default=0.04, min=0.01)
-    baluster_spacing: FloatProperty(name="Baluster Space", default=0.15, min=0.05)
-    baluster_thick: FloatProperty(name="Baluster Thick", default=0.02, min=0.01)
+    post_spacing: FloatProperty(name="Post Spacing", default=1.5, min=0.5)
 
-    bottom_gap: FloatProperty(name="Bottom Gap", default=0.1, min=0.0)
+    # UV
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Metal", "uv": "BOX", "phys": "METAL_ALUMINUM"},
-            9: {"name": "Socket Anchor", "sock": True}
+            0: {"name": "Metal", "uv": "SKIP", "phys": "METAL_CHROME"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
-    def build_shape(self, bm):
-        # 1. Initialize Layers
-        uv_layer = bm.loops.layers.uv.verify()
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-
-        l, h = self.length, self.height
-        rt, pt, bt = self.rail_thick, self.post_thick, self.baluster_thick
-        bg = self.bottom_gap
-        bs = self.baluster_spacing
-
-        # Calculate Inner Length (Between Posts)
-        # Length is total length including posts? 
-        # Actually standard practice: Total Length = self.length.
-        # Posts are at +/- L/2.
-        # Check Post logic:
-        # Left Post: -l/2 + pt/2 (Center) -> Left edge at -l/2, right edge at -l/2 + pt.
-        # Right Post: l/2 - pt/2 (Center) -> Right edge at l/2, left edge at l/2 - pt.
-        # Space between posts = (l/2 - pt) - (-l/2 + pt) = l - 2*pt.
-        
-        inner_l = max(0.01, l - 2 * pt)
-
-        # 2. Top Rail (Length X)
-        # Create at Z=h
-        # Use create_cube
-        res_TR = bmesh.ops.create_cube(bm, size=1.0)
-        verts_TR = res_TR['verts']
-        # Scale: (inner_l, rt, rt)
-        bmesh.ops.scale(bm, vec=Vector((inner_l, rt, rt)), verts=verts_TR)
-        # Translate: (0, 0, h - rt/2)
-        bmesh.ops.translate(bm, vec=Vector((0, 0, h - rt/2)), verts=verts_TR)
-
-        # 3. Bottom Rail
-        if bg < h - rt:
-            res_BR = bmesh.ops.create_cube(bm, size=1.0)
-            verts_BR = res_BR['verts']
-            # Scale: (inner_l, pt, pt) ? Or smaller. Same as top rail maybe.
-            bmesh.ops.scale(bm, vec=Vector((inner_l, pt, pt)), verts=verts_BR)
-            # Translate: (0, 0, bg + pt/2)
-            bmesh.ops.translate(bm, vec=Vector((0, 0, bg + pt/2)), verts=verts_BR)
-
-        # 4. Posts (Ends)
-        # Left Post
-        res_PL = bmesh.ops.create_cube(bm, size=1.0)
-        verts_PL = res_PL['verts']
-        bmesh.ops.scale(bm, vec=Vector((pt, pt, h)), verts=verts_PL)
-        bmesh.ops.translate(bm, vec=Vector((-l/2 + pt/2, 0, h/2)), verts=verts_PL)
-
-        # Right Post
-        res_PR = bmesh.ops.create_cube(bm, size=1.0)
-        verts_PR = res_PR['verts']
-        bmesh.ops.scale(bm, vec=Vector((pt, pt, h)), verts=verts_PR)
-        bmesh.ops.translate(bm, vec=Vector((l/2 - pt/2, 0, h/2)), verts=verts_PR)
-
-        # 5. Balusters (Vertical pickets)
-        # Space between posts: L - 2*pt
-        # Start X = -l/2 + pt
-        # End X = l/2 - pt
-        # Range = l - 2*pt
-
-        range_x = l - 2*pt
-        num_b = int(range_x / bs)
-
-        if num_b > 1:
-            start_x = -range_x/2 + (range_x - (num_b-1)*bs)/2 
-            # Re-verify math:
-            # We want them centered in the available space (range_x).
-            # Total span of balusters = (num_b - 1) * bs
-            # Remaining margin = range_x - Total span
-            # Margin per side = Remaining margin / 2
-            # Start relative to left inner edge (-range_x/2)? No, 0 is center.
-            # Left inner edge is at -range_x/2.
-            # First baluster at: -range_x/2 + Margin
-            
-            span = (num_b - 1) * bs
-            margin = (range_x - span) / 2
-            first_x = -range_x/2 + margin
-        else:
-            first_x = 0 # Single baluster at center (if fits?)
-
-        # Recalc math for loop
-        # Just use simpler centering logic:
-        # Array of N items with spacing S centered at 0:
-        # Start = -(N-1)*S / 2
-        
-        if num_b > 0:
-            bal_start_x = -((num_b - 1) * bs) / 2
-        else:
-            bal_start_x = 0
-
-        # Baluster height: From Bottom Rail Top to Top Rail Bottom
-        # Z_bot = bg + pt
-        # Z_top = h - rt
-        # H_bal = Z_top - Z_bot
-
-        z_bot = bg + pt
-        z_top = h - rt
-        h_bal = z_top - z_bot
-
-        if h_bal > 0 and num_b > 0:
-            for i in range(num_b):
-                x = bal_start_x + i * bs
-
-                # Create Baluster
-                res_bal = bmesh.ops.create_cube(bm, size=1.0)
-                verts_bal = res_bal['verts']
-
-                # Scale: (bt, bt, h_bal)
-                bmesh.ops.scale(bm, vec=Vector((bt, bt, h_bal)), verts=verts_bal)
-
-                # Translate: (x, 0, z_bot + h_bal/2)
-                bmesh.ops.translate(bm, vec=Vector((x, 0, z_bot + h_bal/2)), verts=verts_bal)
-
-        # 6. Sockets
-        # Ends of posts (Left/Right)
-        for f in bm.faces:
-            n = f.normal
-            c = f.calc_center_median()
-            # If on Left End (-l/2) or Right End (l/2)
-            if abs(c.x + l/2) < 0.1 and n.x < -0.9:
-                f.material_index = 9
-            elif abs(c.x - l/2) < 0.1 and n.x > 0.9:
-                f.material_index = 9
-
-        # 7. Manual UVs
-        scale = getattr(self, "uv_scale_0", 1.0)
-        for f in bm.faces:
-            if f.material_index == 9: continue
-            n = f.normal
-            for l in f.loops:
-                if abs(n.x) > 0.5:
-                    l[uv_layer].uv = (l.vert.co.y * scale, l.vert.co.z * scale)
-                elif abs(n.y) > 0.5:
-                    l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.z * scale)
-                else:
-                    l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.y * scale)
-
     def draw_shape_ui(self, layout):
-        box_dims = layout.box()
-        box_dims.label(text="Dimensions", icon='ARROW_LEFTRIGHT')
-        col = box_dims.column(align=True)
+        col = layout.column(align=True)
+        col.prop(self, "style")
+        layout.separator()
         col.prop(self, "length")
         col.prop(self, "height")
+        col.prop(self, "post_spacing")
+
+    def build_shape(self, bm):
+        # Ensure Layers
+        if not bm.faces.layers.int.get("MASSA_SOCKETS"):
+            bm.faces.layers.int.new("MASSA_SOCKETS")
+        if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
+            bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        builder = MassaBuilder(bm)
+
+        l = self.length
+        h = self.height
+
+        # Calculate Posts
+        num_posts = int(l / self.post_spacing) + 1
+        if num_posts < 2: num_posts = 2
+
+        spacing = l / (num_posts - 1)
+        start_y = -l/2
+
+        # 1. Posts
+        post_size = 0.05
+
+        for i in range(num_posts):
+            y = start_y + i * spacing
+            if self.style == 'INDUSTRIAL':
+                # Round Posts
+                builder.create_cylinder(radius=post_size/2, depth=h, segments=12, center=Vector((0, y, h/2)))
+            else:
+                # Square Posts
+                builder.create_box(post_size, post_size, h, center=Vector((0, y, h/2)))
+
+            builder.tag_slot(0)
+
+        # 2. Rails / Infill
+        if self.style == 'MODERN':
+            # Top Handrail (Rectangular or Round)
+            builder.create_box(0.08, l, 0.03, center=Vector((0, 0, h)))
+            builder.tag_slot(0)
+
+            # Horizontal Cables (Thin cylinders)
+            num_cables = 4
+            cable_rad = 0.005
+
+            # Rotate for Y-alignment
+            rot = Matrix.Rotation(math.radians(90), 4, 'X')
+
+            for i in range(num_cables):
+                z = 0.2 + (i / num_cables) * (h - 0.3)
+                # create_cylinder is Z aligned. Rotate X 90 -> Y aligned.
+                builder.create_cylinder(radius=cable_rad, depth=l, segments=6, center=Vector((0,0,0)))
+                builder.transform(rot)
+                builder.translate(0, 0, z)
+                builder.tag_slot(0)
+
+        elif self.style == 'ORNATE':
+            # Top and Bottom Rails
+            rail_size = 0.04
+            builder.create_box(rail_size, l, rail_size, center=Vector((0, 0, h - 0.05)))
+            builder.tag_slot(0)
+            builder.create_box(rail_size, l, rail_size, center=Vector((0, 0, 0.1)))
+            builder.tag_slot(0)
+
+            # Vertical Pickets
+            picket_gap = 0.12
+            num_pickets = int(l / picket_gap)
+            p_step = l / num_pickets
+            p_size = 0.015
+
+            for i in range(num_pickets):
+                y = start_y + i * p_step + p_step/2
+                builder.create_box(p_size, p_size, h - 0.2, center=Vector((0, y, h/2)))
+                builder.tag_slot(0)
+
+        elif self.style == 'INDUSTRIAL':
+            # Top Pipe
+            pipe_rad = 0.03
+            rot = Matrix.Rotation(math.radians(90), 4, 'X')
+
+            builder.create_cylinder(radius=pipe_rad, depth=l, segments=8, center=Vector((0,0,0)))
+            builder.transform(rot)
+            builder.translate(0, 0, h)
+            builder.tag_slot(0)
+
+            # Mid Pipe
+            builder.create_cylinder(radius=pipe_rad, depth=l, segments=8, center=Vector((0,0,0)))
+            builder.transform(rot)
+            builder.translate(0, 0, h/2)
+            builder.tag_slot(0)
+
+        # 3. Sockets
+        # Ends of Posts (-L/2, +L/2) at Bottom?
+        # Usually attach to floor.
+        # So Bottom faces of posts.
         
-        box_det = layout.box()
-        box_det.label(text="Details", icon='MOD_BUILD')
-        col = box_det.column(align=True)
-        col.prop(self, "rail_thick")
-        col.prop(self, "post_thick")
-        col.separator()
-        col.prop(self, "baluster_spacing")
-        col.prop(self, "baluster_thick")
-        col.prop(self, "bottom_gap")
+        builder.select_faces_by_normal(Vector((0, 0, -1)), tolerance=0.1)
+        # Filter for bottom of posts (Z ~ 0)
+        valid = [f for f in builder.active_faces if abs(f.calc_center_median().z) < 0.1]
+        builder.active_faces = valid
+        builder.tag_socket(9).tag_slot(9)
+
+        # Also Side connections? Railing to Railing.
+        # Ends of top rail.
+        # Normals +/- Y.
+        builder.select_faces_by_normal(Vector((0, -1, 0)), tolerance=0.1)
+        # Filter near ends
+        valid = [f for f in builder.active_faces if abs(f.calc_center_median().y + l/2) < 0.1]
+        builder.active_faces = valid
+        builder.tag_socket(9).tag_slot(9)
+
+        builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1)
+        valid = [f for f in builder.active_faces if abs(f.calc_center_median().y - l/2) < 0.1]
+        builder.active_faces = valid
+        builder.tag_socket(9).tag_slot(9)
+
+        # 4. Manual UVs
+        builder.select_faces_by_slot(0) \
+               .tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        builder._update()
