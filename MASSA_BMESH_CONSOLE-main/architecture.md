@@ -348,88 +348,120 @@
 ## Doors & Electrical
 
 - **Rule:** Interior Door Width
-- **Value:** 0.76 m - 0.81 m
+- **Spatial Dimension & Constraint:** 0.81 m (Min ADA: 32" / 0.81m clear opening; Typical: 32-36")
+- **Placement & Adjacency:** Defines the clear traversable width when the door is opened to a 90-degree angle, measured between the door face and the opposite stop.
+- **Orientation & Alignment:** Outward or inward swing depending on room size to avoid blocking hallways. Must maintain 18" maneuvering clearance at the latch side (pull side).
+- **Materials & Properties:** Solid wood or hollow core with smooth surfaces on the bottom 10 inches on the push side to resist wheelchair scuffing/impacts.
 - **Reasoning:** Standard passage widths; 0.91m (36") required for accessibility.
-- **Constraint:** Typical: 30-32 inches
 
 - **Rule:** Light Switch Height (Center)
-- **Value:** 1.22 m
+- **Spatial Dimension & Constraint:** 1.02 m - 1.22 m (Ideal ADA: 40" / 1.02m; Max: 48" / 1.22m)
+- **Placement & Adjacency:** Mounted on the wall adjacent to the latch side of the door upon entering a room.
+- **Orientation & Alignment:** Requires 30"x48" clear floor space for forward or parallel approach. Controls should ideally be toggle or rocker style.
+- **Materials & Properties:** Standard plastic or metal faceplates. High-contrast colors against the wall finish help visually impaired users locate them.
 - **Reasoning:** Ergonomic height for standing adults; accessible range.
-- **Constraint:** Standard: 48 inches (1.22m)
 
 - **Rule:** Electrical Outlet Height (Bottom)
-- **Value:** 0.30 m - 0.41 m
+- **Spatial Dimension & Constraint:** 0.38 m - 0.46 m (Min ADA: 15" / 0.38m; Typical: 15-18")
+- **Placement & Adjacency:** Mounted horizontally along walls, typically spaced no further than 12 feet apart in living areas per code.
+- **Orientation & Alignment:** Vertical or horizontal orientation. The lowest operable receptacle slot must sit at least 15" above the finished floor.
+- **Materials & Properties:** Tamper-resistant (TR) plastic receptacles required by modern NEC in residential settings to protect children.
 - **Reasoning:** Low enough to be discreet, high enough for plug access.
-- **Constraint:** Standard: 12-16 inches
 
 - **Rule:** Thermostat Mounting Height
-- **Value:** 1.32 m - 1.52 m
+- **Spatial Dimension & Constraint:** 1.22 m (Max ADA: 48 inches / 1.22m; often mounted at 42-48")
+- **Placement & Adjacency:** Interior wall away from direct sunlight, drafts, or heat sources (like lamps or vents) to ensure accurate ambient temperature readings.
+- **Orientation & Alignment:** Face-out, clear approach required. Digits/controls must be operable with one hand without tight grasping.
+- **Materials & Properties:** High-contrast digital displays preferred. Non-reflective casing to minimize glare for easy reading.
 - **Reasoning:** Eye level for reading; 48" (1.22m) max for ADA.
-- **Constraint:** Standard: 52-60 inches (1.3-1.5m)
 
 - **Rule:** Door Handle Height
-- **Value:** 0.91 m
+- **Spatial Dimension & Constraint:** 0.86 m - 1.22 m (Range ADA: 34-48 inches; Standard: 36 inches / 0.91m)
+- **Placement & Adjacency:** Center of the actuating mechanism (latch/knob) relative to the finished floor.
+- **Orientation & Alignment:** Must be operable without tight grasping, pinching, or twisting of the wrist. Lever handles or U-shaped pulls are accessible.
+- **Materials & Properties:** Durable, smooth metals (stainless steel, brass, bronze). Operating force must not exceed 5 lbs (22.2 N).
 - **Reasoning:** Ergonomic hand height.
-- **Constraint:** Standard: 36 inches (0.91m)
 
 - **Rule:** Deadbolt Height
-- **Value:** 1.02 m - 1.22 m
+- **Spatial Dimension & Constraint:** 1.02 m - 1.22 m (Range ADA: 40-48 inches / 1.02-1.22m)
+- **Placement & Adjacency:** Mounted directly above the door handle.
+- **Orientation & Alignment:** The thumbturn (interior) must comply with ADA grasping rules (no tight pinching, operable with one hand).
+- **Materials & Properties:** Heavy-duty steel or brass strike plates anchored into the door frame framing (not just the trim) with 3-inch screws for security.
 - **Reasoning:** 6-12 inches above the door handle.
-- **Constraint:** Range: 40-48 inches (1.0-1.2m)
 
 - **Rule:** Peephole Height
-- **Value:** 1.47 m - 1.68 m
+- **Spatial Dimension & Constraint:** 1.47 m - 1.68 m (Standard: 58-66"; ADA secondary: 43" / 1.09m)
+- **Placement & Adjacency:** Center of the door leaf. Accessible designs require two distinct peepholes to serve standing and seated guests.
+- **Orientation & Alignment:** Facing outward perpendicular to the door face. Must provide a wide angle of view (e.g., 160+ degrees).
+- **Materials & Properties:** Brass or steel housing with glass or acrylic optics.
 - **Reasoning:** Average adult eye level; lower (1.09m) for accessibility.
-- **Constraint:** Standard: 58-66 inches (1.4-1.6m)
 
 ## Works Surfaces & Utility
 
 - **Rule:** Office Desk Depth
-- **Value:** 0.61 m - 0.76 m
+- **Spatial Dimension & Constraint:** 0.61 m - 0.76 m (Min: 600mm / 24"; Ideal: 760mm / 30")
+- **Placement & Adjacency:** Worksurface area required from the user's edge to the back edge allowing space for monitors, keyboards, and task lighting.
+- **Orientation & Alignment:** Deep enough to maintain an arm's length (about 20-30 inches) viewing distance to computer screens to prevent eye strain.
+- **Materials & Properties:** Matte or low-glare surfaces preferred over glass to reduce lighting reflections. Edges should be rounded (waterfall edge) for wrist comfort.
 - **Reasoning:** Distance for monitors and writing space.
-- **Constraint:** Min: 24 inches (0.61m)
 
 - **Rule:** Laundry Appliance Depth (Front Load)
-- **Value:** 0.81 m - 0.86 m
+- **Spatial Dimension & Constraint:** 0.81 m - 0.86 m (Machine Depth ~32-34 inches)
+- **Placement & Adjacency:** Depth from the face of the appliance to the back wall. Requires a strict 3-6 inch rear clearance for rigid dryer venting and water hookups.
+- **Orientation & Alignment:** Front-loading units require a clear floor space of roughly 48 inches in front to allow the door to swing fully open and users to kneel/load.
+- **Materials & Properties:** Concrete subfloors preferred over joisted timber to manage heavy vibration and spinning loads. Wall surrounds should use water-resistant finishes.
 - **Reasoning:** Modern front-loaders are deep; plus 6" rear clearance.
-- **Constraint:** Machine Depth: ~32-34 inches
 
 - **Rule:** Single Car Garage Dimensions
-- **Value:** 3.66 m x 6.10 m (Min)
+- **Spatial Dimension & Constraint:** 3.66 m x 6.10 m (Min: 12x20 feet)
+- **Placement & Adjacency:** Overall interior clear space bounding the vehicle zone.
+- **Orientation & Alignment:** Requires at least 3 feet of circulation space on both sides of a parked mid-sized vehicle, and 5-6 feet in the front or rear for pathways and small storage.
+- **Materials & Properties:** Poured concrete slab foundation (must be crack-resistant and slightly sloped toward the door for drainage). 1-hour fire-rated drywall separating attached garages from living spaces.
 - **Reasoning:** 12' width allows for door opening; 20' length for vehicle + walking.
-- **Constraint:** Min: 12x20 feet
 
 ## Fixtures & Safety
 
 - **Rule:** Toilet Paper Holder Height
-- **Value:** 0.66 m
+- **Spatial Dimension & Constraint:** 0.38 m - 1.22 m (ADA Range: 15-48 inches; Standard: 26" / 0.66m)
+- **Placement & Adjacency:** Usually side wall or partition adjacent to the toilet. Must not protrude into grab bar clearances if mounted below one.
+- **Orientation & Alignment:** Usually horizontal. ADA allows placement above the grab bar (max 48") or below, but not behind. Must allow continuous paper flow.
+- **Materials & Properties:** Roll dispensers should not restrict delivery and should not require tight grasping to use.
 - **Reasoning:** Ergonomic reach from seated position (center of holder).
-- **Constraint:** Standard: 26 inches (0.66m)
 
 - **Rule:** Toilet Paper Holder Distance
-- **Value:** 0.20 m - 0.30 m
+- **Spatial Dimension & Constraint:** 0.18 m - 0.23 m (Range: 7-9 inches in front of the toilet bowl)
+- **Placement & Adjacency:** Measured from the front edge of the porcelain bowl horizontally to the centerline of the dispenser.
+- **Orientation & Alignment:** Ensures effortless reaching without excessive twisting of the spine or reaching back. ADA dictates centerline placement.
+- **Materials & Properties:** Moisture-resistant finish tightly anchored into wall studs to resist pulling forces.
 - **Reasoning:** Forward reach from toilet bowl front.
-- **Constraint:** Range: 8-12 inches (0.20-0.30m)
 
 - **Rule:** Towel Bar Height
-- **Value:** 1.22 m
+- **Spatial Dimension & Constraint:** 1.22 m (Standard: 48 inches / 1.22m)
+- **Placement & Adjacency:** Mounted on a wall within easy reach of the shower/tub exit or vanity.
+- **Orientation & Alignment:** Unobstructed approach. ADA mandates operable parts not exceed 48" AFF, allowing a draped towel to hang freely without dragging.
+- **Materials & Properties:** Rust-proof metals (stainless steel, brass, chrome-plated) fixed firmly to blocking inside the wall.
 - **Reasoning:** Standard reach height and clearance for towels.
-- **Constraint:** Standard: 48 inches (1.22m)
 
 - **Rule:** Egress Window Sill Height
-- **Value:** 1.12 m
+- **Spatial Dimension & Constraint:** 1.12 m (Strict Max: 44 inches / 1.12m from finished floor)
+- **Placement & Adjacency:** The distance from the finished interior floor to the absolute bottom of the clear, openable window space.
+- **Orientation & Alignment:** Must open easily without keys or tools. Must yield a 5.7 sq ft net clear opening to allow firefighters in with gear.
+- **Materials & Properties:** Window mechanisms must be smooth operating and accessible. Below-grade egress requires massive window wells built of structural material.
 - **Reasoning:** Maximum height to allow safe escape in emergency.
-- **Constraint:** Strict Max: 44 inches (1.12m)
 
 - **Rule:** Wall Sconce Height
-- **Value:** 1.52 m - 1.83 m
+- **Spatial Dimension & Constraint:** 1.52 m - 1.83 m (Range: 60-72 inches / 1.5-1.8m)
+- **Placement & Adjacency:** Measured to the center of the light source. Commonly flank bathroom mirrors or line hallways.
+- **Orientation & Alignment:** Fixtures mounted below 80 inches in walking paths by ADA rules must NOT project more than 4 inches from the wall surface to prevent head injuries to visually impaired individuals.
+- **Materials & Properties:** Opaque or frosted glass shades diffuses light. Must conform strictly to slim-profile hardware in circulation zones.
 - **Reasoning:** Eye level for ambient lighting; commonly flanking mirrors.
-- **Constraint:** Range: 60-72 inches (1.5-1.8m)
 
 - **Rule:** Drinking Fountain Spout Height
-- **Value:** 0.91 m
+- **Spatial Dimension & Constraint:** 0.91 m (Max: 36 inches / 0.91m to the spout outlet)
+- **Placement & Adjacency:** Wall-mounted or freestanding. ADA requires 27" high, 30" wide knee clearance underneath.
+- **Orientation & Alignment:** Spout located near the front edge (max 5" back) directing a water trajectory at least 4" high for easy cup filling.
+- **Materials & Properties:** Stainless steel, porcelain, or robust plastic. Push-button or sensor controls taking < 5 lbs of force.
 - **Reasoning:** Max height for wheelchair accessibility.
-- **Constraint:** Max: 36 inches (0.91m)
 
 ## Warehouse & Industrial
 
