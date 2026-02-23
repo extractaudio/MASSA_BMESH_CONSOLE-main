@@ -42,6 +42,24 @@ class MASSA_PT_Main(bpy.types.Panel):
         row.prop(console, "massa_op_mode", expand=True)
         layout.separator()
 
+        # [ARCHITECT UI UPDATE] High-Priority Actions (Resurrect/Condemn)
+        # Moved to Top for immediate visibility
+        if obj and "massa_op_id" in obj:
+            box = layout.box()
+            col = box.column(align=True)
+            col.scale_y = 1.2
+
+            # Resurrect
+            row = col.row()
+            row.alert = True
+            row.scale_y = 1.2
+            op = row.operator("massa.resurrect_wrapper", text="Resurrect Selected", icon="FILE_REFRESH")
+
+            # Condemn
+            col.separator(factor=0.5)
+            col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
+            layout.separator()
+
         if console.massa_op_mode == 'ACTIVE':
             # --- 1. PRIMITIVES GROUP ---
             box = layout.box()
@@ -131,34 +149,8 @@ class MASSA_PT_Main(bpy.types.Panel):
             layout.separator()
 
             # --- 4. REGENERATE BUTTON (The Shadow Panel) ---
-            # [ARCHITECT] This allows re-running the logic on the selected object
-            # using the CURRENT settings in the Brain (Sidebar).
-            if obj and "massa_op_id" in obj:
-                box = layout.box()
-                col = box.column(align=True)
-                col.scale_y = 1.2
-
-                # [ARCHITECT NEW] Resurrection Logic
-                # Directly call the original operator with rerun_mode=True
-                # This triggers the specific operator (e.g. Box), allowing the Redo Panel to appear.
-                op_id = obj["massa_op_id"]
-                try:
-                    # [ARCHITECT UDPATE] Red Alert Button for Resurrection
-                    row = col.row()
-                    row.alert = True
-                    row.scale_y = 1.2
-                    op = row.operator(
-                        op_id, text="Resurrect Selected", icon="FILE_REFRESH"
-                    )
-                    op.rerun_mode = True
-
-                    # [ARCHITECT UPDATE] Condemn (Finalize) Button
-                    col.separator(factor=0.5)
-                    col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
-                except Exception:
-                    col.label(text="Unknown Operator", icon="ERROR")
-
-                layout.separator()
+            # [ARCHITECT] (Moved to Top)
+            pass
 
         elif console.massa_op_mode == 'POINT_SHOOT':
             # --- POINT & SHOOT UI ---

@@ -35,6 +35,12 @@ When tasked with creating or modifying a Cartridge in `modules/cartridges/`, you
    - 4 = Detail
    - 5 = Special
 
+   **Auto-Detection:** If you do not assign these manually, the system uses intelligent geometric analysis:
+   - **Slot 1 (Perimeter):** End Caps / Silhouette.
+   - **Slot 3 (Guide):** Cylinder Seams / Tube Cuts (Essential for UV Unwrapping).
+
+   **UV Auditing & Fixing:** The "Pinched UV" or distorted mapping issues can be diagnosed using the "Finalize & Inspect" operator. This tool condemns the procedural object (applying all modifiers) and immediately enters UV Editing mode with all faces selected and unpacked.
+
 ## 4. Parameter Addition Protocol (The Rule of Five)
 
 If tasked with adding a new global parameter to the engine, you must strictly modify all 5 bridge points to ensure state synchronization:
