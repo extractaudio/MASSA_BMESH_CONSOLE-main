@@ -108,6 +108,7 @@ from . import cart_asm_17_iris_door
 from . import cart_asm_18_radar_array
 from . import cart_asm_19_cryo_pod
 from . import cart_asm_20_robotic_arm
+from . import cart_massa_builder_example
 
 
 # -------------------------------------------------------------------
@@ -212,6 +213,7 @@ MODULES = [
     cart_asm_18_radar_array,
     cart_asm_19_cryo_pod,
     cart_asm_20_robotic_arm,
+    cart_massa_builder_example,
 ]
 
 # List of Operator Classes (Used for Registration)
@@ -312,6 +314,7 @@ CLASSES = [
     cart_asm_18_radar_array.MASSA_OT_AsmRadarArray,
     cart_asm_19_cryo_pod.MASSA_OT_AsmCryoPod,
     cart_asm_20_robotic_arm.MASSA_OT_AsmRoboticArm,
+    cart_massa_builder_example.MASSA_OT_BuilderExample,
 ]
 
 # -------------------------------------------------------------------
