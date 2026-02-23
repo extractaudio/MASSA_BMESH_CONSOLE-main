@@ -437,7 +437,12 @@ class MassaBuilder:
         Assigns the 'MASSA_EDGE_SLOTS' layer value to edges of selected faces.
 
         Args:
-            role_id (int): 1=Perimeter, 2=Contour, 3=Guide, 4=Detail, 5=Fold
+            role_id (int):
+                1 = Perimeter (Seam + Sharp). Used for End Caps.
+                2 = Contour (Sharp). Used for sharp turns.
+                3 = Guide (Seam Only). Used for cutting tubes/cylinders.
+                4 = Detail (Bevel). Small details.
+                5 = Fold (Crease). Soft body pinning.
         """
         layer = self.bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not layer:

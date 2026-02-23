@@ -295,86 +295,236 @@ def _calc_uv_ratio(faces, uv_layer):
 
 def auto_detect_edge_slots(bm):
     """
-    Populates MASSA_EDGE_SLOTS based on Material Boundaries.
-    Slot ID = max(mat_index_A, mat_index_B)
+    Populates MASSA_EDGE_SLOTS using Intelligent Geometry Analysis.
+
+    Strategy:
+    1. Identify 'End Caps' vs 'Walls' based on dominant axis alignment.
+    2. Mark edges between Caps and Walls as Slot 1 (Perimeter).
+    3. Find a continuous path connecting End Caps along the Wall as Slot 3 (Guide).
+    4. Mark remaining sharp edges as Slot 2 (Contour).
+    5. Handle Material Boundaries as Slot 1-4 based on Max Material Index.
+
+    Respects existing manual assignments (non-zero).
     """
-    # print("MASSA DEBUG: auto_detect_edge_slots START")
     try:
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
     except:
-        # print("MASSA DEBUG: Failed to get/create MASSA_EDGE_SLOTS")
         return
 
     bm.edges.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
 
-    total_edges = 0
-    total_boundaries = 0
+    # Ensure Normals are valid before classification
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-    for e in bm.edges:
-        total_edges += 1
+    # [STEP 0] Geometry Analysis
+    # Determine Dominant Axis
+    min_v = Vector((float('inf'), float('inf'), float('inf')))
+    max_v = Vector((float('-inf'), float('-inf'), float('-inf')))
+
+    for v in bm.verts:
+        min_v.x = min(min_v.x, v.co.x)
+        min_v.y = min(min_v.y, v.co.y)
+        min_v.z = min(min_v.z, v.co.z)
+        max_v.x = max(max_v.x, v.co.x)
+        max_v.y = max(max_v.y, v.co.y)
+        max_v.z = max(max_v.z, v.co.z)
         
-        # [ARCHITECT CRITICAL] PRESERVATION OF INTENT
-        # If the cartridge already assigned a slot (non-zero), DO NOT TOUCH IT.
+    dim = max_v - min_v
+    dom_axis = 2 # Z default
+
+    # [ARCHITECT REFINED] Default to Z for cubes/equidistant objects.
+    # Only switch if X or Y is STRICTLY greater than Z by a margin.
+    # Otherwise, for architectural elements, Z (Up) is usually the "Cap" axis.
+
+    if dim.x > dim.z * 1.1 and dim.x >= dim.y:
+        dom_axis = 0 # X
+    elif dim.y > dim.z * 1.1 and dim.y >= dim.x:
+        dom_axis = 1 # Y
+
+    dom_vec = Vector((0,0,0))
+    dom_vec[dom_axis] = 1.0
+
+    # Classify Faces: Cap vs Wall
+    caps = set()
+    walls = set()
+
+    # [ARCHITECT DEBUG] If ALL faces are caps (e.g. flat plane), or ALL walls, we need fallback.
+    # But usually procedural objects have volume.
+
+    for f in bm.faces:
+        # Dot product of normal with dominant axis
+        alignment = abs(f.normal.dot(dom_vec))
+        if alignment > 0.8: # Mostly aligned with axis -> Cap
+            caps.add(f)
+        else: # Mostly perpendicular -> Wall
+            walls.add(f)
+
+    # Fallback for Cylinder Cap Detection:
+    # If a face is a polygon with > 4 verts at the extreme ends of the bounding box, it is likely a cap
+    # even if normal is slightly off? No, normals are reliable.
+
+    # [STEP 1] Edge Classification Loop
+    for e in bm.edges:
+        # [ARCHITECT CRITICAL] Preservation of Intent
         if e[edge_slots] != 0:
             continue
 
-        # 1. PERIMETER DETECTION (Slot 1)
-        # An edge is a perimeter if it has only 1 face (is_boundary)
+        # A. Open Mesh Boundary -> Slot 1 (Perimeter) always
         if e.is_boundary:
             e[edge_slots] = 1
             continue
 
-        # 2. CONTOUR DETECTION (Slot 2)
-        # An edge is a contour if it is sharp (angle based or manually sharp)
-        # BUT we must respect seams. If it's a seam, it might be a Guide (3) or something else.
-        # If it's just a sharp corner, it's a Contour.
-        if not e.smooth and not e.seam:
-             # Calculate angle to confirm it's actually sharp geometry
-             # (Sometimes smooth=False is set but faces are coplanar)
-             if len(e.link_faces) == 2:
-                 ang = e.calc_face_angle_signed()
-                 # If angle is significant (> 1 degree), treat as contour
-                 if abs(ang) > 0.01:
-                     e[edge_slots] = 2
-                     # Note: We don't 'continue' here because it might ALSO be a material boundary
-
-        # 3. MATERIAL BOUNDARY DETECTION (Slot 1-4)
-        # Need at least 2 faces to be a boundary between regions
         if len(e.link_faces) < 2:
             continue
             
-        boundary_found = False
-        max_slot = 0
+        f1 = e.link_faces[0]
+        f2 = e.link_faces[1]
+
+        # B. Cap-Wall Interface -> Slot 1 (Perimeter Loop)
+        # Using index lookup for reliability if sets fail? No, sets are object hashes.
+        is_cap1 = f1 in caps
+        is_cap2 = f2 in caps
+
+        # Determine if we are on a Rim
+        if is_cap1 != is_cap2:
+            # One cap, one wall -> This is the rim
+            e[edge_slots] = 1
+            continue
+
+        # [ARCHITECT DEBUG] Closed Cylinder Special Case
+        # If both faces are walls, but the angle is sharp (e.g. box corner), it is Slot 2.
+        # If both faces are caps (e.g. stacked planes), it is Slot 2?
+        # What if we have a cylinder cap made of multiple faces (grid fill)?
+        # Then the boundary between grid faces is flat (smooth).
+        # But boundary between grid and side is Cap-Wall.
+
+        # What if the Cap is a single N-gon?
+        # The edge connecting Cap to Wall is Cap-Wall.
+        # This logic holds.
         
-        # Check all unique material pairs
-        checked_mats = set()
-        for f in e.link_faces:
-            checked_mats.add(f.material_index)
+        # Why did Closed Cylinder fail in test?
+        # "Slots: {2: 12}" -> All edges became Slot 2.
+        # This means NO edges were detected as Cap-Wall.
+        # Means either NO faces were Caps, or ALL faces were Caps?
+        # Cylinder Top/Bottom normals are (0,0,1). Dom axis is Z (2). Dot is 1.0. Caps.
+        # Side faces normals are (1,0,0), etc. Dot is 0. Walls.
+        # So caps set has Top/Bottom faces. Walls set has Side faces.
+        # Edges between Top and Side connect f1(Cap) and f2(Wall).
+        # So is_cap1 != is_cap2 should be True.
+
+        # Unless... link_faces order? No.
+        # Unless create_cone result normals are messed up?
+        # bmesh.ops.recalc_face_normals(bm, faces=bm.faces) might be needed at start.
+
+        # C. Material Boundaries -> Max ID (Override)
+        if f1.material_index != f2.material_index:
+            max_id = max(f1.material_index, f2.material_index)
+            if max_id > 0:
+                e[edge_slots] = min(max_id, 4) # Clamp to 4
+                continue
+
+        # D. Sharp Edges -> Slot 2 (Contour)
+        # Check angle or smoothness
+        if not e.smooth:
+            ang = e.calc_face_angle_signed()
+            if abs(ang) > 0.01:
+                e[edge_slots] = 2
+
+    # [STEP 2] Slot 3: The Guide Cut (Seam)
+    # Re-evaluate walls if no guide found
+    has_guide = False
+    for e in bm.edges:
+        if e[edge_slots] == 3:
+            has_guide = True
+            break
             
-        if len(checked_mats) > 1:
-            # Different materials found!
-            # Slot ID = Max Material Index
-            max_slot = max(checked_mats)
-            boundary_found = True
+    if not has_guide and walls:
+        # Find candidate start edge
+        candidates = []
+        for e in bm.edges:
+            # Must be available (0) or Contour (2) - we can override contour for a seam
+            if e[edge_slots] not in {0, 2}: continue
 
-        if boundary_found:
-            total_boundaries += 1
-            # Clamp to 4 (UI only supports 4 slots)
-            if max_slot > 4:
-                max_slot = 4
-            elif max_slot < 0:
-                max_slot = 0
+            # Check alignment
+            v_vec = (e.verts[1].co - e.verts[0].co).normalized()
+            align = abs(v_vec.dot(dom_vec))
 
-            # [ARCHITECT LOGIC] Priority Resolution
-            # If we detected a Material Boundary (max_slot > 0), overwrite any Contour (2).
-            # If max_slot is 0 (no boundary), we KEEP the existing value (e.g. 2 from Contour).
-            if max_slot > 0:
-                e[edge_slots] = max_slot
-            # print(f"MASSA DEBUG: Edge {e.index} -> Slot {max_slot} (Mats: {checked_mats})")
+            if align > 0.9: # Highly aligned
+                # Check if it touches a Slot 1 edge
+                score = 0
+                for v in e.verts:
+                    for le in v.link_edges:
+                        if le[edge_slots] == 1:
+                            score += 1
 
-    # print(f"MASSA DEBUG: auto_detect_edge_slots -> Edges: {total_edges}, Boundaries Found: {total_boundaries}")
+                # Boost if it connects two Slot 1 loops (score 2)
+                candidates.append((e, score))
+
+        candidates.sort(key=lambda x: x[1], reverse=True)
+
+        if candidates:
+            start_edge = candidates[0][0]
+            start_edge[edge_slots] = 3 # Mark start immediately
+
+            # Walk Only ONE Direction if score is 2 (connected at both ends)
+            # But simplistic walker: just mark it.
+
+            # If we just mark the start edge, for a simple cylinder, that IS the seam.
+            # But for segmented cylinders, we need to walk.
+
+            # Walker
+            curr = start_edge
+
+            # Determine Axis Vector for guidance
+            guide_vec = (curr.verts[1].co - curr.verts[0].co).normalized()
+            if guide_vec.dot(dom_vec) < 0:
+                guide_vec = -guide_vec
+
+            # Walk "Forward" (Up) and "Backward" (Down) relative to guide_vec
+            for direction in [-1, 1]:
+                # Pick a vertex based on direction approximation
+                # v1 - v0 is edge vector.
+                # if direction is 1, go to v1.
+                v_start = curr.verts[1] if direction == 1 else curr.verts[0]
+
+                walker = v_start
+                last_edge = curr
+
+                steps = 0
+                while steps < 1000:
+                    # Find best next edge connected to walker
+                    best_next = None
+                    best_align = 0.9 # High threshold
+
+                    for ne in walker.link_edges:
+                        if ne == last_edge: continue
+                        if ne[edge_slots] == 1: # Hit Cap
+                            best_next = None
+                            break
+
+                        # Check alignment
+                        ne_vec = (ne.verts[1].co - ne.verts[0].co).normalized()
+                        align = abs(ne_vec.dot(guide_vec))
+
+                        if align > best_align:
+                            best_align = align
+                            best_next = ne
+
+                    if best_next:
+                        # Overwrite Slot 2 if needed
+                        best_next[edge_slots] = 3
+                        last_edge = best_next
+                        walker = best_next.other_vert(walker)
+                        steps += 1
+                    else:
+                        break
+
+    # [STEP 2] Slot 3: The Guide Cut (Seam)
+    # We need to find a path along the WALLS that connects two End Caps (or loops back).
+    # Heuristic: Pick a Wall edge aligned with dominant axis and walk it.
 
 
 def auto_detect_sharp_edges(bm, op):
