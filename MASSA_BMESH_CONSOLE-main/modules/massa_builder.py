@@ -200,6 +200,80 @@ class MassaBuilder:
         ]
         return self
 
+    def select_boundary(self):
+        """
+        Selects boundary edges of the current face selection.
+        If no faces selected, selects mesh boundary.
+        Updates active_edges.
+        """
+        if self.active_faces:
+            candidates = set()
+            for f in self.active_faces:
+                for e in f.edges:
+                    candidates.add(e)
+            # Boundary edge = edge used by only 1 SELECTED face
+            # Or edge on mesh boundary if no adjacent faces exist
+
+            # Simple approach: An edge is a boundary of the selection if it belongs
+            # to a selected face but not to another selected face.
+            sel_faces = set(self.active_faces)
+            boundary = []
+            for e in candidates:
+                linked_sel = [f for f in e.link_faces if f in sel_faces]
+                if len(linked_sel) == 1:
+                    boundary.append(e)
+            self.active_edges = boundary
+        else:
+            # Mesh boundary
+            self.active_edges = [e for e in self.bm.edges if e.is_boundary]
+
+        return self
+
+    def grow_selection(self, steps=1):
+        """Expands the current face selection by adjacency."""
+        if not self.active_faces:
+            return self
+
+        current = set(self.active_faces)
+        for _ in range(steps):
+            new_faces = set()
+            for f in current:
+                for e in f.edges:
+                    for linked in e.link_faces:
+                        new_faces.add(linked)
+            current.update(new_faces)
+
+        self.active_faces = list(current)
+        return self
+
+    def shrink_selection(self, steps=1):
+        """Shrinks the current face selection."""
+        if not self.active_faces:
+            return self
+
+        current = set(self.active_faces)
+        for _ in range(steps):
+            # Find boundary faces of the selection
+            boundary_faces = set()
+            for f in current:
+                is_boundary = False
+                for e in f.edges:
+                    # If any edge connects to a non-selected face, this face is boundary
+                    linked_sel = [lf for lf in e.link_faces if lf in current]
+                    # If edge has neighbor not in current, or is open boundary
+                    if len(linked_sel) < len(e.link_faces) or e.is_boundary:
+                        is_boundary = True
+                        break
+                if is_boundary:
+                    boundary_faces.add(f)
+
+            current.difference_update(boundary_faces)
+            if not current:
+                break
+
+        self.active_faces = list(current)
+        return self
+
     def clear_selection(self):
         """Clears active selection lists."""
         self.active_faces = []
@@ -378,7 +452,295 @@ class MassaBuilder:
         return self
 
     # =========================================================================
-    # 6. ANALYSIS & DEBUG
+    # 6. SPATIAL ANALYSIS (The "Eyes")
+    # =========================================================================
+
+    def get_active_bounds(self):
+        """
+        Returns (min_vec, max_vec, center_vec) of the current selection.
+        If no selection, returns world bounds of mesh.
+        """
+        verts = []
+        if self.active_faces:
+            for f in self.active_faces: verts.extend(f.verts)
+        elif self.active_verts:
+            verts = self.active_verts
+        else:
+            verts = self.bm.verts
+
+        if not verts:
+            return Vector((0,0,0)), Vector((0,0,0)), Vector((0,0,0))
+
+        min_v = Vector((float('inf'), float('inf'), float('inf')))
+        max_v = Vector((float('-inf'), float('-inf'), float('-inf')))
+
+        for v in verts:
+            min_v.x = min(min_v.x, v.co.x)
+            min_v.y = min(min_v.y, v.co.y)
+            min_v.z = min(min_v.z, v.co.z)
+            max_v.x = max(max_v.x, v.co.x)
+            max_v.y = max(max_v.y, v.co.y)
+            max_v.z = max(max_v.z, v.co.z)
+
+        center = (min_v + max_v) / 2.0
+        return min_v, max_v, center
+
+    def get_active_dimensions(self):
+        """Returns Vector(width, depth, height) of selection."""
+        min_v, max_v, _ = self.get_active_bounds()
+        return max_v - min_v
+
+    def get_active_center(self):
+        """Returns the median center of the selection."""
+        _, _, center = self.get_active_bounds()
+        return center
+
+    def get_active_normal(self):
+        """Returns the average normal of selected faces."""
+        if not self.active_faces:
+            return Vector((0,0,1))
+
+        avg = Vector((0,0,0))
+        for f in self.active_faces:
+            avg += f.normal
+
+        if avg.length_squared > 0:
+            return avg.normalized()
+        return Vector((0,0,1))
+
+    def measure_distance(self, target: Vector):
+        """Returns Euclidean distance from selection center to target vector."""
+        center = self.get_active_center()
+        return (target - center).length
+
+    # =========================================================================
+    # 7. TOPOLOGY TOOLS (The "Muscle")
+    # =========================================================================
+
+    def bridge_selection(self, cuts=0, twist=0):
+        """
+        Bridges two selected edge loops or face regions.
+        Use 'select_boundary' before calling if you have faces selected.
+        """
+        # If faces are selected, convert to boundary edges implicitly?
+        # Or let user do it? Let's try to be smart.
+        target_edges = []
+        if self.active_edges:
+            target_edges = self.active_edges
+        elif self.active_faces:
+            # Auto-detect boundary
+            candidates = set()
+            sel_faces = set(self.active_faces)
+            for f in self.active_faces:
+                for e in f.edges:
+                    linked_sel = [lf for lf in e.link_faces if lf in sel_faces]
+                    if len(linked_sel) == 1:
+                        candidates.add(e)
+            target_edges = list(candidates)
+
+        if not target_edges:
+            return self
+
+        ret = bmesh.ops.bridge_loops(
+            self.bm,
+            edges=target_edges,
+            use_pairs=True,
+            use_cyclic=False
+        )
+
+        # New faces are in ret['faces']
+        self.active_faces = ret['faces']
+        self._update()
+        return self
+
+    def fill_grid(self, span=0, offset=0):
+        """
+        Fills a closed edge loop with a grid.
+        Requires active edges to form a valid loop.
+        """
+        if not self.active_edges:
+            return self
+
+        try:
+            ret = bmesh.ops.grid_fill(
+                self.bm,
+                edges=self.active_edges,
+                span=span,
+                offset=offset
+            )
+            self.active_faces = ret['faces']
+        except RuntimeError:
+            # Grid fill is finicky, requires even edge count
+            pass
+
+        self._update()
+        return self
+
+    def bevel(self, offset=0.1, segments=1, profile=0.5, clamp_overlap=True):
+        """Bevels selected edges or faces."""
+        # Prioritize edges if explicitly selected, otherwise faces
+        geom = []
+        if self.active_edges:
+            geom = self.active_edges
+        elif self.active_faces:
+            geom = self.active_faces # Beveling faces bevels their edges
+
+        if not geom:
+            return self
+
+        ret = bmesh.ops.bevel(
+            self.bm,
+            geom=geom,
+            offset=offset,
+            offset_type='OFFSET',
+            segments=segments,
+            profile=profile,
+            vertex_only=False,
+            clamp_overlap=clamp_overlap
+        )
+
+        # Update selection to new faces
+        self.active_faces = [f for f in ret['faces'] if isinstance(f, bmesh.types.BMFace)]
+        self._update()
+        return self
+
+    def subdivide(self, cuts=1, fractal=0.0, smooth=0.0):
+        """Subdivides selected edges/faces."""
+        geom = []
+        if self.active_faces:
+            geom.extend(self.active_faces)
+            # Also include inner edges
+            edges = set()
+            for f in self.active_faces:
+                for e in f.edges:
+                    edges.add(e)
+            geom.extend(list(edges))
+        elif self.active_edges:
+            geom.extend(self.active_edges)
+
+        if not geom:
+            return self
+
+        ret = bmesh.ops.subdivide_edges(
+            self.bm,
+            edges=[e for e in geom if isinstance(e, bmesh.types.BMEdge)],
+            cuts=cuts,
+            fractal=fractal,
+            smooth=smooth,
+            use_grid_fill=True
+        )
+
+        # Capture new geometry
+        self.active_faces = [f for f in ret['geom_inner'] if isinstance(f, bmesh.types.BMFace)]
+        # Add original split faces
+        split = [f for f in ret['geom_split'] if isinstance(f, bmesh.types.BMFace)]
+        self.active_faces.extend(split)
+
+        self._update()
+        return self
+
+    def relax_verts(self, iterations=3, factor=0.5):
+        """
+        Smooths active vertices (Laplacian smooth).
+        Useful for organic shapes or fixing jagged extrusions.
+        """
+        verts = []
+        if self.active_verts:
+            verts = self.active_verts
+        elif self.active_faces:
+            unique = set()
+            for f in self.active_faces:
+                for v in f.verts: unique.add(v)
+            verts = list(unique)
+
+        if not verts:
+            return self
+
+        for _ in range(iterations):
+            bmesh.ops.smooth_vert(
+                self.bm,
+                verts=verts,
+                factor=factor,
+                use_axis_x=True,
+                use_axis_y=True,
+                use_axis_z=True
+            )
+
+        self._update()
+        return self
+
+    # =========================================================================
+    # 8. PRECISION TRANSFORMS (The "Hands")
+    # =========================================================================
+
+    def align_normal_to_vector(self, target_vector: Vector):
+        """
+        Rotates the selection so its average normal matches the target vector.
+        """
+        current_normal = self.get_active_normal()
+        if current_normal.length_squared < 0.001:
+            return self
+
+        target_vector = target_vector.normalized()
+        rot_quat = current_normal.rotation_difference(target_vector)
+
+        center = self.get_active_center()
+
+        # Translate to origin, rotate, translate back
+        t_mat_inv = Matrix.Translation(-center)
+        r_mat = rot_quat.to_matrix().to_4x4()
+        t_mat = Matrix.Translation(center)
+
+        final_mat = t_mat @ r_mat @ t_mat_inv
+
+        self.transform(final_mat)
+        return self
+
+    def move_center_to(self, target_location: Vector):
+        """Moves the center of the selection to the target location."""
+        current_center = self.get_active_center()
+        diff = target_location - current_center
+        return self.translate(diff.x, diff.y, diff.z)
+
+    def fit_to_bounds(self, min_v: Vector, max_v: Vector):
+        """Scales the selection to fit exactly within the given bounds."""
+        curr_min, curr_max, curr_cen = self.get_active_bounds()
+        curr_size = curr_max - curr_min
+
+        target_size = max_v - min_v
+        target_center = (min_v + max_v) / 2.0
+
+        scale_x = target_size.x / curr_size.x if curr_size.x > 0.001 else 1.0
+        scale_y = target_size.y / curr_size.y if curr_size.y > 0.001 else 1.0
+        scale_z = target_size.z / curr_size.z if curr_size.z > 0.001 else 1.0
+
+        # Move to origin
+        self.translate(-curr_cen.x, -curr_cen.y, -curr_cen.z)
+        # Scale
+        self.scale(scale_x, scale_y, scale_z)
+        # Move to target center
+        self.translate(target_center.x, target_center.y, target_center.z)
+
+        return self
+
+    def flatten(self, axis='Z'):
+        """Flattens the selection along the specified global axis."""
+        # Just scale to 0 on that axis
+        scale_vec = Vector((1,1,1))
+        if axis == 'X': scale_vec.x = 0.0
+        elif axis == 'Y': scale_vec.y = 0.0
+        elif axis == 'Z': scale_vec.z = 0.0
+
+        # We need to flatten relative to the center, otherwise it snaps to 0 coordinate
+        center = self.get_active_center()
+        self.translate(-center.x, -center.y, -center.z)
+        self.scale(scale_vec.x, scale_vec.y, scale_vec.z)
+        self.translate(center.x, center.y, center.z)
+
+        return self
+
+    # =========================================================================
+    # 9. REPORTING
     # =========================================================================
 
     def report(self):
@@ -398,10 +760,16 @@ class MassaBuilder:
 
         sel_faces = len(self.active_faces)
 
+        # New: Spatial Info
+        min_v, max_v, center = self.get_active_bounds()
+        dim = max_v - min_v
+
         return (
             f"--- Mesh Report ---\n"
             f"Verts: {v_count}, Edges: {e_count}, Faces: {f_count}\n"
             f"Volume: {vol:.4f}\n"
             f"Active Selection: {sel_faces} faces\n"
+            f"Selection Bounds: {dim.x:.2f} x {dim.y:.2f} x {dim.z:.2f}\n"
+            f"Selection Center: {center}\n"
             f"-------------------"
         )
