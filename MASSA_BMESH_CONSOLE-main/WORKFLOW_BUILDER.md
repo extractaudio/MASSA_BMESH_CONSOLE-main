@@ -131,6 +131,8 @@ print(builder.report())
 
 **Agent Tip:** Call `report()` after complex steps to verify you actually selected faces before extruding. If "Active Selection" is 0, your logic failed.
 
+**UV Audit:** Use the "Finalize & Inspect" operator in the Console UI (N-Panel or UVs Tab) to bake the procedural object and verify the UV layout in Edit Mode.
+
 ## 5. API Reference
 
 For full API details, inspect `modules/massa_builder.py`. The class is fully documented with docstrings.
