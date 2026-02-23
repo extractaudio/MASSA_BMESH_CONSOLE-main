@@ -53,9 +53,9 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Wall Surface", "uv": "BOX", "phys": "DEBUG_1"},
-            1: {"name": "Detail", "uv": "BOX", "phys": "DEBUG_2"},
-            2: {"name": "Trim", "uv": "BOX", "phys": "DEBUG_3"},
+            0: {"name": "Wall Surface", "uv": "UNWRAP", "phys": "DEBUG_1"},
+            1: {"name": "Detail", "uv": "UNWRAP", "phys": "DEBUG_2"},
+            2: {"name": "Trim", "uv": "UNWRAP", "phys": "DEBUG_3"},
             9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
@@ -106,9 +106,6 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
             rects.append({'x': 0, 'w': l, 'z': 0, 'h': h})
 
         # Build Wall Segments
-        uv_s0 = getattr(self, "uv_scale_0", 1.0)
-        uv_s1 = getattr(self, "uv_scale_1", 1.0)
-
         for r in rects:
             if r['w'] <= 0.001 or r['h'] <= 0.001: continue
 
@@ -118,8 +115,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
 
             builder.create_box(r['w'], t, r['h']) \
                    .translate(cx, cy, cz) \
-                   .tag_slot(0) \
-                   .tag_uvs(uv_s0, 'BOX')
+                   .tag_slot(0)
 
             # Style Variations
             if self.wall_style == 'REINFORCED':
@@ -128,15 +124,10 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                     builder.select_faces_by_normal(Vector((0, 1, 0))) \
                            .inset(0.1, depth=0.05) \
                            .tag_slot(1) \
-                           .tag_uvs(uv_s1, 'BOX') \
                            .select_boundary().tag_edge_role(2) # Contour
 
             elif self.wall_style == 'BRICK':
-                # Add horizontal indents (Simulated Courses)
-                # We can't easily cut the existing box without bmesh surgery.
-                # Instead, let's just inset the main face to create a 'framed' look for now,
-                # or maybe just add a horizontal rail.
-                # Actually, let's create a 'Wainscot' effect.
+                # Create a 'Wainscot' effect.
                 if r['h'] > 1.2:
                     # Create a rail at 1m height
                     rail_h = 0.1
@@ -145,11 +136,15 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                         # Create the rail geometry
                         builder.create_box(r['w'], t * 1.2, rail_h) \
                                .translate(cx, t/2, rail_z + rail_h/2) \
-                               .tag_slot(2).tag_uvs(uv_s1, 'BOX') \
+                               .tag_slot(2) \
                                .select_boundary().tag_edge_role(2)
 
-            # Tag Perimeter Edges
-            builder.select_all_faces().select_boundary().tag_edge_role(1)
+        # Merge Segments before tagging seams to ensure continuous mesh
+        builder.clean()
+
+        # Tag Perimeter Edges as Seams (1)
+        # This will mark the outer boundary of the merged wall + hole
+        builder.select_all_faces().select_boundary().tag_edge_role(1)
 
         # Build Baseboards
         bh = self.baseboard_height
@@ -181,8 +176,6 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
             else:
                 bb_rects.append({'x': 0, 'w': l})
 
-            uv_s2 = getattr(self, "uv_scale_2", 1.0)
-
             for r in bb_rects:
                 if r['w'] <= 0.001: continue
 
@@ -193,16 +186,19 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                 builder.create_box(r['w'], bd, bh) \
                        .translate(cx, -bd/2, cz) \
                        .tag_slot(2) \
-                       .tag_uvs(uv_s2, 'BOX')
+                       .select_boundary().tag_edge_role(2) # Sharp/Contour (No Seam for baseboard internal?)
+                       # Actually baseboard is usually separate island. Let's mark perimeter as Seam (1)
+
+                builder.select_boundary().tag_edge_role(1)
 
                 # Back Baseboard (Y = t + bd/2)
                 builder.create_box(r['w'], bd, bh) \
                        .translate(cx, t + bd/2, cz) \
                        .tag_slot(2) \
-                       .tag_uvs(uv_s2, 'BOX')
+                       .select_boundary().tag_edge_role(1)
 
         # Sockets (Tagging existing faces)
-        builder.clean() # Merge first
+        builder.clean() # Final cleanup
 
         # Start Socket (x=0) - Find face at x=0
         builder.select_faces_by_normal(Vector((-1, 0, 0)), tolerance=0.1) \
@@ -211,9 +207,6 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         # End Socket (x=l) - Find face at x=l
         builder.select_faces_by_normal(Vector((1, 0, 0)), tolerance=0.1) \
                .tag_socket(2)
-
-        # Anchor Check (Ensure bottom faces are 0)
-        # builder.select_faces_by_height(min_z=-0.01, max_z=0.01).tag_slot(9) # Optional tagging
 
     def draw_shape_ui(self, layout):
         box_dim = layout.box()
