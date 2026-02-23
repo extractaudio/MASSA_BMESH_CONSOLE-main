@@ -37,12 +37,24 @@ class MASSA_OT_ArcDoorway(Massa_OT_Base):
     # Hardware
     handle_height: FloatProperty(name="Handle H", default=1.0, min=0.1)
 
+    # Styles
+    door_style: EnumProperty(
+        name="Style",
+        items=[
+            ("STANDARD", "Standard", "Panel Door"),
+            ("SCIFI", "Sci-Fi", "Blast Door / Bulkhead"),
+            ("GLASS", "Glass", "Modern Storefront"),
+        ],
+        default="STANDARD"
+    )
+
     def get_slot_meta(self):
         return {
-            0: {"name": "Door Leaf", "uv": "BOX", "phys": "WOOD"},
-            1: {"name": "Frame", "uv": "BOX", "phys": "WOOD"},
-            7: {"name": "Hardware", "uv": "BOX", "phys": "METAL_BRASS"},
-            9: {"name": "Socket Anchor", "sock": True}
+            0: {"name": "Door Leaf", "uv": "BOX", "phys": "DEBUG_1"},
+            1: {"name": "Frame", "uv": "BOX", "phys": "DEBUG_2"},
+            3: {"name": "Glass", "uv": "FIT", "phys": "DEBUG_4"},
+            7: {"name": "Hardware", "uv": "BOX", "phys": "DEBUG_3"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
     def build_shape(self, bm):
@@ -58,87 +70,74 @@ class MASSA_OT_ArcDoorway(Massa_OT_Base):
         uv_s0 = getattr(self, "uv_scale_0", 1.0)
         uv_s7 = getattr(self, "uv_scale_7", 1.0)
 
-        # 1. Frame
-        # Side Jambs (Height dh)
-        # Left
+        # 1. Frame Generation
+        # Side Jambs
         builder.create_box(fw, fd, dh) \
                .translate(-dw/2 - fw/2, 0, dh/2) \
-               .tag_slot(1) \
-               .tag_uvs(uv_s1, 'BOX')
-
-        # Right
+               .tag_slot(1).tag_uvs(uv_s1, 'BOX')
         builder.create_box(fw, fd, dh) \
                .translate(dw/2 + fw/2, 0, dh/2) \
-               .tag_slot(1) \
-               .tag_uvs(uv_s1, 'BOX')
-
-        # Header (Top). Width dw + 2*fw. Height fw.
-        # Sits on top of Jambs (dh + fw/2)
+               .tag_slot(1).tag_uvs(uv_s1, 'BOX')
+        # Header
         builder.create_box(dw + 2*fw, fd, fw) \
                .translate(0, 0, dh + fw/2) \
-               .tag_slot(1) \
-               .tag_uvs(uv_s1, 'BOX')
+               .tag_slot(1).tag_uvs(uv_s1, 'BOX')
 
-        # Stops
-        stop_thick = 0.02
-        stop_width = 0.03
-        stop_y_offset = lt/2 + stop_width/2
-        
-        # Left Stop
-        builder.create_box(stop_thick, stop_width, dh) \
-               .translate(-dw/2 + stop_thick/2, stop_y_offset, dh/2) \
-               .tag_slot(1) \
-               .tag_uvs(uv_s1, 'BOX')
+        # 2. Leaf Generation based on Style
+        if self.door_style == 'GLASS':
+            # Frame around glass
+            frame_t = 0.05
+            # Top/Bottom Rails
+            builder.create_box(dw, lt, frame_t).translate(0, 0, frame_t/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            builder.create_box(dw, lt, frame_t).translate(0, 0, dh - frame_t/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Side Stiles
+            builder.create_box(frame_t, lt, dh).translate(-dw/2 + frame_t/2, 0, dh/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            builder.create_box(frame_t, lt, dh).translate(dw/2 - frame_t/2, 0, dh/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Glass
+            builder.create_box(dw - 2*frame_t, 0.02, dh - 2*frame_t).translate(0, 0, dh/2).tag_slot(3).tag_uvs(1.0, 'FIT')
 
-        # Right Stop
-        builder.create_box(stop_thick, stop_width, dh) \
-               .translate(dw/2 - stop_thick/2, stop_y_offset, dh/2) \
-               .tag_slot(1) \
-               .tag_uvs(uv_s1, 'BOX')
+        elif self.door_style == 'SCIFI':
+            # Bulkhead Door (Octagonal-ish or Heavy)
+            builder.create_box(dw, lt * 2, dh).translate(0, 0, dh/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
+            # Inset Detail
+            builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1) \
+                   .inset(0.15, depth=-0.05).tag_slot(1).tag_uvs(uv_s1, 'BOX')
+            # Add some heavy bolts/pads
+            builder.create_box(0.2, lt*2.2, 0.4).translate(0, 0, dh/2).tag_slot(7).tag_uvs(uv_s7, 'BOX')
 
-        # Header Stop
-        builder.create_box(dw, stop_width, stop_thick) \
-               .translate(0, stop_y_offset, dh - stop_thick/2) \
-               .tag_slot(1) \
-               .tag_uvs(uv_s1, 'BOX')
+        else: # STANDARD
+            # Stops
+            stop_thick, stop_width = 0.02, 0.03
+            stop_y_offset = lt/2 + stop_width/2
+            builder.create_box(stop_thick, stop_width, dh).translate(-dw/2 + stop_thick/2, stop_y_offset, dh/2).tag_slot(1).tag_uvs(uv_s1, 'BOX')
+            builder.create_box(stop_thick, stop_width, dh).translate(dw/2 - stop_thick/2, stop_y_offset, dh/2).tag_slot(1).tag_uvs(uv_s1, 'BOX')
+            builder.create_box(dw, stop_width, stop_thick).translate(0, stop_y_offset, dh - stop_thick/2).tag_slot(1).tag_uvs(uv_s1, 'BOX')
 
-        # 2. Door Leaf
-        # Initial Leaf Box
-        builder.create_box(dw, lt, dh) \
-               .translate(0, 0, dh/2) \
-               .tag_slot(0) \
-               .tag_uvs(uv_s0, 'BOX')
+            # Initial Leaf Box
+            builder.create_box(dw, lt, dh).translate(0, 0, dh/2).tag_slot(0).tag_uvs(uv_s0, 'BOX')
 
-        # Panels (Inset)
-        leaf_faces = [f for f in builder.active_faces if abs(f.normal.y) > 0.9]
-        builder.active_faces = leaf_faces
-        
-        if leaf_faces:
-            builder.inset(0.1, relative=False) \
-                   .inset(0.03, depth=-0.015, relative=False) \
-                   .tag_uvs(uv_s0, 'BOX')
+            # Panels (Inset)
+            leaf_faces = [f for f in builder.active_faces if abs(f.normal.y) > 0.9]
+            builder.active_faces = leaf_faces
+            if leaf_faces:
+                builder.inset(0.1, relative=False).inset(0.03, depth=-0.015, relative=False).tag_uvs(uv_s0, 'BOX')
 
-        # 3. Hardware (Handle)
-        h_h = self.handle_height
-        h_x = dw/2 - 0.1
-        h_y = lt/2 + 0.005
-        
-        builder.create_box(0.12, 0.04, 0.02) \
-               .translate(h_x, h_y + 0.02, h_h) \
-               .tag_slot(7) \
-               .tag_uvs(uv_s7, 'BOX')
+        # 3. Hardware (Handle) - If not SCIFI (already added detail)
+        if self.door_style != 'SCIFI':
+            h_h = self.handle_height
+            h_x = dw/2 - 0.1
+            h_y = lt/2 + 0.005
+            builder.create_box(0.12, 0.04, 0.02).translate(h_x, h_y + 0.02, h_h).tag_slot(7).tag_uvs(uv_s7, 'BOX')
 
-        # 4. Rotation Logic
+        # 4. Rotation Logic (Common)
         if abs(self.open_angle) > 0.001:
             pivot = Vector((-dw/2, 0, 0))
-            
-            # Select Leaf (0) and Hardware (7)
+            # Select Leaf components (0, 3, 7)
             target_verts = set()
             bm.verts.ensure_lookup_table()
             for f in bm.faces:
-                if f.material_index in (0, 7):
-                    for v in f.verts:
-                        target_verts.add(v)
+                if f.material_index in (0, 3, 7):
+                    for v in f.verts: target_verts.add(v)
 
             if target_verts:
                 builder.active_verts = list(target_verts)
@@ -146,19 +145,21 @@ class MASSA_OT_ArcDoorway(Massa_OT_Base):
                 builder.rotate(self.open_angle, 'Z')
                 builder.translate(pivot.x, pivot.y, pivot.z)
 
-        # 5. Sockets
-        builder.create_grid(size=0.1) \
-               .rotate(90, 'X') \
-               .translate(0, -0.1, 0) \
-               .tag_slot(9) \
-               .tag_socket(1)
+        # Tag Edges
+        builder.select_all_faces().select_boundary().tag_edge_role(1)
 
+        # 5. Sockets (Tag Existing Faces)
         builder.clean()
+
+        # Front/Back Frame Faces
+        builder.select_faces_by_normal(Vector((0, -1, 0)), tolerance=0.1).tag_socket(1)
+        builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1).tag_socket(2)
 
     def draw_shape_ui(self, layout):
         box = layout.box()
         box.label(text="Dimensions", icon='MESH_CUBE')
         col = box.column(align=True)
+        col.prop(self, "door_style")
         col.prop(self, "door_width")
         col.prop(self, "door_height")
         col.prop(self, "frame_width")
