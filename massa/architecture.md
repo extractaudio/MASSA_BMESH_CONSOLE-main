@@ -1373,3 +1373,89 @@ This section defines the strict geometric and behavioral contracts for the core 
   "tolerance": 0.5
 }
 ```
+
+## IND_16: Pressure Vessel
+
+```json
+{
+  "id": "ind_16_pressure_vessel",
+  "behavior": "Pressurized Container",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "radius": 0.8,
+      "length": 2.0,
+      "leg_height": 0.5
+  },
+  "expected_dimensions": [1.6, 1.6, 2.1],
+  "tolerance": 0.5
+}
+```
+
+## IND_17: Control Console
+
+```json
+{
+  "id": "ind_17_control_console",
+  "behavior": "Interface Unit",
+  "slots": [0, 1, 3, 9],
+  "default_params": {
+      "width": 1.2,
+      "depth": 0.8,
+      "height": 1.2
+  },
+  "expected_dimensions": [1.2, 0.8, 1.2],
+  "tolerance": 0.3
+}
+```
+
+## IND_18: Heat Exchanger
+
+```json
+{
+  "id": "ind_18_heat_exchanger",
+  "behavior": "Thermal Transfer Unit",
+  "slots": [0, 1, 2, 9],
+  "default_params": {
+      "width": 2.0,
+      "depth": 1.0,
+      "height": 1.5
+  },
+  "expected_dimensions": [2.0, 1.0, 1.5],
+  "tolerance": 0.5
+}
+```
+
+## IND_19: Hopper
+
+```json
+{
+  "id": "ind_19_hopper",
+  "behavior": "Material Feeder",
+  "slots": [0, 1, 9],
+  "default_params": {
+      "top_width": 1.5,
+      "height": 1.5,
+      "chute_length": 0.5,
+      "leg_height": 2.0
+  },
+  "expected_dimensions": [1.5, 1.5, 4.0],
+  "tolerance": 0.5
+}
+```
+
+## IND_20: Centrifuge
+
+```json
+{
+  "id": "ind_20_centrifuge",
+  "behavior": "Rotating Separator",
+  "slots": [0, 1, 2, 9],
+  "default_params": {
+      "radius": 0.6,
+      "height": 2.5,
+      "base_height": 0.5
+  },
+  "expected_dimensions": [1.5, 3.5, 1.8],
+  "tolerance": 0.8
+}
+```
