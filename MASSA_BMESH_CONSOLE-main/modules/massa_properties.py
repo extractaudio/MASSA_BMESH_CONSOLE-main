@@ -105,6 +105,11 @@ class MassaPropertiesMixin:
         default=False,
         description="Force Smart UV Project on result",
     )
+    auto_unwrap_use_slots: BoolProperty(
+        name="Use Edge Slots",
+        default=True,
+        description="If True, uses Edge Slots 1, 3, 5 as Seams and runs LSCM Unwrap. If False, runs standard Smart Project.",
+    )
     auto_unwrap_margin: FloatProperty(
         name="Margin",
         default=0.02,
