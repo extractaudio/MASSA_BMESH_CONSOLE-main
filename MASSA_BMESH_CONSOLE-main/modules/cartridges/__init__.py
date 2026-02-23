@@ -76,6 +76,11 @@ from . import cart_urb_02_railing
 from . import cart_urb_03_streetlight
 from . import cart_urb_04_barrier
 from . import cart_urb_05_fence
+from . import cart_urb_11_hvac
+from . import cart_urb_12_fire_hydrant
+from . import cart_urb_13_dumpster
+from . import cart_urb_14_traffic_light
+from . import cart_urb_15_kiosk
 
 # --- PROPS & LANDSCAPE SUITE (cart_prp_*, cart_lnd_*) ---
 from . import cart_prp_01_container
@@ -183,6 +188,11 @@ MODULES = [
     cart_urb_03_streetlight,
     cart_urb_04_barrier,
     cart_urb_05_fence,
+    cart_urb_11_hvac,
+    cart_urb_12_fire_hydrant,
+    cart_urb_13_dumpster,
+    cart_urb_14_traffic_light,
+    cart_urb_15_kiosk,
     # Props/Land
     cart_prp_01_container,
     cart_prp_02_rack,
@@ -284,6 +294,11 @@ CLASSES = [
     cart_urb_03_streetlight.MASSA_OT_UrbStreetlight,
     cart_urb_04_barrier.MASSA_OT_UrbBarrier,
     cart_urb_05_fence.MASSA_OT_UrbFence,
+    cart_urb_11_hvac.MASSA_OT_UrbHVAC,
+    cart_urb_12_fire_hydrant.MASSA_OT_UrbHydrant,
+    cart_urb_13_dumpster.MASSA_OT_UrbDumpster,
+    cart_urb_14_traffic_light.MASSA_OT_UrbTrafficLight,
+    cart_urb_15_kiosk.MASSA_OT_UrbKiosk,
     # Props/Land
     cart_prp_01_container.MASSA_OT_PrpContainer,
     cart_prp_02_rack.MASSA_OT_PrpRack,
