@@ -461,7 +461,8 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
                 # Replace relative imports using regex to handle variations
                 # Use flexible whitespace matching
                 code = re.sub(r'from\s+\.+\s*operators\.massa_base\s+import\s+Massa_OT_Base', '# [MOCKED] Massa_OT_Base', code)
-                code = re.sub(r'from\s+\.+\s*massa_builder\s+import\s+MassaBuilder', '# [MOCKED] MassaBuilder', code)
+                # Allow optional 'modules.' prefix for MassaBuilder
+                code = re.sub(r'from\s+\.+\s*(?:modules\.)?massa_builder\s+import\s+MassaBuilder', '# [MOCKED] MassaBuilder', code)
 
                 # Check for remaining relative imports
                 if "from ." in code:
