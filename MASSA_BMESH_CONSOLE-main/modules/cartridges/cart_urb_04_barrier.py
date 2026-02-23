@@ -4,9 +4,10 @@ import math
 from mathutils import Vector, Matrix
 from bpy.props import FloatProperty, EnumProperty, BoolProperty, IntProperty
 from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
 CARTRIDGE_META = {
-    "name": "URB_04: Jersey Barrier",
+    "name": "URB_04: Barrier",
     "id": "urb_04_barrier",
     "icon": "MOD_SOLIDIFY",
     "scale_class": "STANDARD",
@@ -24,117 +25,142 @@ class MASSA_OT_UrbBarrier(Massa_OT_Base):
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
     # Dimensions
-    length: FloatProperty(name="Length", default=3.0, min=0.1)
-    height: FloatProperty(name="Height", default=0.9, min=0.1)
-    width_base: FloatProperty(name="Base Width", default=0.6, min=0.1)
-    width_top: FloatProperty(name="Top Width", default=0.2, min=0.05)
+    length: FloatProperty(name="Length", default=2.0, min=0.5)
+    width: FloatProperty(name="Width", default=0.6, min=0.1)
+    height: FloatProperty(name="Height", default=0.9, min=0.3)
 
-    # Profile
-    break_height: FloatProperty(name="Slope Break H", default=0.25, min=0.0) # Height of first slope
-    break_width: FloatProperty(name="Slope Break W", default=0.4, min=0.1) # Width at break
+    # Style
+    style: EnumProperty(
+        name="Style",
+        items=[
+            ("JERSEY", "Jersey", "Concrete Highway Barrier"),
+            ("PLANTER", "Planter", "Concrete Box Planter"),
+            ("BOLLARD_ROW", "Bollards", "Row of Posts"),
+        ],
+        default="JERSEY"
+    )
+
+    # UV
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
 
     def get_slot_meta(self):
         return {
             0: {"name": "Concrete", "uv": "SKIP", "phys": "CONCRETE"},
-            9: {"name": "Socket Anchor", "sock": True}
+            1: {"name": "Soil/Detail", "uv": "SKIP", "phys": "DIRT"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
-
-    def build_shape(self, bm):
-        # 1. Initialize Layers
-        uv_layer = bm.loops.layers.uv.verify()
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-
-        l = self.length
-        h = self.height
-        wb = self.width_base
-        wt = self.width_top
-        bh = self.break_height
-        bw = self.break_width
-
-        # 2. Generate Profile (XZ Plane at Y=-l/2)
-        # Symmetrical K-Rail profile
-        # Points (Left half, then mirror? Or full loop)
-
-        # 0: Base Left (-wb/2, 0)
-        # 1: Break Left (-bw/2, bh)
-        # 2: Top Left (-wt/2, h)
-        # 3: Top Right (wt/2, h)
-        # 4: Break Right (bw/2, bh)
-        # 5: Base Right (wb/2, 0)
-        # 6: Close loop to 0
-
-        start_y = -l/2
-
-        verts = [
-            bm.verts.new(Vector((-wb/2, start_y, 0))),
-            bm.verts.new(Vector((-bw/2, start_y, bh))),
-            bm.verts.new(Vector((-wt/2, start_y, h))),
-            bm.verts.new(Vector((wt/2, start_y, h))),
-            bm.verts.new(Vector((bw/2, start_y, bh))),
-            bm.verts.new(Vector((wb/2, start_y, 0)))
-        ]
-
-        # Create Face
-        face_prof = bm.faces.new(verts)
-        face_prof.material_index = 0
-
-        # 3. Extrude along Y
-        ret = bmesh.ops.extrude_face_region(bm, geom=[face_prof])
-        verts_ext = [e for e in ret['geom'] if isinstance(e, bmesh.types.BMVert)]
-        bmesh.ops.translate(bm, vec=Vector((0, l, 0)), verts=verts_ext)
-
-        # 4. Interlocking Notches (Male/Female)
-        # Male at Front (Y max), Female at Back (Y min)
-        # Select Front Face (End Cap)
-        # Extrude small protrusion? Or simplify.
-        # Let's bevel the top edges or mark them.
-
-        # Mark Top Ridges as Edge Slot 1
-        # Edges between Top Face and Side Faces
-        # Z approx h.
-        for e in bm.edges:
-            v1, v2 = e.verts
-            if abs(v1.co.z - h) < 0.01 and abs(v2.co.z - h) < 0.01:
-                # Top edges
-                # Filter for longitudinal ones (Y diff)
-                if abs(v1.co.y - v2.co.y) > 0.1:
-                    e[edge_slots] = 1 # Perimeter/Sharp
-
-        # 5. Sockets
-        # Ends
-        for f in bm.faces:
-            n = f.normal
-            if abs(n.y) > 0.9:
-                f.material_index = 9 # Socket
-
-        # 6. Manual UVs
-        scale = getattr(self, "uv_scale_0", 1.0)
-        for f in bm.faces:
-            mat_idx = f.material_index
-            if mat_idx == 9: continue
-
-            n = f.normal
-            for l in f.loops:
-                if abs(n.y) > 0.5: # Ends -> XZ
-                    l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.z * scale)
-                elif abs(n.z) > 0.8: # Top/Bottom -> XY
-                    l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.y * scale)
-                else: # Slopes -> Project on YZ (Length vs Height)
-                    # Length is Y. Height (slope) is hypotenuse.
-                    # Simple box mapping:
-                    if abs(n.x) > 0.5:
-                        l[uv_layer].uv = (l.vert.co.y * scale, l.vert.co.z * scale)
-                    else:
-                        l[uv_layer].uv = (l.vert.co.x * scale, l.vert.co.y * scale) # Fallback
 
     def draw_shape_ui(self, layout):
         col = layout.column(align=True)
-        col.prop(self, "length")
-        col.prop(self, "height")
-        col.prop(self, "width_base")
-        col.prop(self, "width_top")
+        col.prop(self, "style")
         layout.separator()
-        col.prop(self, "break_height")
-        col.prop(self, "break_width")
+        col.prop(self, "length")
+        col.prop(self, "width")
+        col.prop(self, "height")
+
+    def build_shape(self, bm):
+        # Ensure Layers
+        if not bm.faces.layers.int.get("MASSA_SOCKETS"):
+            bm.faces.layers.int.new("MASSA_SOCKETS")
+        if not bm.edges.layers.int.get("MASSA_EDGE_SLOTS"):
+            bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        builder = MassaBuilder(bm)
+
+        l, w, h = self.length, self.width, self.height
+
+        if self.style == 'JERSEY':
+            # Jersey Barrier Profile
+            # Extrude Y. Profile XZ.
+            # Base width: w. Top width: w/3.
+            # Vertical step at base? usually sloped.
+            # Profile points:
+            # (-w/2, 0) -> (-w/2, h_base) -> (-w/6, h) -> (w/6, h) -> (w/2, h_base) -> (w/2, 0)
+
+            h_base = 0.15 # Vertical base lip
+            w_top = w * 0.3
+
+            # Create Verts for Face at Y = -l/2
+            pts = [
+                Vector((-w/2, -l/2, 0)),
+                Vector((-w/2, -l/2, h_base)),
+                Vector((-w_top/2, -l/2, h)),
+                Vector((w_top/2, -l/2, h)),
+                Vector((w/2, -l/2, h_base)),
+                Vector((w/2, -l/2, 0))
+            ]
+
+            # Create Face
+            f = bm.faces.new([bm.verts.new(p) for p in pts])
+            f.material_index = 0
+
+            # Extrude
+            builder.active_faces = [f]
+            builder.extrude(l, axis=Vector((0,1,0)))
+
+            # Tag all as Concrete
+            builder.tag_slot(0)
+
+            # Mark sharp edges on the extrusion?
+            # Edges parallel to Y.
+            # Auto-detect might handle it.
+
+        elif self.style == 'PLANTER':
+            # Box with Inset Top
+            builder.create_box(w, l, h, center=Vector((0,0,h/2)))
+            builder.tag_slot(0)
+
+            # Inset Top
+            builder.select_faces_by_normal(Vector((0,0,1)), tolerance=0.1)
+            builder.inset(amount=0.1, depth=-0.3)
+            # Inner face is Soil
+            builder.tag_slot(1)
+
+        elif self.style == 'BOLLARD_ROW':
+            # Row of cylinders
+            # Spacing ~ 1.5m
+            count = int(l / 1.5)
+            if count < 2: count = 2
+
+            step = l / (count - 1)
+            start_y = -l/2
+
+            b_rad = w * 0.3
+            if b_rad > 0.15: b_rad = 0.15
+
+            for i in range(count):
+                y = start_y + i * step
+                builder.create_cylinder(radius=b_rad, depth=h, segments=12, center=Vector((0, y, h/2)))
+                builder.tag_slot(0)
+                # Domed Top?
+                builder.select_faces_by_normal(Vector((0,0,1)), tolerance=0.1)
+                # Bevel top edge?
+                builder.select_boundary().bevel(offset=0.03)
+
+        # 4. Sockets
+        # Ends (-L/2, +L/2)
+        # Select faces near ends
+
+        # Left (-Y)
+        builder.select_faces_by_normal(Vector((0, -1, 0)), tolerance=0.1)
+        # Filter by position Y approx -l/2
+        valid = [f for f in builder.active_faces if abs(f.calc_center_median().y + l/2) < 0.1]
+        builder.active_faces = valid
+        builder.tag_socket(9).tag_slot(9)
+
+        # Right (+Y)
+        builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1)
+        valid = [f for f in builder.active_faces if abs(f.calc_center_median().y - l/2) < 0.1]
+        builder.active_faces = valid
+        builder.tag_socket(9).tag_slot(9)
+
+        # 5. Manual UVs
+        # Slot 0: Box
+        builder.select_faces_by_slot(0) \
+               .tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        # Slot 1: Planar Z (Soil)
+        builder.select_faces_by_slot(1) \
+               .tag_uvs(scale=self.uv_scale, projection='VIEW')
+
+        builder._update()
