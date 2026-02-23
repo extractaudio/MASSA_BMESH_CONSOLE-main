@@ -326,6 +326,70 @@ def apply_safety_decimate(bm, target_count=1000000):
         pass
 
 
+def apply_cleanup(bm, fix_degenerate=True, fix_thin=True):
+    """
+    Removes zero-area faces and extremely thin slivers that confuse UV unwrapping.
+    """
+    if not bm.verts: return
+
+    bm.verts.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+
+    # 1. Zero Area / Degenerate
+    if fix_degenerate:
+        try:
+            bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=True, faces=True)
+        except:
+            pass
+
+    # 2. Thin Faces (Slivers)
+    # Strategy: Perimeter^2 / Area > Threshold
+    if fix_thin:
+        faces_to_dissolve = []
+        # Re-ensure after potential degenerate fix
+        bm.faces.ensure_lookup_table()
+
+        for f in bm.faces:
+            if not f.is_valid: continue
+
+            area = f.calc_area()
+            if area < 0.000001:
+                print(f"DEBUG: Found Zero Area Face {f.index} (Area: {area})")
+                faces_to_dissolve.append(f)
+                continue
+
+            perimeter = sum([e.calc_length() for e in f.edges])
+            if perimeter > 0:
+                ratio = (perimeter * perimeter) / area
+                print(f"DEBUG: Face {f.index} Ratio: {ratio} (Area: {area})")
+                if ratio > 1000.0:
+                    faces_to_dissolve.append(f)
+
+        if faces_to_dissolve:
+            # Try dissolve first (Preserves topology if connected)
+            try:
+                bmesh.ops.dissolve_faces(bm, faces=faces_to_dissolve)
+            except:
+                pass
+
+            # Force delete any that remain (e.g. isolated faces that dissolve failed on)
+            remaining = [f for f in faces_to_dissolve if f.is_valid]
+            if remaining:
+                try:
+                    bmesh.ops.delete(bm, geom=remaining, context="FACES")
+                except:
+                    pass
+
+            # Cleanup loose stuff
+            bm.verts.ensure_lookup_table()
+            loose_verts = [v for v in bm.verts if not v.link_edges]
+            if loose_verts:
+                bmesh.ops.delete(bm, geom=loose_verts, context="VERTS")
+
+    bm.verts.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+
+
 def apply_solidify(bm, thickness):
     if abs(thickness) < 0.0001 or not bm.faces:
         return
