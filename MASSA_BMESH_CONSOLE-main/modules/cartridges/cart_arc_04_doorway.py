@@ -50,10 +50,10 @@ class MASSA_OT_ArcDoorway(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Door Leaf", "uv": "UNWRAP", "phys": "DEBUG_1"},
-            1: {"name": "Frame", "uv": "UNWRAP", "phys": "DEBUG_2"},
-            3: {"name": "Glass", "uv": "FIT", "phys": "DEBUG_4"}, # Keep FIT
-            7: {"name": "Hardware", "uv": "UNWRAP", "phys": "DEBUG_3"},
+            0: {"name": "Door Leaf", "uv": "SKIP", "phys": "DEBUG_1"},
+            1: {"name": "Frame", "uv": "SKIP", "phys": "DEBUG_2"},
+            3: {"name": "Glass", "uv": "SKIP", "phys": "DEBUG_4"}, # FIT is manual
+            7: {"name": "Hardware", "uv": "SKIP", "phys": "DEBUG_3"},
             9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
@@ -71,62 +71,62 @@ class MASSA_OT_ArcDoorway(Massa_OT_Base):
         builder.create_box(fw, fd, dh) \
                .translate(-dw/2 - fw/2, 0, dh/2) \
                .tag_slot(1) \
-               .select_boundary().tag_edge_role(1)
+               .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
         builder.create_box(fw, fd, dh) \
                .translate(dw/2 + fw/2, 0, dh/2) \
                .tag_slot(1) \
-               .select_boundary().tag_edge_role(1)
+               .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
         # Header
         builder.create_box(dw + 2*fw, fd, fw) \
                .translate(0, 0, dh + fw/2) \
                .tag_slot(1) \
-               .select_boundary().tag_edge_role(1)
+               .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
         # 2. Leaf Generation based on Style
         if self.door_style == 'GLASS':
             # Frame around glass
             frame_t = 0.05
             # Top/Bottom Rails
-            builder.create_box(dw, lt, frame_t).translate(0, 0, frame_t/2).tag_slot(0).select_boundary().tag_edge_role(1)
-            builder.create_box(dw, lt, frame_t).translate(0, 0, dh - frame_t/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(dw, lt, frame_t).translate(0, 0, frame_t/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(dw, lt, frame_t).translate(0, 0, dh - frame_t/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
             # Side Stiles
-            builder.create_box(frame_t, lt, dh).translate(-dw/2 + frame_t/2, 0, dh/2).tag_slot(0).select_boundary().tag_edge_role(1)
-            builder.create_box(frame_t, lt, dh).translate(dw/2 - frame_t/2, 0, dh/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(frame_t, lt, dh).translate(-dw/2 + frame_t/2, 0, dh/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(frame_t, lt, dh).translate(dw/2 - frame_t/2, 0, dh/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
             # Glass
             builder.create_box(dw - 2*frame_t, 0.02, dh - 2*frame_t).translate(0, 0, dh/2).tag_slot(3).tag_uvs(1.0, 'FIT')
 
         elif self.door_style == 'SCIFI':
             # Bulkhead Door (Octagonal-ish or Heavy)
-            builder.create_box(dw, lt * 2, dh).translate(0, 0, dh/2).tag_slot(0)
+            builder.create_box(dw, lt * 2, dh).translate(0, 0, dh/2).tag_slot(0).tag_uvs(1.0, 'BOX')
 
             # Inset Detail
             builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1) \
                    .inset(0.15, depth=-0.05).tag_slot(1) \
-                   .select_boundary().tag_edge_role(2) # Sharp (inset edges)
+                   .select_boundary().tag_edge_role(2).tag_uvs(1.0, 'BOX') # Sharp (inset edges)
 
             # Mark main leaf boundary
             builder.select_all_faces().select_faces_by_slot(0).select_boundary().tag_edge_role(1)
 
             # Add some heavy bolts/pads
-            builder.create_box(0.2, lt*2.2, 0.4).translate(0, 0, dh/2).tag_slot(7).select_boundary().tag_edge_role(1)
+            builder.create_box(0.2, lt*2.2, 0.4).translate(0, 0, dh/2).tag_slot(7).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
         else: # STANDARD
             # Stops
             stop_thick, stop_width = 0.02, 0.03
             stop_y_offset = lt/2 + stop_width/2
-            builder.create_box(stop_thick, stop_width, dh).translate(-dw/2 + stop_thick/2, stop_y_offset, dh/2).tag_slot(1).select_boundary().tag_edge_role(1)
-            builder.create_box(stop_thick, stop_width, dh).translate(dw/2 - stop_thick/2, stop_y_offset, dh/2).tag_slot(1).select_boundary().tag_edge_role(1)
-            builder.create_box(dw, stop_width, stop_thick).translate(0, stop_y_offset, dh - stop_thick/2).tag_slot(1).select_boundary().tag_edge_role(1)
+            builder.create_box(stop_thick, stop_width, dh).translate(-dw/2 + stop_thick/2, stop_y_offset, dh/2).tag_slot(1).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(stop_thick, stop_width, dh).translate(dw/2 - stop_thick/2, stop_y_offset, dh/2).tag_slot(1).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(dw, stop_width, stop_thick).translate(0, stop_y_offset, dh - stop_thick/2).tag_slot(1).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
             # Initial Leaf Box
-            builder.create_box(dw, lt, dh).translate(0, 0, dh/2).tag_slot(0)
+            builder.create_box(dw, lt, dh).translate(0, 0, dh/2).tag_slot(0).tag_uvs(1.0, 'BOX')
 
             # Panels (Inset)
             leaf_faces = [f for f in builder.active_faces if abs(f.normal.y) > 0.9]
             builder.active_faces = leaf_faces
             if leaf_faces:
                 builder.inset(0.1, relative=False).inset(0.03, depth=-0.015, relative=False) \
-                       .select_boundary().tag_edge_role(2) # Sharp inset
+                       .select_boundary().tag_edge_role(2).tag_uvs(1.0, 'BOX') # Sharp inset
 
             # Mark main leaf boundary (Select by slot 0 to catch all leaf geometry)
             builder.select_all_faces().select_faces_by_slot(0).select_boundary().tag_edge_role(1)
@@ -136,7 +136,7 @@ class MASSA_OT_ArcDoorway(Massa_OT_Base):
             h_h = self.handle_height
             h_x = dw/2 - 0.1
             h_y = lt/2 + 0.005
-            builder.create_box(0.12, 0.04, 0.02).translate(h_x, h_y + 0.02, h_h).tag_slot(7).select_boundary().tag_edge_role(1)
+            builder.create_box(0.12, 0.04, 0.02).translate(h_x, h_y + 0.02, h_h).tag_slot(7).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
         # 4. Rotation Logic (Common)
         if abs(self.open_angle) > 0.001:

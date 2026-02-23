@@ -55,7 +55,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         return {
             0: {"name": "Wall Surface", "uv": "UNWRAP", "phys": "DEBUG_1"},
             1: {"name": "Detail", "uv": "UNWRAP", "phys": "DEBUG_2"},
-            2: {"name": "Trim", "uv": "UNWRAP", "phys": "DEBUG_3"},
+            2: {"name": "Trim", "uv": "SKIP", "phys": "DEBUG_3"},
             9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
         }
 
@@ -137,7 +137,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                         builder.create_box(r['w'], t * 1.2, rail_h) \
                                .translate(cx, t/2, rail_z + rail_h/2) \
                                .tag_slot(2) \
-                               .select_boundary().tag_edge_role(2)
+                               .select_boundary().tag_edge_role(2).tag_uvs(1.0, 'BOX')
 
         # Merge Segments before tagging seams to ensure continuous mesh
         builder.clean()
@@ -186,7 +186,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                 builder.create_box(r['w'], bd, bh) \
                        .translate(cx, -bd/2, cz) \
                        .tag_slot(2) \
-                       .select_boundary().tag_edge_role(2) # Sharp/Contour (No Seam for baseboard internal?)
+                       .select_boundary().tag_edge_role(2).tag_uvs(1.0, 'BOX') # Sharp/Contour (No Seam for baseboard internal?)
                        # Actually baseboard is usually separate island. Let's mark perimeter as Seam (1)
 
                 builder.select_boundary().tag_edge_role(1)
@@ -195,7 +195,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                 builder.create_box(r['w'], bd, bh) \
                        .translate(cx, t + bd/2, cz) \
                        .tag_slot(2) \
-                       .select_boundary().tag_edge_role(1)
+                       .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
 
         # Sockets (Tagging existing faces)
         builder.clean() # Final cleanup
