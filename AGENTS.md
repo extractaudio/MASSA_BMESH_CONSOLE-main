@@ -19,31 +19,32 @@ Do not write custom execution scripts. You have a built-in headless debugging su
 | **Audit Cartridge** | `python modules/debugging_system/runner.py --cartridge modules/cartridges/<name>.py --mode AUDIT` | Runs geometric checks (zero area faces, loose verts, non-manifold geometry, pinched UVs). |
 | **Fuzz Test** | The `runner.py` tool automatically utilizes `auditors/massa_fuzz_auditor.py` during audits to randomize parameters and check for crashes. |
 | **Visual Diff** | `python modules/debugging_system/runner.py --cartridge <path_a> --mode VISUAL_DIFF --payload '{"filename_b": "<path_b>"}'` | Generates a red/green comparison image of two cartridge versions. |
+| **Render Verify** | `python modules/debugging_system/runner.py --cartridge <name> --mode RENDER --payload '{"camera_angle": "ISO_CAM", "shading": "SOLID"}'` | **CRITICAL:** Generates a PNG snapshot of the geometry. |
 
 ## 3. The Prime Directives for Cartridge Development
 
 When tasked with creating or modifying a Cartridge in `modules/cartridges/`, you MUST adhere to the following rules:
 
-1. **Inheritance**: The class must inherit from `Massa_OT_Base`.
-2. **Metadata**: You must define `CARTRIDGE_META` (containing `name`, `id`, `icon`, and `flags`) at the top of the file.
-3. **No `bpy.ops`**: Inside the `build_shape(self, bm)` method, you are strictly forbidden from using `bpy.ops`. You must construct geometry using `bmesh.ops` or pure math.
-4. **Slot Mapping**: You must define `get_slot_meta(self)` returning up to 10 slots (0-9). These must map to valid `phys` identifiers (e.g., `METAL_STEEL`) and define a `uv` mapping strategy (e.g., `SKIP`, `BOX`, `UNWRAP`).
-5. **Edge Roles (1-5)**: If you manually define edge roles in BMesh using the `MASSA_EDGE_SLOTS` integer layer, map them strictly:
-   - 1 = Perimeter
-   - 2 = Contour
-   - 3 = Guide
-   - 4 = Detail
-   - 5 = Special
+1.  **Inheritance**: The class must inherit from `Massa_OT_Base`.
+2.  **Metadata**: You must define `CARTRIDGE_META` (containing `name`, `id`, `icon`, and `flags`) at the top of the file.
+3.  **No `bpy.ops`**: Inside the `build_shape(self, bm)` method, you are strictly forbidden from using `bpy.ops`. You must construct geometry using `bmesh.ops` or pure math (via `MassaBuilder`).
+4.  **Slot Mapping**: You must define `get_slot_meta(self)` returning up to 10 slots (0-9). These must map to valid `phys` identifiers (e.g., `METAL_STEEL`) and define a `uv` mapping strategy (e.g., `SKIP`, `BOX`, `UNWRAP`).
+5.  **Edge Roles (1-5)**: If you manually define edge roles in BMesh using the `MASSA_EDGE_SLOTS` integer layer, map them strictly:
+    -   1 = Perimeter
+    -   2 = Contour
+    -   3 = Guide
+    -   4 = Detail
+    -   5 = Special
 
 ## 4. Parameter Addition Protocol (The Rule of Five)
 
 If tasked with adding a new global parameter to the engine, you must strictly modify all 5 bridge points to ensure state synchronization:
 
-1. **Brain**: Add the property definition to `bpy.types.Scene` via `modules/massa_properties.py`.
-2. **Muscle**: Add to `bpy.types.Operator` via inheritance (handled automatically if added to `MassaPropertiesMixin`).
-3. **Bridge**: Add the string name of the exact property to the `_sync()` list in `operators/massa_base.py`.
-4. **Interface**: Add the UI drawing logic to the Sidebar UI in `ui/ui_shared.py`.
-5. **Logic**: Implement the geometric/system logic inside the Engine pipeline (e.g., `modules/massa_polish.py`, `modules/massa_engine.py`, or `modules/massa_surface.py`).
+1.  **Brain**: Add the property definition to `bpy.types.Scene` via `modules/massa_properties.py`.
+2.  **Muscle**: Add to `bpy.types.Operator` via inheritance (handled automatically if added to `MassaPropertiesMixin`).
+3.  **Bridge**: Add the string name of the exact property to the `_sync()` list in `operators/massa_base.py`.
+4.  **Interface**: Add the UI drawing logic to the Sidebar UI in `ui/ui_shared.py`.
+5.  **Logic**: Implement the geometric/system logic inside the Engine pipeline (e.g., `modules/massa_polish.py`, `modules/massa_engine.py`, or `modules/massa_surface.py`).
 
 ## 5. The Golden Cartridge Workflow
 
@@ -51,10 +52,26 @@ Whenever you are tasked with creating or modifying a cartridge in `modules/cartr
 
 Before writing any code, you MUST execute the following workflow:
 
-1. **Read the Mandate:** Ingest `CARTRIDGE_MANDATE.md` to refresh your understanding of manual UV mapping, Edge Slots (1-5), and Socket Protocols.
-2. **Analyze a Golden Reference:** Inspect an existing "Golden Cartridge" that closely matches the new task to understand the established mathematical patterns.
-   - For structural profiles: Analyze `cart_prim_01_beam.py`
-   - For complex UVs and boolean-like math: Analyze `cart_prim_04_panel.py`
-   - For mathematical curves/arrays: Analyze `cart_prim_05_catenary.py` or `cart_prim_11_helix.py`
-3. **Execute:** Write the `build_shape` logic using purely `bmesh` and `mathutils`.
-4. **Verify:** Run the `modules/debugging_system/runner.py` in AUDIT mode to ensure zero topology flags are triggered.
+1.  **Read the Mandate:** Ingest `CARTRIDGE_MANDATE.md` to refresh your understanding of manual UV mapping, Edge Slots (1-5), and Socket Protocols.
+2.  **Analyze a Golden Reference:** Inspect an existing "Golden Cartridge" that closely matches the new task to understand the established mathematical patterns.
+    -   For structural profiles: Analyze `cart_prim_01_beam.py`
+    -   For complex UVs and boolean-like math: Analyze `cart_prim_04_panel.py`
+    -   For mathematical curves/arrays: Analyze `cart_prim_05_catenary.py` or `cart_prim_11_helix.py`
+3.  **Execute:** Write the `build_shape` logic using purely `bmesh` and `mathutils` (using `MassaBuilder` where possible).
+4.  **Verify (Spatial):** Run `runner.py --mode RENDER` to generate an image. **You must view this image** using `read_image_file` to confirm proportions and orientation. Code blindly leads to errors.
+5.  **Verify (Technical):** Run the `modules/debugging_system/runner.py` in AUDIT mode to ensure zero topology flags are triggered.
+
+## 6. Protocol: Spatial Verification (The "Eyes")
+
+Your "spatial understanding" relies on visual feedback. You cannot assume your math is correct without seeing it.
+
+*   **Mandatory Step:** After any significant geometry change, you MUST run a Render Verification.
+*   **Command:** `blender --background --python modules/debugging_system/runner.py -- --cartridge <path> --mode RENDER --payload '{"camera_angle": "ISO_CAM"}'`
+*   **Action:** Use `read_image_file` on the resulting `/tmp/render_<name>.png`.
+*   **Analysis:** Ask yourself:
+    *   "Is the object upright (Z-up)?"
+    *   "Are the proportions realistic (e.g. is the door handle too high)?"
+    *   "Are there missing faces or flipped normals (black spots)?"
+    *   "Do the sockets appear where expected?"
+
+Use `builder.report()` to check numerical bounding boxes if visual ambiguity remains.
