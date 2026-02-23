@@ -66,10 +66,26 @@ Transform the selected geometry.
 Assign metadata for the Console (Materials, Physics, Sockets).
 
 *   `tag_slot(index)`: Assigns Material Slot 0-9.
-*   `tag_edge_role(id)`: Marks edges for Bevels/Seams (1=Peri, 2=Contour).
-*   `tag_socket(id)`: Creates attachment points for other cartridges.
+*   `tag_edge_role(id)`: Marks edges for Bevels/Seams (1=Peri, 2=Contour, 3=Guide, 4=Detail, 5=Fold).
+*   `tag_socket(id)`: Marks selected faces as sockets (center + normal). **No extra mesh required.**
 
 ## 3. Example Patterns
+
+### Pattern: The "Clean Socket"
+Creates a socket without generating extra geometry.
+
+```python
+# Create main shape
+builder.create_box(1, 1, 1)
+
+# Select Top Face for Socket 1 (Up)
+builder.select_faces_by_normal(Vector((0, 0, 1))) \
+       .tag_socket(1)
+
+# Select Bottom Face for Socket 2 (Down/Anchor)
+builder.select_faces_by_normal(Vector((0, 0, -1))) \
+       .tag_socket(2)
+```
 
 ### Pattern: The "Inset Panel"
 Creates a tech-panel look on a surface.

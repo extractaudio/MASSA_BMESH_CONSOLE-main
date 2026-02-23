@@ -92,12 +92,12 @@ class MASSA_OT_cart_unique_id(Massa_OT_Base):
           - 'sock': (Optional) True if this slot generates sockets
         """
         return {
-            0: {"name": "Base Hull",     "uv": "BOX",    "phys": "GENERIC"},
-            1: {"name": "Detail Vent",   "uv": "BOX",    "phys": "MECHANICAL"},
-            2: {"name": "Trim/Frame",    "uv": "STRIP",  "phys": "METAL_STEEL"},
-            3: {"name": "Glass/Screen",  "uv": "FIT",    "phys": "GLASS"},
+            0: {"name": "Base Hull",     "uv": "BOX",    "phys": "DEBUG_1"},
+            1: {"name": "Detail Vent",   "uv": "BOX",    "phys": "DEBUG_2"},
+            2: {"name": "Trim/Frame",    "uv": "STRIP",  "phys": "DEBUG_3"},
+            3: {"name": "Glass/Screen",  "uv": "FIT",    "phys": "DEBUG_4"},
             # ... define up to 9
-            9: {"name": "Socket Point",  "uv": "SKIP",   "sock": True},
+            9: {"name": "Socket Point",  "uv": "SKIP",   "sock": True, "phys": "DEBUG_9"},
         }
 
     # ---------------------------------------------------------
@@ -160,18 +160,18 @@ class MASSA_OT_cart_unique_id(Massa_OT_Base):
 
 **Usage:** `f.material_index = ID`
 
-| ID | Role | Physics Default | Description |
+| ID | Role | Default Material | Description |
 | :--- | :--- | :--- | :--- |
-| **0** | **BASE** | `GENERIC` | Main body, hull. |
-| **1** | **DETAIL** | `MECHANICAL` | Vents, grilles, insets. |
-| **2** | **TRIM** | `METAL_STEEL` | Frames, borders. |
-| **3** | **GLASS** | `GLASS` | Windows, screens. |
-| **4** | **EMISSION** | `EMISSIVE` | Lights, energy. |
-| **5** | **DARK** | `RUBBER` | Inner shadows, tires. |
-| **6** | **ACCENT** | `PAINT` | Decals, stripes. |
-| **7** | **UTILITY** | `METAL_ROUGH` | Bolts, handles. |
-| **8** | **TRANSPARENT** | `ENERGY` | Forcefields. |
-| **9** | **SOCKET** | `NONE` | **Invisible**. Used for snapping points. |
+| **0** | **BASE** | `DEBUG_1` | Main body, hull. |
+| **1** | **DETAIL** | `DEBUG_2` | Vents, grilles, insets. |
+| **2** | **TRIM** | `DEBUG_3` | Frames, borders. |
+| **3** | **GLASS** | `DEBUG_4` | Windows, screens. |
+| **4** | **EMISSION** | `DEBUG_5` | Lights, energy. |
+| **5** | **DARK** | `DEBUG_6` | Inner shadows, tires. |
+| **6** | **ACCENT** | `DEBUG_7` | Decals, stripes. |
+| **7** | **UTILITY** | `DEBUG_8` | Bolts, handles. |
+| **8** | **TRANSPARENT** | `DEBUG_9` | Forcefields. |
+| **9** | **SOCKET** | `DEBUG_9` | **Anchor/Invisible**. Used for snapping points. |
 
 ### D. Edge Protocol (Edges 1-5)
 
