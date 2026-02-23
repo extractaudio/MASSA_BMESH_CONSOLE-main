@@ -435,6 +435,10 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
     if owner.auto_unwrap:
         box.prop(owner, "auto_unwrap_margin", text="Margin")
 
+    # [ARCHITECT NEW] Finalize & Audit
+    box.separator()
+    box.operator("massa.finalize_and_inspect", text="Finalize & Audit UVs", icon="CHECKMARK")
+
     layout.separator()
 
     layout.label(text="Seam Intelligence", icon="GROUP_UVS")

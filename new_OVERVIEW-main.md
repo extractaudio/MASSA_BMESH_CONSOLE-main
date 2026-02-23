@@ -177,13 +177,15 @@ class MASSA_OT_cart_unique_id(Massa_OT_Base):
 
 **Usage:** `e[bm.edges.layers.int["MASSA_EDGE_SLOTS"]] = ID`
 
-| ID | Name | Behavior |
-| :--- | :--- | :--- |
-| **1** | **PERIMETER** | **Seam + Sharp + Bevel**. The outer silhouette. |
-| **2** | **CONTOUR** | **Sharp + Bevel**. Hard internal angles (90°). |
-| **3** | **GUIDE** | **Seam Only**. Manual UV cut lines (for cylinders/organic). |
-| **4** | **DETAIL** | **Bevel Only**. Small chamfers. No sharp shading. |
-| **5** | **FOLD** | **Crease**. Subdivision weighting / Cloth pinning. |
+The system uses intelligent geometric analysis to assign these roles if not manually set:
+
+| ID | Name | Behavior | Auto-Detection Logic |
+| :--- | :--- | :--- | :--- |
+| **1** | **PERIMETER** | **Seam + Sharp + Bevel**. The outer silhouette. | Edges separating "End Caps" (Top/Bottom) from "Walls" (Sides). |
+| **2** | **CONTOUR** | **Sharp + Bevel**. Hard internal angles (90°). | Sharp edges not on the perimeter. |
+| **3** | **GUIDE** | **Seam Only**. Manual UV cut lines (for cylinders/organic). | Pathfinding walks along "Wall" geometry to connect End Caps. |
+| **4** | **DETAIL** | **Bevel Only**. Small chamfers. No sharp shading. | Material boundaries or internal details. |
+| **5** | **FOLD** | **Crease**. Subdivision weighting / Cloth pinning. | N/A (Manual only). |
 
 ### E. UV Strategy
 
@@ -193,6 +195,9 @@ Defined in `get_slot_meta()` under the `"uv"` key.
 *   `"UNWRAP"`: LSCM Unwrap. **REQUIRES SEAMS** (Edge Slot 1 or 3). Best for organic/curved.
 *   `"FIT"`: Stretches UVs to fill 0-1. Best for screens/glass (Slot 3, 4, 8).
 *   `"SKIP"`: No UVs generated. (Use for Sockets).
+
+**Visual Audit & Fix:**
+A "Finalize & Audit" tool is available in the UVs tab (and top of N-Panel). This operator applies all modifiers, strips metadata, and enters Edit Mode with all faces selected and unpacked, allowing immediate verification of the UV layout.
 
 ---
 
