@@ -2,304 +2,185 @@ import bpy
 import bmesh
 import math
 from mathutils import Vector, Matrix
+from bpy.props import FloatProperty, IntProperty, BoolProperty, EnumProperty
+from ...operators.massa_base import Massa_OT_Base
+from ...modules.massa_builder import MassaBuilder
 
-# ==============================================================================
-# CARTRIDGE METADATA
-#
-# ==============================================================================
 CARTRIDGE_META = {
-    "name": "Massa_Ind_Staircase",
-    "id": "PRIM_21_STAIR",
+    "name": "Industrial Stairs",
+    "id": "arch_03_stairs_industrial",
+    "icon": "MESH_STAIRS",
     "scale_class": "MACRO",
     "flags": {
+        "ALLOW_SOLIDIFY": False,
         "USE_WELD": True,
         "ALLOW_FUSE": True,
-        "ALLOW_SOLIDIFY": False,
         "FIX_DEGENERATE": True,
+        "ALLOW_CHAMFER": True,
+        "LOCK_PIVOT": True,
     },
 }
 
+class MASSA_OT_ArchStairsIndustrial(Massa_OT_Base):
+    bl_idname = "massa.gen_arch_03_stairs_industrial"
+    bl_label = "Industrial Stairs"
+    bl_options = {"REGISTER", "UNDO", "PRESET"}
 
-# ==============================================================================
-# SLOT PROTOCOL
-# ==============================================================================
-def get_slot_meta():
-    return {
-        0: {"name": "Metal_Painted_Steel", "type": "MAT", "phys": "METAL_STEEL"},
-        1: {"name": "Metal_Grate_Floor", "type": "MAT", "phys": "METAL_GRATE"},
-        2: {"name": "Rubber_Nosing_Grip", "type": "MAT", "phys": "RUBBER"},
-        3: {"name": "Safety_Caution_Yel", "type": "MAT", "phys": "PAINT"},
-        4: {"name": "Metal_Raw_Scaffold", "type": "MAT", "phys": "METAL_ALUM"},
-        8: {"name": "SYS_Anchor", "type": "SOCK", "phys": "AUX"},
-        9: {"name": "SYS_Socket", "type": "SOCK", "phys": "AUX"},
-    }
+    # Dimensions
+    stair_width: FloatProperty(name="Width", default=1.2, min=0.5)
+    stair_height: FloatProperty(name="Height", default=3.0, min=0.5)
+    stair_run: FloatProperty(name="Run Length", default=4.0, min=0.5)
+    step_count: IntProperty(name="Steps", default=12, min=2)
 
+    # Details
+    channel_width: FloatProperty(name="Channel Width", default=0.05, min=0.01)
+    channel_height: FloatProperty(name="Channel Height", default=0.25, min=0.1)
+    tread_thick: FloatProperty(name="Tread Thickness", default=0.05, min=0.01)
 
-# ==============================================================================
-# GEOMETRY ENGINE
-# ==============================================================================
-def build_shape(
-    bm: bmesh.types.BMesh, prop_width=1.2, prop_height=3.0, prop_run=4.0, prop_steps=12
-):
-    """
-    Generates Industrial Staircase using PRIM_01 (Stringers) and PRIM_04 (Treads).
-    """
+    def get_slot_meta(self):
+        return {
+            0: {"name": "Frame", "uv": "UNWRAP", "phys": "METAL_STEEL"}, # Stringers
+            1: {"name": "Grate", "uv": "UNWRAP", "phys": "METAL_GRATE"}, # Tread Top
+            2: {"name": "Nosing", "uv": "UNWRAP", "phys": "RUBBER"},    # Tread Front
+            3: {"name": "Warning", "uv": "UNWRAP", "phys": "PAINT"},    # Safety Yellow
+            4: {"name": "Scaffold", "uv": "UNWRAP", "phys": "METAL_ALUM"},
+            8: {"name": "Anchor Bottom", "uv": "SKIP", "phys": "GENERIC", "sock": True},
+            9: {"name": "Anchor Top", "uv": "SKIP", "phys": "GENERIC", "sock": True},
+        }
 
-    # 1. CALCULATE PITCH & SPACING
-    rise = prop_height / prop_steps
-    run_depth = prop_run / prop_steps
+    def draw_shape_ui(self, layout):
+        col = layout.column(align=True)
+        col.label(text="Dimensions", icon="FIXED_SIZE")
+        col.prop(self, "stair_width")
+        col.prop(self, "stair_height")
+        col.prop(self, "stair_run")
+        col.prop(self, "step_count")
 
-    # 2. GENERATE STRINGERS (PRIM_01 LOGIC)
-    # - PRIM_01 Algorithm
+        col.separator()
+        col.label(text="Details", icon="MESH_DATA")
+        col.prop(self, "channel_width")
+        col.prop(self, "channel_height")
+        col.prop(self, "tread_thick")
 
-    channel_w = 0.05
-    channel_h = 0.25
+        # Info
+        rise = self.stair_height / max(1, self.step_count)
+        run = self.stair_run / max(1, self.step_count)
+        col.label(text=f"Rise: {rise:.2f}m | Run: {run:.2f}m", icon="INFO")
 
-    # Define C-Channel Profile (Local XY for simple extrusion, will rotate later)
-    # 2D Profile Points for UV Walking
-    profile_pts = [
-        (channel_w, channel_h / 2),  # Top Flange Tip
-        (0.0, channel_h / 2),  # Top Corner
-        (0.0, -channel_h / 2),  # Bottom Corner
-        (channel_w, -channel_h / 2),  # Bottom Flange Tip
-    ]
+    def build_shape(self, bm: bmesh.types.BMesh):
+        builder = MassaBuilder(bm)
 
-    # Helper: PRIM_01 Golden Snippet (Perimeter Walking)
-    # Calculates 'U' based on Euclidean distance along the profile
-    def get_u_param(x, y, pts):
-        cu = 0.0
-        total_len = 0.0
-        # Calculate total length first for normalization (optional, here we keep metric)
-        for i in range(len(pts) - 1):
-            total_len += math.hypot(
-                pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]
-            )
+        w = self.stair_width
+        h = self.stair_height
+        l = self.stair_run
+        count = max(1, self.step_count)
 
-        for i in range(len(pts)):
-            p1 = pts[i]
-            # If vertex matches point, return current accumulator
-            if math.hypot(p1[0] - x, p1[1] - y) < 0.001:
-                return cu
-            if i < len(pts) - 1:
-                pn = pts[i + 1]
-                cu += math.hypot(pn[0] - p1[0], pn[1] - p1[1])
-        return 0.0
+        rise = h / count
+        run = l / count
 
-    def create_stringer(offset_x):
-        # Create Verts for the Cap
-        input_verts = []
-        for px, py in profile_pts:
-            # Create base profile. We orient it so 'Y' is up/down in profile space,
-            # which maps to Z in world space eventually.
-            # Local construct: X=Width, Y=Height.
-            v = bm.verts.new(Vector((px + offset_x, 0, py)))
-            input_verts.append(v)
+        # 1. STRINGERS (C-Channels)
+        # We construct them flat then rotate pitch.
+        stair_len = math.sqrt(l**2 + h**2)
+        pitch = math.atan2(h, l)
 
-        # Connect Face (Cap)
-        face_start = bm.faces.new(input_verts)
-        face_start.material_index = 0  # Metal_Painted_Steel
+        cw = self.channel_width
+        ch = self.channel_height
+        flange_t = 0.01
 
-        # EXTRUDE (PRIM_01 Base Extrusion)
-        # Extrude along Y (Length) initially
-        stair_length = math.hypot(prop_height, prop_run)
-        geom_ext = bmesh.ops.extrude_face_region(bm, geom=[face_start])
+        # Build 2 Stringers
+        for side in [-1, 1]:
+            # Center X pos
+            cx = side * (w/2 - cw/2)
 
-        verts_extruded = [
-            v for v in geom_ext["geom"] if isinstance(v, bmesh.types.BMVert)
-        ]
-        faces_extruded = [
-            f for f in geom_ext["geom"] if isinstance(f, bmesh.types.BMFace)
-        ]
+            # Construct C-Channel parts aligned to Y (length)
+            # Web (Vertical side)
+            # Create box at origin, move to side
+            builder.create_box(flange_t, stair_len, ch) \
+                   .translate(side * (cw/2 - flange_t/2), 0, 0) # Offset relative to stringer center
 
-        # Move extruded verts to length
-        bmesh.ops.translate(bm, verts=verts_extruded, vec=Vector((0, stair_length, 0)))
+            # Flanges (Top/Bottom)
+            # Top
+            builder.create_box(cw, stair_len, flange_t) \
+                   .translate(0, 0, ch/2 - flange_t/2)
+            # Bottom
+            builder.create_box(cw, stair_len, flange_t) \
+                   .translate(0, 0, -ch/2 + flange_t/2)
 
-        # UV MAPPING (The PRIM_01 Logic)
-        uv_layer = bm.loops.layers.uv.verify()
+            # Combine parts into stringer selection (active_faces updated by last call)
+            # We need to rotate ALL parts just created.
+            # Best way: Group them? Or apply transform to last 3 creations.
+            # MassaBuilder accumulates selection? No, create_box REPLACES selection.
+            # So we must transform each part immediately or select all slot-0 faces?
+            # Or build the whole stringer at origin then move/rotate.
 
-        # Process Side Walls (The Extrusion)
-        for f in faces_extruded:
-            f.material_index = 0
-            # Identify if this is a wall or a cap?
-            # In extrude_face_region, the new faces are the walls.
-            for loop in f.loops:
-                v = loop.vert
-                # Map U to profile perimeter, V to Length (Y)
-                # We need to recover the local X/Z relative to the profile start
-                # Since we translated Y, the X and Z coords are constant along the beam.
-                local_x = v.co.x - offset_x
-                local_z = v.co.z
+            # Let's fix the logic:
+            # The builder methods operate on active selection.
+            # But I need to rotate the composite object.
 
-                u_val = get_u_param(local_x, local_z, profile_pts)
-                v_val = v.co.y  # Length
+            # Alternative: Calculate transformations first.
+            rot_mat = Matrix.Rotation(pitch, 4, 'X')
 
-                loop[uv_layer].uv = (u_val, v_val)
+            # Re-do with correct transform immediately
+            # Web
+            builder.create_box(flange_t, stair_len, ch) \
+                   .translate(side * (cw/2 - flange_t/2), 0, 0) \
+                   .transform(rot_mat) \
+                   .translate(cx, l/2, h/2) \
+                   .tag_slot(0).select_boundary().tag_edge_role(1)
 
-        # ROTATE TO PITCH
-        # Now we rotate the whole stringer to the stair angle
-        # Pitch angle is atan(rise/run)
-        pitch = math.atan2(prop_height, prop_run)
+            # Top Flange
+            builder.create_box(cw, stair_len, flange_t) \
+                   .translate(0, 0, ch/2 - flange_t/2) \
+                   .transform(rot_mat) \
+                   .translate(cx, l/2, h/2) \
+                   .tag_slot(0).select_boundary().tag_edge_role(1)
 
-        # Collect all geometry created (cap + extrusion)
-        all_verts = input_verts + verts_extruded
+            # Bottom Flange
+            builder.create_box(cw, stair_len, flange_t) \
+                   .translate(0, 0, -ch/2 + flange_t/2) \
+                   .transform(rot_mat) \
+                   .translate(cx, l/2, h/2) \
+                   .tag_slot(0).select_boundary().tag_edge_role(1)
 
-        # Rotation around X-axis (Pitch up)
-        bmesh.ops.rotate(
-            bm,
-            verts=all_verts,
-            cent=Vector((0, 0, 0)),
-            matrix=Matrix.Rotation(
-                -pitch, 4, "X"
-            ),  # Negative to pitch up from Y-forward?
-            # Wait, if we extruded Y forward, we need to rotate around X.
-            # Stair goes Y+ and Z+.
-            # If we rotate Y-axis vector by -pitch, it goes up?
-            # Let's use strict vector math.
-        )
+        # 2. TREADS
+        tread_w = w - (cw * 2) - 0.02
+        tread_d = run + 0.05 # Overlap
+        tt = self.tread_thick
 
-        # Fix rotation direction: We want (0,1,0) to become (0, run, rise).normalized
-        # Actually easier to just rotate by -pitch around X if we started flat.
-        # But let's verify orientation.
-        # If we just force the verts to the correct slope:
-        # It's better to rotate.
+        for i in range(count):
+            y_pos = (i + 1) * run - (run / 2)
+            z_pos = (i + 1) * rise
 
-        rot_mat = Matrix.Rotation(-pitch, 4, "X")  # Blender X is side-to-side.
-        # Verify: Y is forward. Rotate around X.
-        # If angle is positive (slope up), we rotate X positive?
-        # Right Hand Rule: Thumb X+, fingers curl Y+ to Z+.
-        # So Positive Rotation moves Y up to Z.
-        bmesh.ops.rotate(
-            bm,
-            verts=all_verts,
-            cent=Vector((0, 0, 0)),
-            matrix=Matrix.Rotation(pitch, 4, "X"),
-        )
+            # Create Tread Box
+            builder.create_box(tread_w, tread_d, tt) \
+                   .translate(0, y_pos, z_pos) \
+                   .tag_slot(0) # Default Frame
 
-    # Generate Left and Right Stringers
-    create_stringer(-prop_width / 2)
-    create_stringer(prop_width / 2)
+            # Tag Top Face as Grate (Slot 1)
+            builder.select_faces_by_normal(Vector((0,0,1)), tolerance=0.1) \
+                   .tag_slot(1).select_boundary().tag_edge_role(1)
 
-    # 3. GENERATE TREADS (PRIM_04 LOGIC)
-    # - PRIM_04 Panel Logic
+            # Tag Front Face as Nosing/Warning (Slot 3)
+            # Front face points -Y (steps go up +Y/+Z?)
+            # Wait, run goes 0 to L (Y). Front face points -Y.
+            # Original code said: if abs(f.normal.y) > 0.9: material 3
+            builder.select_faces_by_normal(Vector((0, -1, 0)), tolerance=0.1) \
+                   .tag_slot(3).select_boundary().tag_edge_role(1)
 
-    tread_thick = 0.03
+            # Tag Back Face (Slot 3 too?)
+            builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1) \
+                   .tag_slot(3).select_boundary().tag_edge_role(1)
 
-    for i in range(prop_steps):
-        # Calculate Position
-        pos_y = (i + 1) * run_depth - (run_depth / 2)  # Center of tread
-        pos_z = (i + 1) * rise
+        # 3. CLEANUP & SOCKETS
+        builder.clean()
 
-        center = Vector((0, pos_y, pos_z))
+        # Anchors
+        # Bottom: 0,0,0
+        builder.select_faces_by_normal(Vector((0, 0, -1)), tolerance=0.1).tag_socket(8)
 
-        # Create Cube
-        # scale X = width inside stringers
-        # scale Y = run_depth
-        # scale Z = thickness
-        sx = prop_width - (channel_w * 2) - 0.02  # Gap
-        sy = run_depth + 0.05  # Overlap
-        sz = tread_thick
+        # Top: 0, L, H
+        # Find faces near top? Or just select faces at ends of stringers.
+        # Stringer ends are angled.
+        # Let's try to tag faces with normal ~ Y (end of stringer)
+        builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1).tag_socket(9)
 
-        ret = bmesh.ops.create_cube(
-            bm,
-            size=1.0,
-            matrix=Matrix.Translation(center)
-            @ Matrix.Scale(sx, 4, (1, 0, 0))
-            @ Matrix.Scale(sy, 4, (0, 1, 0))
-            @ Matrix.Scale(sz, 4, (0, 0, 1)),
-        )
-
-        tread_faces = ret["faces"]
-
-        # ASSIGN SLOTS & UVs
-        uv_layer = bm.loops.layers.uv.verify()
-
-        for f in tread_faces:
-            # PRIM_04 Normal Override
-            # - "STRICT CHECK: If it points down, FLIP IT UP"
-            # Note: We don't flip geometry here, just checking for material assignment
-
-            if f.normal.z > 0.5:
-                f.material_index = 1  # Metal_Grate (Top)
-            elif abs(f.normal.y) > 0.9:
-                f.material_index = 3  # Safety Yellow (Front/Back)
-            else:
-                f.material_index = 0  # Frame
-
-            # Tri-Planar Box Map for Grates
-            for loop in f.loops:
-                v = loop.vert
-                # Top projection
-                if f.normal.z > 0.5 or f.normal.z < -0.5:
-                    loop[uv_layer].uv = (v.co.x, v.co.y)
-                else:
-                    loop[uv_layer].uv = (v.co.y, v.co.z)
-
-    # 4. SOCKETS
-    #
-    def make_socket(loc, axis, slot_idx):
-        # Create a small quad aligned to axis
-        # Simplified: Just a small quad at location
-        s = 0.05
-        # Basic quad on ground plane, then rotate
-        v1 = bm.verts.new(loc + Vector((-s, -s, 0)))
-        v2 = bm.verts.new(loc + Vector((s, -s, 0)))
-        v3 = bm.verts.new(loc + Vector((s, s, 0)))
-        v4 = bm.verts.new(loc + Vector((-s, s, 0)))
-        f = bm.faces.new((v1, v2, v3, v4))
-        f.material_index = slot_idx
-        # If axis is not Z, we would rotate. Assuming Z-up for anchor.
-
-    # Anchor
-    make_socket(Vector((0, 0, 0)), Vector((0, 0, 1)), 8)
-
-    # Joint (Top)
-    make_socket(Vector((0, prop_run, prop_height)), Vector((0, 0, 1)), 9)
-
-    # 5. CLEANUP
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-
-
-# ==============================================================================
-# OPERATOR
-# ==============================================================================
-class MASSA_OT_ArchStairsIndustrial(bpy.types.Operator):
-    bl_idname = "massa.arch_stairs_industrial"
-    bl_label = "Build Industrial Staircase"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        mesh = bpy.data.meshes.new(CARTRIDGE_META["name"])
-        obj = bpy.data.objects.new(CARTRIDGE_META["name"], mesh)
-        context.collection.objects.link(obj)
-
-        bm = bmesh.new()
-        build_shape(bm)
-        bm.to_mesh(mesh)
-        bm.free()
-
-        # Initialize Slots
-        meta = get_slot_meta()
-        for i in range(10):
-            if i in meta:
-                mat_name = meta[i]["name"]
-                mat = bpy.data.materials.get(mat_name)
-                if not mat:
-                    mat = bpy.data.materials.new(mat_name)
-                obj.data.materials.append(mat)
-            else:
-                obj.data.materials.append(None)
-
-        return {"FINISHED"}
-
-
-def register():
-    bpy.utils.register_class(MASSA_OT_ArchStairsIndustrial)
-
-
-def unregister():
-    bpy.utils.unregister_class(MASSA_OT_ArchStairsIndustrial)
-
-
-if __name__ == "__main__":
-    register()
