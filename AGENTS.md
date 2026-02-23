@@ -41,6 +41,15 @@ When tasked with creating or modifying a Cartridge in `modules/cartridges/`, you
 
    **UV Auditing & Fixing:** The "Pinched UV" or distorted mapping issues can be diagnosed using the "Finalize & Inspect" operator. This tool condemns the procedural object (applying all modifiers) and immediately enters UV Editing mode with all faces selected and unpacked.
 
+   **Topology Auditing:** The engine automatically removes zero-area and thin sliver faces during the generation pipeline. However, you MUST verify your cartridge logic produces clean topology natively.
+   - **`CRITICAL_ZERO_AREA_FACES`**: The mesh contains faces with 0.0 area. Check your extrusion and bridge logic.
+   - **`WARNING_THIN_FACES`**: The mesh contains slivers (Perimeter² / Area > 1000). These cause UV distortion and bevel artifacts.
+
+   **Full Audit Suite:**
+   Use the `runner.py` tool to proactively check your cartridge:
+   - `python modules/debugging_system/runner.py --cartridge ... --mode AUDIT` (Standard Checks)
+   - `python modules/debugging_system/runner.py --cartridge ... --mode UV_HEATMAP` (Visualizes UV Distortion: Red=Bad, Blue=Good)
+
 ## 4. Parameter Addition Protocol (The Rule of Five)
 
 If tasked with adding a new global parameter to the engine, you must strictly modify all 5 bridge points to ensure state synchronization:

@@ -50,3 +50,30 @@ class Massa_Auditor:
             else:
                 self.report["flags"].append(f"CRITICAL_NON_MANIFOLD_{len(non_manifold)}")
                 self.report["status"] = "FAIL"
+
+        # [ARCHITECT NEW] Degenerate Geometry Check
+        zero_area = []
+        thin_faces = []
+
+        for f in self.bm.faces:
+            area = f.calc_area()
+            if area < 0.000001:
+                zero_area.append(f)
+            else:
+                # Check Aspect Ratio / Thinness (Perimeter^2 / Area)
+                # A square has ratio ~16. A 1x100 strip has ratio ~400.
+                perimeter = sum([e.calc_length() for e in f.edges])
+                if perimeter > 0:
+                    ratio = (perimeter * perimeter) / area
+                    # Threshold 1000 allows reasonably thin strips but catches slivers
+                    if ratio > 1000.0:
+                         thin_faces.append(f)
+
+        if zero_area:
+            self.report["flags"].append(f"CRITICAL_ZERO_AREA_FACES_{len(zero_area)}")
+            self.report["status"] = "FAIL"
+
+        if thin_faces:
+             self.report["flags"].append(f"WARNING_THIN_FACES_{len(thin_faces)}")
+             # Thin faces are bad for UVs and Bevels
+             self.report["status"] = "FAIL"
