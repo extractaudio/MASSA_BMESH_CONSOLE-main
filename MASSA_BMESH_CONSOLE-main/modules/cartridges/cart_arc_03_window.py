@@ -37,111 +37,82 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
     def get_slot_meta(self):
         return {
             0: {"name": "Frame", "uv": "BOX", "phys": "METAL_ALUMINUM"},
-            3: {"name": "Glass", "uv": "SKIP", "phys": "GLASS"}, # Mandate: Manual UV Fit
+            3: {"name": "Glass", "uv": "FIT", "phys": "GLASS"}, # Fit UVs
             9: {"name": "Socket Anchor", "sock": True}
         }
 
     def build_shape(self, bm):
-        # Ensure Layers exist
-        uv_layer = bm.loops.layers.uv.verify()
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-
         builder = MassaBuilder(bm)
-
-        # 1. Create Base Grid
-        # Create on XY (size 1), rotate to XZ, scale
-        builder.create_grid(x_segments=self.mullion_x, y_segments=self.mullion_y, size=1.0) \
-               .rotate(90, axis='X') \
-               .scale(self.win_width, 1.0, self.win_height) \
-               .translate(0, 0, self.win_height/2) \
-               .tag_slot(3) # Initial faces are Glass
-
-        # 2. Inset to create Frame
-        # Inset active faces (Glass). Result active faces are the inner Glass faces.
-        # Original faces (Frame + Glass area) are split.
-        # We need to select the Frame (Outer Rim).
         
-        # Track Glass faces
-        glass_faces_before = set(builder.active_faces) # Actually this is all faces
+        W = self.win_width
+        H = self.win_height
         
-        builder.inset(self.frame_width/2, relative=False)
+        cols = self.mullion_x
+        rows = self.mullion_y
+
+        ft = self.frame_width
+        fd = self.mullion_thick
+
+        # Calculate Pane Sizes
+        # W = (cols * pane_w) + (cols + 1) * ft
+        # pane_w = (W - (cols+1)*ft) / cols
+
+        if W <= (cols + 1) * ft:
+            pane_w = 0.001
+        else:
+            pane_w = (W - (cols + 1) * ft) / cols
+
+        if H <= (rows + 1) * ft:
+            pane_h = 0.001
+        else:
+            pane_h = (H - (rows + 1) * ft) / rows
+
+        uv_s0 = getattr(self, "uv_scale_0", 1.0)
+
+        # 1. Vertical Mullions
+        for i in range(cols + 1):
+            x_left = i * (pane_w + ft)
+            cx = x_left + ft/2
+
+            builder.create_box(ft, fd, H) \
+                   .translate(cx, fd/2, H/2) \
+                   .tag_slot(0) \
+                   .tag_uvs(uv_s0, 'BOX')
+
+        # 2. Horizontal Transoms (Segments)
+        for j in range(rows + 1):
+            z_bot = j * (pane_h + ft)
+            cz = z_bot + ft/2
+
+            for i in range(cols):
+                px = (i * (pane_w + ft)) + ft + pane_w/2
+
+                builder.create_box(pane_w, fd, ft) \
+                       .translate(px, fd/2, cz) \
+                       .tag_slot(0) \
+                       .tag_uvs(uv_s0, 'BOX')
+
+        # 3. Glass Panes
+        gt = 0.02 # Glass Thickness
+        for i in range(cols):
+            for j in range(rows):
+                px = (i * (pane_w + ft)) + ft + pane_w/2
+                pz = (j * (pane_h + ft)) + ft + pane_h/2
+
+                builder.create_box(pane_w, gt, pane_h) \
+                       .translate(px, fd/2, pz) \
+                       .tag_slot(3) \
+                       .tag_uvs(1.0, 'FIT')
         
-        glass_faces_after = set(builder.active_faces)
-
-        # Frame faces are faces that are NOT in glass_faces_after
-        # But wait, create_grid creates faces. inset modifies them?
-        # inset_individual usually REPLACES faces or modifies them.
-        # If I want to find the frame faces, they are the faces adjacent to glass but not glass?
-        # Or I can just select everything and subtract glass.
-
-        all_faces = set(bm.faces)
-        frame_faces = list(all_faces - glass_faces_after)
-
-        builder.active_faces = frame_faces
-        builder.tag_slot(0) # Frame
-
-        # 3. Extrude Frame
-        # Extrude Frame Backward (-Y) or Forward?
-        # Window frame usually protrudes or glass is recessed.
-        # Let's extrude Frame +Y (Forward) and -Y (Back)?
-        # Or just extrude it out.
-        # Original logic: Extrude -Y (Backwards).
-
-        builder.extrude(self.mullion_thick, axis=Vector((0, -1, 0)))
-
         # 4. Sockets
-        # Center of window: (0, 0, win_height/2)
-        # Add Socket Geometry
-        c = Vector((0, 0, self.win_height/2))
-        sz = 0.2
-        v1 = bm.verts.new(c + Vector((-sz, 0, -sz)))
-        v2 = bm.verts.new(c + Vector((sz, 0, -sz)))
-        v3 = bm.verts.new(c + Vector((sz, 0, sz)))
-        v4 = bm.verts.new(c + Vector((-sz, 0, sz)))
-        f_sock = bm.faces.new((v1, v2, v3, v4))
-        f_sock.material_index = 9
-        f_sock.normal_update()
+        # Center of window
+        builder.create_grid(size=0.5) \
+               .rotate(90, 'X') \
+               .translate(W/2, 0, H/2) \
+               .tag_slot(9) \
+               .tag_socket(1)
 
-        # 5. Manual UVs
-        self.apply_manual_uvs(bm)
-
-    def apply_manual_uvs(self, bm):
-        uv_layer = bm.loops.layers.uv.verify()
-        scale = getattr(self, "uv_scale_0", 1.0)
-
-        bm.faces.ensure_lookup_table()
-        for f in bm.faces:
-            # if f.material_index == 9: continue # Pass audit
-
-            mat_idx = f.material_index
-
-            if mat_idx == 3: # Glass (Fit UVs)
-                 # Find Bounds
-                min_x = min(v.co.x for v in f.verts)
-                max_x = max(v.co.x for v in f.verts)
-                min_z = min(v.co.z for v in f.verts)
-                max_z = max(v.co.z for v in f.verts)
-
-                w = max_x - min_x
-                h = max_z - min_z
-
-                for l in f.loops:
-                    u = (l.vert.co.x - min_x) / w if w > 0.001 else 0
-                    v = (l.vert.co.z - min_z) / h if h > 0.001 else 0
-                    l[uv_layer].uv = (u, v)
-
-            else: # Frame, Socket (Box Map)
-                n = f.normal
-                for l in f.loops:
-                    v = l.vert.co
-                    if abs(n.x) > 0.5:
-                        l[uv_layer].uv = (v.y * scale, v.z * scale)
-                    elif abs(n.z) > 0.5:
-                        l[uv_layer].uv = (v.x * scale, v.y * scale)
-                    else: # Y
-                        l[uv_layer].uv = (v.x * scale, v.z * scale)
+        builder.clean()
 
     def draw_shape_ui(self, layout):
         box = layout.box()
