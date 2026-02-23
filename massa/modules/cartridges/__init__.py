@@ -69,6 +69,11 @@ from . import cart_ind_02_duct
 from . import cart_ind_03_catwalk
 from . import cart_ind_04_ladder
 from . import cart_ind_05_silo
+from . import cart_ind_16_pressure_vessel
+from . import cart_ind_17_control_console
+from . import cart_ind_18_heat_exchanger
+from . import cart_ind_19_hopper
+from . import cart_ind_20_centrifuge
 
 # --- URBAN SUITE (cart_urb_*) ---
 from . import cart_urb_01_sidewalk
@@ -182,6 +187,11 @@ MODULES = [
     cart_ind_03_catwalk,
     cart_ind_04_ladder,
     cart_ind_05_silo,
+    cart_ind_16_pressure_vessel,
+    cart_ind_17_control_console,
+    cart_ind_18_heat_exchanger,
+    cart_ind_19_hopper,
+    cart_ind_20_centrifuge,
     # Urb
     cart_urb_01_sidewalk,
     cart_urb_02_railing,
@@ -288,6 +298,11 @@ CLASSES = [
     cart_ind_03_catwalk.MASSA_OT_IndCatwalk,
     cart_ind_04_ladder.MASSA_OT_IndLadder,
     cart_ind_05_silo.MASSA_OT_IndSilo,
+    cart_ind_16_pressure_vessel.MASSA_OT_IndPressureVessel,
+    cart_ind_17_control_console.MASSA_OT_IndControlConsole,
+    cart_ind_18_heat_exchanger.MASSA_OT_IndHeatExchanger,
+    cart_ind_19_hopper.MASSA_OT_IndHopper,
+    cart_ind_20_centrifuge.MASSA_OT_IndCentrifuge,
     # Urb
     cart_urb_01_sidewalk.MASSA_OT_UrbSidewalk,
     cart_urb_02_railing.MASSA_OT_UrbRailing,
