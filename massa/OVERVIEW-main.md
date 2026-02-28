@@ -1,315 +1,273 @@
-# MASSA Console Developer Protocol
+# MASSA CONSOLE ARCHITECTURE (v6.5)
 
-> This workflow defines the strict protocols for understanding and modifying the `massa` addon.
+> **"The Console is Law. The Cartridge is Art."**
+
+This document defines the strict protocols for the **MASSA_BMESH_CONSOLE** system. It unifies the "Mandates" (Rules) with the "Architecture" (System) to ensure stability, resurrection, and clean geometry.
 
 ---
 
 ## 📑 Table of Contents
 
-- [1. System Architecture](#1-system-architecture-the-massa-anatomy)
-  - [Brain](#-brain)
-  - [Muscle](#-muscle)
-  - [Engine](#-engine)
-  - [Content](#-content)
-  - [Shooter](#-shooter)
-  - [Observer](#-observer)
-- [2. Modification Protocols](#2-modification-protocols)
-  - [A. Creating a New Cartridge](#a-creating-a-new-cartridge)
-  - [B. Modifying UI](#b-modifying-ui)
-  - [C. Adding a Global Parameter](#c-adding-a-global-parameter)
-- [3. Critical Safety Checks](#3-critical-safety-checks)
-- [4. Debugging & Verification](#4-debugging--verification)
-- [5. Common Pitfalls](#5-common-pitfalls)
-- [6. Quick Reference](#6-quick-reference)
-- [🎯 The Prime Directives (Constitution)](#-the-prime-directives-constitution)
-- [🏗️ Execution Pipeline (Phases 1-6)](#-execution-pipeline-phases-1-6)
-- [📊 Telemetry Flags Reference](#-telemetry-flags-reference)
-- [🔧 Material Slot Protocol](#-material-slot-protocol)
-- [🚀 Related Documentation](#-related-documentation)
-- [📋 Development Checklist](#-development-checklist)
-- [🎯 Success Criteria](#-success-criteria)
+1.  [The Philosophy](#1-the-philosophy)
+2.  [The Cartridge Blueprint (The 95% Standard)](#2-the-cartridge-blueprint-the-95-standard)
+    *   [Class Structure](#a-class-structure)
+    *   [The Golden Rules (Mandates)](#b-the-golden-rules-mandates)
+    *   [Slot Protocol (Faces 0-9)](#c-slot-protocol-faces-0-9)
+    *   [Edge Protocol (Edges 1-5)](#d-edge-protocol-edges-1-5)
+    *   [UV Strategy](#e-uv-strategy)
+3.  [System Architecture (The Anatomy)](#3-system-architecture-the-anatomy)
+    *   [Brain (State)](#brain-state)
+    *   [Muscle (Operator)](#muscle-operator)
+    *   [Engine (Pipeline)](#engine-pipeline)
+    *   [Shooter (Targeting)](#shooter-targeting)
+    *   [Observer (Analytics)](#observer-analytics)
+4.  [Modification Workflow](#4-modification-workflow)
+    *   [Adding Parameters (The Rule of Five)](#adding-parameters-the-rule-of-five)
+    *   [Resurrection System](#resurrection-system)
+    *   [Headless Safety](#headless-safety)
+5.  [Telemetry & Troubleshooting](#5-telemetry--troubleshooting)
 
 ---
 
-## 1. System Architecture (The "Massa Anatomy")
+## 1. The Philosophy
 
-The addon follows a strict separation pattern:
+The Massa Console is a **Procedural Engine** that consumes **Cartridges** (Generators).
+*   **The Console** handles the "Boring Stuff": UI, Undo/Redo, Material Assignment, UV Unwrapping, Physics Generation, Socket Constraints, Polish (Bevels/Chamfers), and File Management.
+*   **The Cartridge** handles the "Fun Stuff": Pure BMesh geometry generation (`build_shape`).
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           MASSA CONSOLE                                 │
-├────────────┬────────────┬────────────┬────────────┬───────────┬─────────┤
-│  🧠 BRAIN   │  💪 MUSCLE │  ⚙️ ENGINE │ 📦 CONTENT │ 🔫 SHOOTER│ 👁️ OBSERVER │
-│ State &    │ Operator   │ Pipeline   │ Cartridges │ Target &  │ Analytics│
-│ Properties │ & Sync     │ & Generate │ & Logic    │ Dispatch  │ & Vision │
-└────────────┴────────────┴────────────┴────────────┴───────────┴──────────┘
-```
-
-### 🧠 Brain
-
-**Files:** `modules/massa_console.py`, `modules/massa_properties.py`, `modules/massa_cartridge_props.py`
-
-| Aspect | Description |
-|--------|-------------|
-| **Role** | Stores persistent state and property definitions. |
-| **Key Concept** | `massa_properties.py` is the "DNA" — properties defined here propagate to the Console and ALL Cartridges automatically via `MassaPropertiesMixin`. `massa_cartridge_props.py` handles dynamic property group generation for cartridges (`MASSA_PG_{id}`). |
-| **Physics** | `collision_shape_{i}` defaults to `MESH` (exact geometry) instead of `BOX`. |
-
-> ⚠️ **Safety Warning:** **NEVER** rename existing properties without a full repository refactor. This will break resurrection and saved presets.
-
-### 💪 Muscle
-
-**File:** `operators/massa_base.py`
-
-| Aspect | Description |
-|--------|-------------|
-| **Role** | The Base Operator (`Massa_OT_Base`) that all cartridges inherit. |
-| **Responsibilities** | Handles execution, "Resurrection" (re-running parameter edits), property syncing (`_sync`), and UI Tabs (`SHAPE`, `DATA`, `POLISH`, `UVS`, `SLOTS`, `EDGES`, `COLLISION`, `SOCKETS`). |
-| **Resurrection** | Uses `rerun_mode` and captures parameters in `MASSA_PARAMS` on the object to restore state during edits. Also handles `target_delete_name` for cleanup. |
-
-> ⚠️ **Safety Warning:** Modify `draw` or `execute` here **ONLY** if the change applies to EVERY cartridge.
-
-### ⚙️ Engine
-
-**File:** `modules/massa_engine.py`
-
-| Aspect | Description |
-|--------|-------------|
-| **Role** | The generation pipeline (Pipeline). |
-| **Pipeline Flow** | BMesh creation → Shape → Polish → Surface → **Phase 3 (Sockets/Sharpness)** → **Phase 4 (Physics/Rigs)** → Output. |
-| **Key Features** | Handles 5 Edge Slots, Data Layers (Strain/Kinematic), Physics generation (UCX/Joints), and **Seam Solvers**. |
-| **Visualization** | `Massa_Edge_Viz` modifier (Geometry Nodes) for non-destructive overlay. |
-
-> ⚠️ **Safety Warning:** This is the critical loop. Changes here affect the fundamental mesh generation logic for ALL cartridges.
-
-### 📦 Content
-
-**Directory:** `modules/cartridges/`
-
-| Aspect | Description |
-|--------|-------------|
-| **Role** | Individual mesh generators (each cartridge = one generator). |
-| **Required Methods** | Must implement `build_shape(self, bm)` and `get_slot_meta(self)`. |
-
-### 🔫 Shooter (Point & Shoot)
-
-**File:** `operators/massa_shooter.py`
-
-| Aspect | Description |
-|--------|-------------|
-| **Role** | Handles targeted generation without changing selection. |
-| **Mechanism** | Uses `MASSA_OT_ShootDispatcher` to stage a cartridge, target a coordinate (or `Massa_Target` empty), and inject parameters dynamically from `Massa_Console_Props`. |
-| **Priority** | If `Massa_Target` exists, it overrides the console coordinate. |
-
-### 👁️ Observer (Advanced Analytics)
-
-**File:** `modules/advanced_analytics.py`
-
-| Aspect | Description |
-|--------|-------------|
-| **Role** | The "eyes" of the system. Handles synthetic vision and analysis. |
-| **Components** | **Holo-Projector** (`MCP_Overlay`): 3D viewport drawing (Points/Lines/Text).<br>**Visual Cortex** (`capture_analytical`): Segmentation, Depth, Heatmaps.<br>**Deep Analyst**: Mesh auditing and dependency tracing.<br>**Ghost Sim**: Simulating modifier stacks. |
+**Goal:** A Cartridge should only focus on *shape*. If it follows the **Mandates**, the Console grants it superpowers (Auto-UVs, Physics, etc.) for free.
 
 ---
 
-## 2. Modification Protocols
+## 2. The Cartridge Blueprint (The 95% Standard)
 
-### A. Creating a New Cartridge
+To achieve "First-Time-Right" code generation, every Cartridge **MUST** follow this exact structure.
 
-Follow this checklist when creating a new cartridge:
-
-- [ ] **Step 1: Create File** (`modules/cartridges/cart_my_new_thing.py`)
-- [ ] **Step 2: Inherit Base Class** (`Massa_OT_Base`)
-- [ ] **Step 3: Define Metadata**
-  ```python
-  CARTRIDGE_META = {
-      "name": "My New Thing",
-      "version": "1.0",
-      "id": "MASSA_OT_MyNewThing", # Must match class name or be unique
-      "flags": {"ALLOW_SOLIDIFY": True, "USE_WELD": True}
-  }
-  ```
-- [ ] **Step 4: Implement Required Methods**
-  - `build_shape(self, bm)`: Use `bmesh.ops`. NO `bpy.ops`.
-  - `get_slot_meta(self)`: Return dict of 10 slots (0-9) with `phys` keys (e.g., `METAL_STEEL`).
-- [ ] **Step 5: Register the Cartridge** in `modules/cartridges/__init__.py`.
-
-### B. Modifying UI
-
-| Aspect | Details |
-|--------|---------|
-| **Location** | `ui/ui_shared.py` contains shared drawing logic. |
-| **Panel File** | `ui/ui_massa_panel.py` defines the main panel and sub-panels. |
-
-> ⚠️ **Rule:** Do **NOT** add UI code directly to `operators/massa_base.py`. Always delegate to `ui_shared.py`.
-
-### C. Adding a Global Parameter
-
-1. **Edit** `modules/massa_properties.py`.
-2. **Add UI** in `ui/ui_shared.py`.
-3. **Implement Logic** in `massa_engine.py`, `massa_polish.py`, or `massa_surface.py`.
-
----
-
-## 3. Critical Safety Checks
-
-### 🔄 Resurrection System
-
-The system allows users to re-edit meshes.
-- **Capture**: `_capture_operator_params` in `massa_engine.py` saves RNA properties to `obj["MASSA_PARAMS"]`.
-- **Restore**: `Massa_OT_Base.invoke` checks `rerun_mode` or `MASSA_PARAMS` and restores state.
-- **Transforms**: Object location/rotation are preserved during resurrection (`obj_location`, `obj_rotation`).
-- **Cleanup**: `Massa_OT_Base` aggressively removes child objects (`UCX_`, `MASSA_JOINT_`, `SOCKET_`) before regeneration to prevent duplicates.
-
-### 🖥️ Headless Safety
-
-- Always keep `mat_utils.ensure_default_library()` in `massa_base.py`.
-- Ensure physics generation (`phys_gen_ucx`) handles missing context gracefully.
-
----
-
-## 4. Debugging & Verification
-
-| Tool | Location | Purpose |
-|------|----------|---------|
-| **Gizmos** | `ui/gizmo_massa.py` | Viewport widgets. |
-| **Holo-Projector** | `modules/advanced_analytics.py` | Visual debug overlays (Points/Lines/Text). |
-| **Synthetic Vision** | `capture_analytical` | Render depth/segmentation passes for analysis. |
-| **Auditors** | `.agent/workflows/audit_cartridge.md` | Verification workflow. |
-
----
-
-## 5. Common Pitfalls
-
-| Mistake | Why It's Bad | What To Do Instead |
-|---------|--------------|-------------------|
-| Rename properties | Breaks resurrection | Deprecate old, create new. |
-| `bpy.ops` in `build_shape` | Crashing/Context errors | Use `bmesh.ops`. |
-| Forget `mat_utils.ensure_default_library()` | Headless crash | Keep it. |
-| Ignore 5 Edge Slots | Visualization errors | Assign slots 1-5 correctly. |
-
----
-
-## 6. Quick Reference
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `massa_console.py` | Brain (State) |
-| `massa_engine.py` | Engine (Pipeline) |
-| `massa_base.py` | Muscle (Operator) |
-| `massa_shooter.py` | Shooter (Targeting) |
-| `advanced_analytics.py` | Observer (Vision) |
-| `massa_sockets.py` | Socket System |
-| `seam_solvers.py` | UV Seam Logic |
-
-### Key Classes
-
-- `MassaPropertiesMixin`: Property inheritance.
-- `Massa_OT_Base`: Base operator.
-- `MCP_Overlay`: Visual debugger.
-
----
-
-## 🎯 The Prime Directives (Constitution)
-
-### 1. The Split-State Architecture
-**Brain** (Persistent) vs **Muscle** (Transient). Never modify Scene data directly from Operator execute without sync.
-
-### 2. The Rule of Five (Parameter Protocol)
-New params must exist in:
-1. `bpy.types.Scene` (Brain)
-2. `bpy.types.Operator` (Muscle)
-3. `_sync()` list (Bridge)
-4. `ui_massa_panel.py` (Sidebar UI)
-5. `Massa_OT_Base.draw` (Redo UI)
-
-### 3. The All-Cartridges Mandate
-- **Segmentation**: Subdivide long faces.
-- **Edge Roles**: Assign `MASSA_EDGE_SLOTS` (1-5).
-- **Identity**: Valid `get_slot_meta`.
-- **Output**: Manifold, no loose verts.
-
----
-
-## 🏗️ Execution Pipeline (Phases 1-6)
-
-### Phase 1-3: Architecture & Build
-Define DNA, inherit `Massa_OT_Base`, implement `build_shape` using `bmesh.ops`. Phase 3 adds `MASSA_SOCKETS` layer and `auto_detect_sharp_edges`.
-
-### Phase 4: The Artisan (Physics & Slots)
-- **10 Slots**: 0-9. **Smart Slotting** remaps indices to ensure compact storage.
-- **Physics**: Use valid keys (e.g., `METAL_STEEL`).
-- **Edge Roles**:
-  - **1**: Perimeter (Seam/Sharp)
-  - **2**: Contour (Sharp)
-  - **3**: Guide (Seam)
-  - **4**: Detail (Bevel)
-  - **5**: Special (Custom)
-- **Physics Gen**: `phys_gen_ucx` creates collision hulls (BOX, HULL, SPHERE, CAPSULE, MESH).
-- **Auto-Rig**: `phys_auto_rig` creates joints for detached parts.
-- **Socket Forge**: Generates physical socket constraints (FIXED, HINGE, SLIDER, SPRING).
-
-### Phase 5-6: Audit & Medic
-Verify with Telemetry. Fix flags.
-
----
-
-## 📊 Telemetry Flags Reference
-
-### 🔴 Critical (System Failure)
-- `IMPORT_ERROR`, `SYNTAX_ERROR`
-- `CRITICAL_FLAT_Z_AXIS`: Zero height.
-- `CRITICAL_NO_PERIMETER_DEFINED`: Missing Edge Slot 1.
-
-### 🟡 High (UI/Interface)
-- `CRITICAL_UI_NO_UNDO_FLAG`: Missing `bl_options`.
-- `CRITICAL_EMPTY_PANEL_NO_PROPS`: No props.
-
-### 🟠 Medium (Geometry)
-- `LOOSE_VERTS`, `NON_MANIFOLD`.
-
----
-
-## 🔧 Material Slot Protocol
-
-### The 10-Slot System
-
-| Slot | Purpose | Default Material |
-|------|---------|------------------|
-| 0 | Base / Primary | `CONCRETE_RAW` |
-| 1 | Perimeter / Frame | `METAL_STEEL` |
-| 2 | Contour / Major Form | `WOOD_OAK` |
-| 3 | Guide / Flow | `SYNTH_PLASTIC` |
-| 4 | Detail / Trim | `METAL_ALUMINUM` |
-| 5 | Secondary | `CONCRETE_POL` |
-| 6 | Tertiary | `WOOD_PINE` |
-| 7 | Accent | `SYNTH_RUBBER` |
-| 8 | Special | `CERAMIC_TILE` |
-| 9 | Debug / Override | `MASSA_DEBUG_9` |
-
-### Edge Role Interpreter (5 Slots)
+### A. Class Structure
 
 ```python
-edge_slots = bm.edges.layers.int["MASSA_EDGE_SLOTS"]
-# 1: Perimeter, 2: Contour, 3: Guide, 4: Detail, 5: Special
+import bpy
+import bmesh
+import math
+from mathutils import Vector, Matrix
+from ...operators.massa_base import Massa_OT_Base
+
+# ---------------------------------------------------------
+# 1. METADATA (Required)
+# ---------------------------------------------------------
+CARTRIDGE_META = {
+    "name": "Cartridge Name",
+    "id": "cart_unique_id",  # MUST match bl_idname suffix
+    "version": "1.0",
+    "icon": "MESH_CUBE",
+    "scale_class": "STANDARD", # MICRO, STANDARD, MACRO
+    "flags": {
+        "USE_WELD": True,
+        "ALLOW_SOLIDIFY": True, # Can this shape be hollowed?
+        "FIX_DEGENERATE": True,
+    },
+}
+
+class MASSA_OT_cart_unique_id(Massa_OT_Base):
+    bl_idname = "massa.gen_cart_unique_id" # Prefix 'massa.gen_' is MANDATORY
+    bl_label = "Cartridge Label"
+    bl_options = {"REGISTER", "UNDO", "PRESET"}
+
+    # ---------------------------------------------------------
+    # 2. PARAMETERS (Blender Properties)
+    # ---------------------------------------------------------
+    radius: bpy.props.FloatProperty(name="Radius", default=1.0, min=0.1, unit="LENGTH")
+    segments: bpy.props.IntProperty(name="Segments", default=16, min=3)
+
+    # ---------------------------------------------------------
+    # 3. SLOT DEFINITIONS (The 'Hard 10')
+    # ---------------------------------------------------------
+    def get_slot_meta(self):
+        """
+        Defines the 10 Material Slots (0-9).
+        Keys:
+          - 'name': UI Label
+          - 'phys': Physics Material (METAL_STEEL, PLASTIC, etc.)
+          - 'uv': Unwrapping Strategy (BOX, UNWRAP, FIT, SKIP)
+          - 'sock': (Optional) True if this slot generates sockets
+        """
+        return {
+            0: {"name": "Base Hull",     "uv": "BOX",    "phys": "DEBUG_1"},
+            1: {"name": "Detail Vent",   "uv": "BOX",    "phys": "DEBUG_2"},
+            2: {"name": "Trim/Frame",    "uv": "STRIP",  "phys": "DEBUG_3"},
+            3: {"name": "Glass/Screen",  "uv": "FIT",    "phys": "DEBUG_4"},
+            # ... define up to 9
+            9: {"name": "Socket Point",  "uv": "SKIP",   "sock": True, "phys": "DEBUG_9"},
+        }
+
+    # ---------------------------------------------------------
+    # 4. DRAW UI (Sidebar)
+    # ---------------------------------------------------------
+    def draw_shape_ui(self, layout):
+        col = layout.column(align=True)
+        col.prop(self, "radius")
+        col.prop(self, "segments")
+
+    # ---------------------------------------------------------
+    # 5. EXECUTION CORE (The 'Fun Stuff')
+    # ---------------------------------------------------------
+    def build_shape(self, bm: bmesh.types.BMesh):
+        """
+        Generates geometry into the provided BMesh 'bm'.
+        NO bpy.ops ALLOWED HERE. Use bmesh.ops only.
+        """
+
+        # [PHASE 1] Shape Generation
+        # Example: Create Cylinder
+        bmesh.ops.create_cone(
+            bm,
+            cap_ends=True,
+            radius1=self.radius,
+            radius2=self.radius,
+            depth=2.0,
+            segments=self.segments
+        )
+
+        # [PHASE 2] Slot Assignment (Faces)
+        # Mandate: All faces must have a material_index (0-9)
+        for f in bm.faces:
+            f.material_index = 0
+
+        # [PHASE 3] Edge Roles (Features)
+        # Mandate: Mark important edges for the Polish Stack
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        for e in bm.edges:
+            if e.is_boundary:
+                e[edge_slots] = 1 # PERIMETER (Seam + Sharp)
+
+        # [PHASE 4] Cleanup (Mandatory)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 ```
 
+### B. The Golden Rules (Mandates)
+
+1.  **Pure BMesh**: Never use `bpy.ops` inside `build_shape`. It crashes in background mode. Use `bmesh.ops` or math.
+2.  **No Loose Geometry**: Always run `remove_doubles` and `recalc_face_normals` at the end.
+3.  **Inheritance**: Must inherit `Massa_OT_Base`.
+4.  **Metadata**: Must provide valid `CARTRIDGE_META` and `get_slot_meta`.
+5.  **Context Safe**: Do not assume `bpy.context.object` exists. Work only on `bm`.
+
+### C. Slot Protocol (Faces 0-9)
+
+**Usage:** `f.material_index = ID`
+
+| ID | Role | Default Material | Description |
+| :--- | :--- | :--- | :--- |
+| **0** | **BASE** | `DEBUG_1` | Main body, hull. |
+| **1** | **DETAIL** | `DEBUG_2` | Vents, grilles, insets. |
+| **2** | **TRIM** | `DEBUG_3` | Frames, borders. |
+| **3** | **GLASS** | `DEBUG_4` | Windows, screens. |
+| **4** | **EMISSION** | `DEBUG_5` | Lights, energy. |
+| **5** | **DARK** | `DEBUG_6` | Inner shadows, tires. |
+| **6** | **ACCENT** | `DEBUG_7` | Decals, stripes. |
+| **7** | **UTILITY** | `DEBUG_8` | Bolts, handles. |
+| **8** | **TRANSPARENT** | `DEBUG_9` | Forcefields. |
+| **9** | **SOCKET** | `DEBUG_9` | **Anchor/Invisible**. Used for snapping points. |
+
+### D. Edge Protocol (Edges 1-5)
+
+**Usage:** `e[bm.edges.layers.int["MASSA_EDGE_SLOTS"]] = ID`
+
+The system uses intelligent geometric analysis to assign these roles if not manually set:
+
+| ID | Name | Behavior | Auto-Detection Logic |
+| :--- | :--- | :--- | :--- |
+| **1** | **PERIMETER** | **Seam + Sharp + Bevel**. The outer silhouette. | Edges separating "End Caps" (Top/Bottom) from "Walls" (Sides). |
+| **2** | **CONTOUR** | **Sharp + Bevel**. Hard internal angles (90°). | Sharp edges not on the perimeter. |
+| **3** | **GUIDE** | **Seam Only**. Manual UV cut lines (for cylinders/organic). | Pathfinding walks along "Wall" geometry to connect End Caps. |
+| **4** | **DETAIL** | **Bevel Only**. Small chamfers. No sharp shading. | Material boundaries or internal details. |
+| **5** | **FOLD** | **Crease**. Subdivision weighting / Cloth pinning. | N/A (Manual only). |
+
+### E. UV Strategy
+
+Defined in `get_slot_meta()` under the `"uv"` key.
+
+*   `"BOX"`: Tri-planar projection. Best for hard surface (Slots 0, 1, 2, 5, 7).
+*   `"UNWRAP"`: LSCM Unwrap. **REQUIRES SEAMS** (Edge Slot 1 or 3). Best for organic/curved.
+*   `"FIT"`: Stretches UVs to fill 0-1. Best for screens/glass (Slot 3, 4, 8).
+*   `"SKIP"`: No UVs generated. (Use for Sockets).
+
+**Visual Audit & Fix:**
+A "Finalize & Audit" tool is available in the UVs tab (and top of N-Panel). This operator applies all modifiers, strips metadata, and enters Edit Mode with all faces selected and unpacked, allowing immediate verification of the UV layout.
+
 ---
 
-## 🚀 Related Documentation
+## 3. System Architecture (The Anatomy)
 
-- [README.md](README.md) — Project overview.
-- [Audit Cartridge Workflow](.agent/workflows/audit_cartridge.md) — Verification.
-- [Massa Genesis Codex](Massa_Genesis_Codex.md) — DNA definitions.
+### Brain (State)
+*   **Files**: `modules/massa_console.py`, `modules/massa_properties.py`
+*   **Role**: Stores persistent state.
+*   **Key**: `MassaPropertiesMixin` defines properties that exist on BOTH the Scene (UI) and the Operator (History).
+
+### Muscle (Operator)
+*   **File**: `operators/massa_base.py` (`Massa_OT_Base`)
+*   **Role**: The execution shell. Handles:
+    1.  **Sync**: Copies props from Scene to Operator.
+    2.  **Resurrection**: Restores props from `obj["MASSA_PARAMS"]`.
+    3.  **UI**: Draws the Redo Panel.
+
+### Engine (Pipeline)
+*   **File**: `modules/massa_engine.py`
+*   **Role**: The heavy lifter.
+    1.  **Phase 1**: `build_shape(bm)` (The Cartridge).
+    2.  **Phase 2**: `auto_detect_edge_slots` (If not manually set).
+    3.  **Phase 3**: `auto_detect_sharp_edges` (Additive).
+    4.  **Phase 4**: Polish Stack (Bevel, Fuse, Solidify).
+    5.  **Phase 5**: Output (Mesh conversion, Material Assignment, Physics, Sockets).
+
+### Shooter (Targeting)
+*   **File**: `operators/massa_shooter.py`
+*   **Role**: "Point & Shoot" mode.
+    *   Uses `Massa_Target` empty if available.
+    *   Injects location/rotation into the Operator history.
+
+### Observer (Analytics)
+*   **File**: `modules/advanced_analytics.py`
+*   **Role**: Visual debugging (`debug_view`) and telemetry.
 
 ---
 
-## 🎯 Success Criteria
+## 4. Modification Workflow
 
-- ✅ Passes telemetry (no flags).
-- ✅ Resurrects correctly (params & transforms).
-- ✅ Edge slots (1-5) assigned.
-- ✅ Material slots (0-9) populated and remapped correctly.
-- ✅ Physics hulls (UCX), Joints, and Sockets generate correctly.
+### Adding Parameters (The Rule of Five)
+To add a new global parameter (e.g., `global_scale`), you must touch 5 places:
+1.  **Definition**: `MassaPropertiesMixin` in `massa_properties.py`.
+2.  **Scene**: Registered in `massa_console.py`.
+3.  **Operator**: Inherited in `Massa_OT_Base`.
+4.  **Sync**: Added to `_sync()` method in `massa_base.py`.
+5.  **UI**: Added to `ui/ui_shared.py`.
+
+### Resurrection System
+*   **How it works**: When `execute()` runs, `_capture_operator_params` saves all settings to `obj["MASSA_PARAMS"]`.
+*   **How it restores**: When `invoke()` runs, it checks if the active object has `MASSA_PARAMS`. If so, it loads them into the operator, effectively "resurrecting" the previous state.
+*   **Rule**: NEVER rename properties without a migration script, or old objects will lose their settings.
+
+### Headless Safety
+*   **Rule**: The Engine often runs in background threads or unit tests where `bpy.context.view_layer` or `bpy.ops` might fail.
+*   **Fix**: Use `mat_utils.ensure_default_library()` to load materials without context. Use `bmesh` for all geometry.
+
+---
+
+## 5. Telemetry & Troubleshooting
+
+| Flag | Meaning | Fix |
+| :--- | :--- | :--- |
+| `CRITICAL_FLAT_Z_AXIS` | Geometry has 0 height. | Check `bmesh.ops.scale` or extrusion logic. |
+| `LOOSE_VERTS` | Vertices not connected to edges. | Run `bmesh.ops.delete(bm, geom=loose, context="VERTS")`. |
+| `NON_MANIFOLD` | Mesh has holes or T-junctions. | Run `bmesh.ops.recalc_face_normals` or check bridge logic. |
+| `MISSING_SLOTS` | Face ID > 9 or < 0. | Ensure `f.material_index` is clamped 0-9. |
+| `NO_SEAMS` | "UNWRAP" mode used but no seams found. | Mark edges with `e[edge_slots]=1` (Perimeter) or `3` (Guide). |
+
+---
+
+> **Massa Console Architect v6.5**
+> *End of File*
