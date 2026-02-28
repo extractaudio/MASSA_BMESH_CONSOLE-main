@@ -1,6 +1,6 @@
 # MASSA Console Developer Protocol
 
-> This workflow defines the strict protocols for understanding and modifying the `MASSA_BMESH_CONSOLE-main` addon.
+> This workflow defines the strict protocols for understanding and modifying the `massa` addon.
 
 ---
 

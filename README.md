@@ -3,7 +3,7 @@
 ## Dependencies
 
 > pip install fake-bpy-module-latest
-> pip install -r MASSA_BMESH_CONSOLE-main/MCP/requirements.txt
+> pip install -r massa/MCP/requirements.txt
 
 ## Debugging methods
 

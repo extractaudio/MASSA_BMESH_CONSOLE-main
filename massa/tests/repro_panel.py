@@ -7,7 +7,7 @@ import traceback
 
 # Add repo root to path
 # We use the path found in the user state
-repo_root = r"d:\AntiGravity_google\MASSA_BMESH_CONSOLE-main\MASSA_BMESH_CONSOLE-main"
+repo_root = r"d:\AntiGravity_google\massa\massa"
 if repo_root not in sys.path:
     sys.path.append(repo_root)
 
