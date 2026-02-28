@@ -6,15 +6,8 @@ import shutil
 
 # Setup paths
 repo_root = os.getcwd() # Should be repo root when run from there
-src_dir = os.path.join(repo_root, "MASSA_BMESH_CONSOLE-main")
-link_name = os.path.join(repo_root, "massa")
+src_dir = os.path.join(repo_root, "massa")
 
-# Create symlink 'massa' -> 'MASSA_BMESH_CONSOLE-main'
-if not os.path.exists(link_name):
-    try:
-        os.symlink(src_dir, link_name)
-    except OSError:
-        pass
 
 if repo_root not in sys.path:
     sys.path.append(repo_root)
@@ -83,6 +76,3 @@ try:
 except Exception as e:
     print(f"  -> FAIL: {e}")
     sys.exit(1)
-finally:
-    if os.path.islink(link_name):
-        os.remove(link_name)

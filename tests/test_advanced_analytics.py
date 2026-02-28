@@ -18,7 +18,7 @@ import bpy
 import bmesh
 
 # Now we can import the module under test
-sys.path.append("./MASSA_BMESH_CONSOLE-main")
+sys.path.append("./massa")
 from modules import advanced_analytics
 
 class TestAdvancedAnalytics(unittest.TestCase):

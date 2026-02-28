@@ -4,7 +4,7 @@ description: MASSA Console Developer Protocol (Architecture & Safety)
 
 # MASSA Console Developer Protocol
 
-This workflow defines the strict protocols for understanding and modifying the `MASSA_BMESH_CONSOLE-main` addon.
+This workflow defines the strict protocols for understanding and modifying the `massa` addon.
 
 ## 1. System Architecture (The "Massa Anatomy")
 

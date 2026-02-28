@@ -6,10 +6,10 @@ import os
 from mathutils import Vector
 
 # Ensure path to modules is available
-# Assuming we are in 'tests/' folder or root, we need to add 'MASSA_BMESH_CONSOLE-main' to path?
+# Assuming we are in 'tests/' folder or root, we need to add 'massa' to path?
 # The structure is:
-# /repo/MASSA_BMESH_CONSOLE-main/tests/test_massa_builder.py
-# /repo/MASSA_BMESH_CONSOLE-main/modules/massa_builder.py
+# /repo/massa/tests/test_massa_builder.py
+# /repo/massa/modules/massa_builder.py
 
 # Add parent directory to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))

@@ -5,10 +5,10 @@ description: Audit a geometry cartridge using the headless Blender system
 1. Select the cartridge you want to audit.
 2. Run the bridge script from the project root. Replace `<cartridge_path>` with the relative path to your target file.
 
-   Example: `python MASSA_BMESH_CONSOLE-main/modules/debugging_system/bridge.py MASSA_BMESH_CONSOLE-main/modules/cartridges/prim_con_beam.py`
+   Example: `python massa/modules/debugging_system/bridge.py massa/modules/cartridges/prim_con_beam.py`
 
    ```bash
-   python MASSA_BMESH_CONSOLE-main/modules/debugging_system/bridge.py <cartridge_path>
+   python massa/modules/debugging_system/bridge.py <cartridge_path>
    ```
 
 ## Agent Protocol
