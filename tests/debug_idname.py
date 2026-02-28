@@ -1,7 +1,7 @@
 import ast
 import os
 
-target_dir = r"d:\AntiGravity_google\MASSA_BMESH_CONSOLE-main\MASSA_BMESH_CONSOLE-main\modules\cartridges"
+target_dir = r"d:\AntiGravity_google\massa\massa\modules\cartridges"
 
 for root, dirs, files in os.walk(target_dir):
     for file in files:

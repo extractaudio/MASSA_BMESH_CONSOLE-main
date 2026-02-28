@@ -173,7 +173,7 @@ def run_inspection(cartridge_module_name, output_dir):
         # --- SPEC AUDIT ---
         try:
             cart_id = op_class.bl_idname.replace("massa.gen_", "")
-            arch_md_path = os.path.join(repo_root, "MASSA_BMESH_CONSOLE-main", "architecture.md")
+            arch_md_path = os.path.join(repo_root, "massa", "architecture.md")
 
             if os.path.exists(arch_md_path):
                 specs = load_cartridge_specs(arch_md_path, cart_id)

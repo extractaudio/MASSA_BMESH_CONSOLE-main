@@ -6,10 +6,10 @@ import importlib
 
 # Add repo root to path
 repo_root = os.getcwd()
-sys.path.append(os.path.join(repo_root, "MASSA_BMESH_CONSOLE-main"))
+sys.path.append(repo_root)
 
 # Import modules
-from modules.cartridges import (
+from massa.modules.cartridges import (
     cart_arch_01_stairs_linear,
     cart_arch_02_stairs_spiral,
     cart_arch_03_stairs_industrial,

@@ -28,7 +28,7 @@ class MockLathe:
     
 def test_lathe():
     # 1. Setup path
-    target_file = r"d:\AntiGravity_google\MASSA_BMESH_CONSOLE-main\MASSA_BMESH_CONSOLE-main\modules\cartridges\cart_prim_16_lathe.py"
+    target_file = r"d:\AntiGravity_google\massa\massa\modules\cartridges\cart_prim_16_lathe.py"
     
     with open(target_file, 'r') as f:
         content = f.read()

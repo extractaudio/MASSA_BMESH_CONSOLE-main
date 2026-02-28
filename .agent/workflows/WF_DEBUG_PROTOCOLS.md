@@ -25,7 +25,7 @@ description: DEBUG & REPAIR PROTOCOLS
 
 * **Trigger:** `verify_material_logic` returns FAIL.
 * **Diagnosis:** BMesh Int Layers (`MAT_TAG` or `MASSA_EDGE_SLOTS`) not initialized.
-* **Reference:** See `[.agent/workflows/WF_Slot_Standardization.md](file:///d:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.agent/workflows/WF_Slot_Standardization.md)` for ID definitions.
+* **Reference:** See `[.agent/workflows/WF_Slot_Standardization.md](file:///d:/AntiGravity_google/massa/.agent/workflows/WF_Slot_Standardization.md)` for ID definitions.
 * **Fix:**
     1. Initialize layers:
         * `tag_layer = bm.faces.layers.int.new("MAT_TAG")`
@@ -45,7 +45,7 @@ description: DEBUG & REPAIR PROTOCOLS
 
 * **Trigger:** `len([e for e in bm.edges if e.seam]) == 0` (No Seams Found).
 * **Diagnosis:** Model has not been unwrapped or marked for unwrapping.
-* **Reference:** See `[.agent/workflows/WF_UVSeam.md](file:///d:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.agent/workflows/WF_UVSeam.md)` for full unwrapping logic.
+* **Reference:** See `[.agent/workflows/WF_UVSeam.md](file:///d:/AntiGravity_google/massa/.agent/workflows/WF_UVSeam.md)` for full unwrapping logic.
 * **Fix:**
     1. Select Sharp Edges: `[e for e in bm.edges if e.calc_face_angle(0) > 1.05]`
     2. Mark Seams: `e.seam = True`

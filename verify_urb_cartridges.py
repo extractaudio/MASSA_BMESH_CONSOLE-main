@@ -7,15 +7,6 @@ import shutil
 
 # Setup paths
 repo_root = os.getcwd()
-src_dir = os.path.join(repo_root, "MASSA_BMESH_CONSOLE-main")
-link_name = os.path.join(repo_root, "massa")
-
-# Create symlink 'massa' -> 'MASSA_BMESH_CONSOLE-main'
-if not os.path.exists(link_name):
-    try:
-        os.symlink(src_dir, link_name)
-    except OSError:
-        pass
 
 if repo_root not in sys.path:
     sys.path.append(repo_root)
@@ -39,8 +30,6 @@ try:
     ]
 except ImportError as e:
     print(f"Error importing cartridges: {e}")
-    if os.path.islink(link_name):
-        os.remove(link_name)
     sys.exit(1)
 
 print("--- Verifying Urban Cartridges ---")
@@ -95,9 +84,6 @@ for cls in cartridges:
         import traceback
         traceback.print_exc()
         failed = True
-
-if os.path.islink(link_name):
-    os.remove(link_name)
 
 print("--- Verification Complete ---")
 if failed:

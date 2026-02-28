@@ -1,7 +1,7 @@
 import ast
 import os
 
-target_dir = r"d:\AntiGravity_google\MASSA_BMESH_CONSOLE-main\_Scripts"
+target_dir = r"d:\AntiGravity_google\massa\_Scripts"
 
 print(f"Scanning directory: {target_dir}")
 found_classes = 0

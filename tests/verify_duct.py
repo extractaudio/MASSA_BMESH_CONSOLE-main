@@ -9,7 +9,7 @@ import shutil
 # so that relative imports (from ...operators) resolve correctly.
 
 repo_root = os.getcwd()
-addon_dir = os.path.join(repo_root, "MASSA_BMESH_CONSOLE-main")
+addon_dir = os.path.join(repo_root, "massa")
 alias_dir = os.path.join(repo_root, "massa_addon")
 
 if not os.path.exists(alias_dir):

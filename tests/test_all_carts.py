@@ -5,9 +5,9 @@ import os
 import traceback
 
 # Add to path to resolve absolute imports if needed
-sys.path.append("d:\\AntiGravity_google\\MASSA_BMESH_CONSOLE-main\\MASSA_BMESH_CONSOLE-main")
+sys.path.append("d:\\AntiGravity_google\\massa\\massa")
 
-cartridge_dir = "d:\\AntiGravity_google\\MASSA_BMESH_CONSOLE-main\\MASSA_BMESH_CONSOLE-main\\modules\\cartridges"
+cartridge_dir = "d:\\AntiGravity_google\\massa\\massa\\modules\\cartridges"
 carts = [
     "cart_asm_09_checkpoint.py",
     "cart_asm_10_tower.py",
