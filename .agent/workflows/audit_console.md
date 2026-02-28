@@ -7,7 +7,7 @@ description: Audit the Massa Console internals using the Headless architecture
 2. Run the Console Bridge script from the project root:
 
    ```bash
-   python MASSA_BMESH_CONSOLE-main/modules/debugging_system/bridge_console.py
+   python massa/modules/debugging_system/bridge_console.py
    ```
 
 ## Agent Protocol

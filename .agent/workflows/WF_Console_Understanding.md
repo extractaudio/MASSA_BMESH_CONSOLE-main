@@ -6,7 +6,7 @@ description: Guide to understanding the MASSA Console architecture and verificat
 
 ## 1. OBJECTIVE
 
-Understand the "Brain-Muscle-Engine" architecture of the `MASSA_BMESH_CONSOLE-main` addon and verification protocols.
+Understand the "Brain-Muscle-Engine" architecture of the `massa` addon and verification protocols.
 
 ## 2. KEY COMPONENTS
 

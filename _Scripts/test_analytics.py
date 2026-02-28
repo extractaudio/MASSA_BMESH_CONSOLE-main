@@ -4,7 +4,7 @@ import os
 import json
 
 # Add project root to path
-project_root = r"D:\AntiGravity_google\MASSA_BMESH_CONSOLE-main\MASSA_BMESH_CONSOLE-main"
+project_root = r"D:\AntiGravity_google\massa\massa"
 if project_root not in sys.path:
     sys.path.append(project_root)
 

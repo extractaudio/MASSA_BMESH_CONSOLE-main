@@ -9,7 +9,7 @@ def setup_massa_env():
     Sets up the 'massa' package environment by aliasing the addon directory 
     (which might have dashes) to a clean 'massa' package name in sys.modules.
     """
-    # 1. Calculate Addon Root (Repo/MASSA_BMESH_CONSOLE-main)
+    # 1. Calculate Addon Root (Repo/massa)
     # runner.py is in modules/debugging_system/
     # root is ../../
     current_dir = os.path.dirname(os.path.abspath(__file__))

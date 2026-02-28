@@ -19,7 +19,7 @@ FILES_TO_AUDIT = [
     "cart_prim_24_gutter.py"
 ]
 
-BASE_PATH = r"d:\AntiGravity_google\MASSA_BMESH_CONSOLE-main\MASSA_BMESH_CONSOLE-main\modules\cartridges"
+BASE_PATH = r"d:\AntiGravity_google\massa\massa\modules\cartridges"
 
 def audit_file(filename):
     filepath = os.path.join(BASE_PATH, filename)

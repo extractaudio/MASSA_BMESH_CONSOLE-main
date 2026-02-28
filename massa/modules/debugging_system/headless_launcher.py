@@ -4,7 +4,7 @@ import sys
 import time
 
 # 1. Force Enable the Addon
-possible_names = ["BMESH_MASSA_CONSOLE", "MASSA_BMESH_CONSOLE-main", "MASSA_BMESH_CONSOLE"]
+possible_names = ["BMESH_MASSA_CONSOLE", "massa", "MASSA_BMESH_CONSOLE"]
 enabled_name = None
 
 for name in possible_names:

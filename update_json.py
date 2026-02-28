@@ -3,7 +3,7 @@ import os
 import sys
 
 def append_objects(new_objects):
-    file_path = r"d:\AntiGravity_google\MASSA_BMESH_CONSOLE-main\object_logic.json"
+    file_path = r"d:\AntiGravity_google\massa\object_logic.json"
     
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:

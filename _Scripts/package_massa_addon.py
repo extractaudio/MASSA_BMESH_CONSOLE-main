@@ -7,7 +7,7 @@ def package_addon():
     # Setup paths
     script_dir = Path(__file__).parent.resolve()
     root_dir = script_dir.parent
-    source_dir = root_dir / "MASSA_BMESH_CONSOLE-main"
+    source_dir = root_dir / "massa"
     addon_name = "MASSA_BMESH_CONSOLE" # Ideally read from manifest ID, but this is safe
     export_dir = root_dir / "_EXPORT"
     zip_path = export_dir / f"{addon_name}.zip"
