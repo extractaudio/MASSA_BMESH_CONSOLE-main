@@ -240,7 +240,8 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
 
                     # 2. Restore Parameters
                     # [ARCHITECT FIX] Use safe dict conversion for IDProperty
-                    params = dict(obj["MASSA_PARAMS"].items())
+                    id_prop = obj["MASSA_PARAMS"]
+                    params = id_prop.to_dict() if hasattr(id_prop, "to_dict") else dict(id_prop.items())
                     for k, v in params.items():
                         # Skip materials to allow Console override
                         if k.startswith("mat_") or k.startswith("phys_mat_"):
@@ -275,7 +276,8 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         # [LEGACY/FALLBACK] Check for Resurrection Payload from Wrapper
         elif "MASSA_TEMP_RESTORE" in context.scene:
             try:
-                restore_data = context.scene["MASSA_TEMP_RESTORE"]
+                id_prop = context.scene["MASSA_TEMP_RESTORE"]
+                restore_data = id_prop.to_dict() if hasattr(id_prop, "to_dict") else dict(id_prop.items())
                 for k, v in restore_data.items():
                     if k.startswith("mat_") or k.startswith("phys_mat_"):
                         continue
@@ -417,7 +419,8 @@ class MASSA_OT_ReRun_Active(Operator):
         massa_params = None
         if "MASSA_PARAMS" in obj:
             try:
-                massa_params = dict(obj["MASSA_PARAMS"].items())
+                id_prop = obj["MASSA_PARAMS"]
+                massa_params = id_prop.to_dict() if hasattr(id_prop, "to_dict") else dict(id_prop.items())
             except:
                 pass
 
