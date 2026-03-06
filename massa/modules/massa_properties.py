@@ -208,15 +208,53 @@ class MassaPropertiesMixin:
     ui_tab: EnumProperty(
         name="Tab",
         items=[
-            ("SHAPE", "Shape", ""),
-            ("DATA", "Data", ""),
-            ("POLISH", "Polish", ""),
-            ("UVS", "UVs", ""),
-            ("SLOTS", "Slots", ""),
-            ("EDGES", "Edges", ""),
-            ("COLLISION", "Collision", ""),
+            ("SHAPE", "Shape", "Base Geometry", "MOD_BUILD", 0),
+            ("DATA", "Data", "Surface Data & Wear", "BRUSH_DATA", 1),
+            ("POLISH", "Polish", "Modifiers & Refinement", "MOD_SMOOTH", 2),
+            ("UVS", "UVs", "Unwrapping & Seams", "GROUP_UVS", 3),
+            ("SLOTS", "Slots", "Material Assignments", "MATERIAL", 4),
+            ("EDGES", "Edges", "Edge Role Interpreter", "EDGESEL", 5),
+            ("COLLISION", "Collision", "Collision & Physics", "PHYSICS", 6),
+            ("SOCKETS", "Sockets", "Socket Generation", "EMPTY_AXIS", 7),
         ],
         default="SHAPE",
+    )
+
+    # --- EDGE SLOT ACTIONS ---
+    edge_action_items = [
+        ("IGNORE", "Ignore", "Do nothing with these edges", "X", 0),
+        ("SEAM", "Seam", "Mark as UV Seam", "EDGE_SEAM", 1),
+        ("SHARP", "Sharp", "Mark as Sharp", "EDGE_SHARP", 2),
+        ("CREASE", "Crease", "Mark as Subsurf Crease", "EDGE_CREASE", 3),
+        ("BEVEL", "Bevel", "Mark for Bevel Modifier", "EDGE_BEVEL", 4),
+        ("BOTH", "Seam+Sharp", "Mark as both", "MOD_EDGESPLIT", 5),
+    ]
+
+    edge_slot_1_action: EnumProperty(
+        name="Slot 1 (Perimeter)", items=edge_action_items, default="BOTH"
+    )
+    edge_slot_2_action: EnumProperty(
+        name="Slot 2 (Contour)", items=edge_action_items, default="SHARP"
+    )
+    edge_slot_3_action: EnumProperty(
+        name="Slot 3 (Guide)", items=edge_action_items, default="SEAM"
+    )
+    edge_slot_4_action: EnumProperty(
+        name="Slot 4 (Detail)", items=edge_action_items, default="IGNORE"
+    )
+    edge_slot_5_action: EnumProperty(
+        name="Slot 5 (Fold)", items=edge_action_items, default="IGNORE"
+    )
+
+    # --- EDGE VISUALIZATION ---
+    viz_edge_mode: EnumProperty(
+        name="Edge Viz",
+        items=[
+            ("OFF", "Off", "Standard View", "X", 0),
+            ("NATIVE", "Native", "Show Blender Overlays", "OVERLAY", 1),
+            ("SLOTS", "Slots", "Show Colored Edge Slots (Shader)", "SHADING_WIRE", 2),
+        ],
+        default="NATIVE",
     )
 
     # --- POLISH: STRUCTURE ---
@@ -402,16 +440,17 @@ class MassaPropertiesMixin:
     part_active: BoolProperty(name="Write Part IDs", default=True)
 
     debug_view: EnumProperty(
-        name="View",
+        name="Preview",
+        description="Global Overlay Mode",
         items=[
-            ("NONE", "Final", ""),
-            ("UV", "UV Check", ""),
-            ("DATA_SET_1", "Set 1 (RGBW)", "Show Set 1 Channels (Wear, Thick, Grav, Cavity)"),
-            ("DATA_SET_2", "Set 2 (Alt)", "Show Set 2 Channels (Edge, Flow, Cover, Peak)"),
-            ("PHYS", "Physics", ""),
-            ("PARTS", "Part IDs", "Show slot indices"),
-            ("PROTECT", "Protection", "Show noise masks"),
-            ("SEAM", "Seams", ""),
+            ("NONE", "Final", "Show Final Result", "SHADING_RENDERED", 0),
+            ("UV", "UV Check", "UV Checker Map", "UV", 1),
+            ("SEAM", "Seams", "Seam Inspection (Neutral)", "EDGE_SEAM", 2),
+            ("DATA_SET_1", "Set 1 (RGBW)", "Show Set 1 Channels (Wear, Thick, Grav, Cavity)", "BRUSH_DATA", 5),
+            ("DATA_SET_2", "Set 2 (Alt)", "Show Set 2 Channels (Edge, Flow, Cover, Peak)", "BRUSH_DATA", 6),
+            ("PHYS", "Physics ID", "Physical Material IDs", "PHYSICS", 3),
+            ("PARTS", "Part ID", "Slot Indices", "GROUP", 4),
+            ("PROTECT", "Protect", "Seam Protection Mask", "LOCKED", 9),
         ],
         default="NONE",
     )

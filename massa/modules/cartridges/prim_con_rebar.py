@@ -278,7 +278,7 @@ class MASSA_OT_prim_con_rebar(Massa_OT_Base):
             if edges_boundary:
                 try:
                     bmesh.ops.contextual_create(bm, geom=edges_boundary, mat_index=1)
-                except:
+                except Exception:
                     pass
 
         for e in bm.edges:

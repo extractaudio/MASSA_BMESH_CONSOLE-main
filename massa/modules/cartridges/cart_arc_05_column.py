@@ -123,7 +123,7 @@ class MASSA_OT_ArcColumn(Massa_OT_Base):
                          try:
                              builder.inset(0.02 * r_base, depth=-self.flute_depth, relative=False) \
                                     .tag_edge_role(2) # Sharp flutes
-                         except:
+                         except Exception:
                              pass
 
                 # Mark Shaft Caps as 1 (Seam)

@@ -1,16 +1,6 @@
 import bpy
 import importlib
 
-bl_info = {
-    "name": "Massa Container",
-    "category": "3D View",
-    "author": "ThinkTank",
-    "version": (1, 0, 2),
-    "blender": (5, 0, 0),
-    "location": "Sidebar > Massa",
-    "description": "Procedural Geometry Engine",
-}
-
 # --- IMPORTS ---
 from .utils import mat_utils
 from .modules import massa_console  # 1. BRAIN
@@ -57,12 +47,14 @@ if "massa_console" in locals():
         importlib.reload(massa_shooter)
 
         # 4. CONTENT & UI
-        importlib.reload(cartridges)
-
-        # RELOAD INDIVIDUAL CARTRIDGES
+        # Reload individual cartridge modules before re-discovery
         if hasattr(cartridges, "MODULES"):
             for mod in cartridges.MODULES:
                 importlib.reload(mod)
+
+        importlib.reload(cartridges)
+        # Re-discover after reload to pick up new/changed cartridges
+        cartridges._discover()
 
         importlib.reload(ui_massa_panel)  # The Face
         importlib.reload(ui_massa_pie)
@@ -90,6 +82,7 @@ def register():
     bpy.utils.register_class(massa_base.MASSA_OT_ReRun_Active)
     bpy.utils.register_class(massa_tools.MASSA_OT_Condemn)
     bpy.utils.register_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
+    bpy.utils.register_class(massa_tools.MASSA_OT_Finalize_And_Inspect)
     bpy.utils.register_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.register_class(massa_shooter.MASSA_OT_ShootDispatcher)
     bpy.utils.register_class(massa_shooter.MASSA_OT_SpawnTarget)
@@ -143,6 +136,7 @@ def unregister():
     bpy.utils.unregister_class(massa_shooter.MASSA_OT_SpawnTarget)
     bpy.utils.unregister_class(massa_shooter.MASSA_OT_ShootDispatcher)
     bpy.utils.unregister_class(massa_point_tool.MASSA_OT_PickCoordinate)
+    bpy.utils.unregister_class(massa_tools.MASSA_OT_Finalize_And_Inspect)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Condemn)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
     bpy.utils.unregister_class(massa_base.Massa_OT_Base)

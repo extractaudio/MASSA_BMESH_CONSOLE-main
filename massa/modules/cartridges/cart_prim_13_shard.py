@@ -147,7 +147,7 @@ class MASSA_OT_PrimShard(Massa_OT_Base):
                     for f in new_faces:
                         f.material_index = 1
                         f.smooth = False  # Sharp cuts
-            except:
+            except Exception:
                 pass  # Bisect failed (plane missed mesh), continue
 
         # 3. MARK SEAMS (REMOVED - Replaced by Edge Slots)

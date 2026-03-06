@@ -150,7 +150,7 @@ def apply_plating(bm, manifest, thickness, depth):
                 use_even_offset=True,
             )
             bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=True, faces=True)
-        except:
+        except Exception:
             pass
 
 
@@ -279,7 +279,7 @@ def apply_chamfer(bm, width, segments, is_square=False, angle_limit=0.05):
                 loop_slide=True,
                 material=-1,
             )
-        except:
+        except Exception:
             pass
 
 
@@ -308,7 +308,7 @@ def apply_concave_bevel(bm, width, segments, is_square=False):
                 loop_slide=True,
                 material=-1,
             )
-        except:
+        except Exception:
             pass
 
 
@@ -322,7 +322,7 @@ def apply_safety_decimate(bm, target_count=1000000):
             use_dissolve_boundaries=False,
             verts=bm.verts[:],
         )
-    except:
+    except Exception:
         pass
 
 
@@ -339,7 +339,7 @@ def apply_cleanup(bm, fix_degenerate=True, fix_thin=True):
     if fix_degenerate:
         try:
             bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=True, faces=True)
-        except:
+        except Exception:
             pass
 
     # 2. Thin Faces (Slivers)
@@ -369,7 +369,7 @@ def apply_cleanup(bm, fix_degenerate=True, fix_thin=True):
             # Try dissolve first (Preserves topology if connected)
             try:
                 bmesh.ops.dissolve_faces(bm, faces=faces_to_dissolve)
-            except:
+            except Exception:
                 pass
 
             # Force delete any that remain (e.g. isolated faces that dissolve failed on)
@@ -377,7 +377,7 @@ def apply_cleanup(bm, fix_degenerate=True, fix_thin=True):
             if remaining:
                 try:
                     bmesh.ops.delete(bm, geom=remaining, context="FACES")
-                except:
+                except Exception:
                     pass
 
             # Cleanup loose stuff
@@ -395,7 +395,7 @@ def apply_solidify(bm, thickness):
         return
     try:
         bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=thickness)
-    except:
+    except Exception:
         pass
 
 
@@ -404,14 +404,14 @@ def apply_triangulate(bm, method="BEAUTY"):
         bmesh.ops.triangulate(
             bm, faces=bm.faces[:], quad_method=method, ngon_method=method
         )
-    except:
+    except Exception:
         pass
 
 
 def apply_fill_holes(bm, sides=4):
     try:
         bmesh.ops.holes_fill(bm, edges=bm.edges[:], sides=sides)
-    except:
+    except Exception:
         pass
 
 
@@ -451,7 +451,7 @@ def apply_bridge_loops(bm):
     if edges:
         try:
             bmesh.ops.bridge_loops(bm, edges=edges, use_pairs=True, use_merge=True)
-        except:
+        except Exception:
             pass
 
 
@@ -465,7 +465,7 @@ def handle_separation(obj, op, manifest, context, slot_map=None):
              try:
                  context.view_layer.objects.active = obj
                  bpy.ops.object.modifier_apply(modifier="Massa_Fuse")
-             except:
+             except Exception:
                  pass
 
     for i in range(10):

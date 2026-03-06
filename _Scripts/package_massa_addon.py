@@ -7,8 +7,10 @@ def package_addon():
     # Setup paths
     script_dir = Path(__file__).parent.resolve()
     root_dir = script_dir.parent
-    source_dir = root_dir / "MASSA_BMESH_CONSOLE-main"
-    addon_name = "MASSA_BMESH_CONSOLE" # Ideally read from manifest ID, but this is safe
+    # IMPORTANT: source_dir must be the addon subfolder (massa/), NOT the repo root.
+    # Blender 5.0 Extensions require blender_manifest.toml at the ZIP root level.
+    source_dir = root_dir / "massa"
+    addon_name = "massa" # Ideally read from manifest ID, but this is safe
     export_dir = root_dir / "_EXPORT"
     zip_path = export_dir / f"{addon_name}.zip"
 
@@ -28,12 +30,14 @@ def package_addon():
 
     # Files/Dirs to exclude
     EXCLUDE_DIRS = {
-        '.git', 
-        '.vscode', 
-        '__pycache__', 
+        '.git',
+        '.vscode',
+        '__pycache__',
         '_EXPORT',
         'tests',
-        '.github'
+        '.github',
+        '.agent',
+        'debugging_system',
     }
     EXCLUDE_FILES = {
         '.gitignore', 

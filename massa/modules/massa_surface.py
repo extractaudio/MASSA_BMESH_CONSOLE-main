@@ -37,7 +37,7 @@ def calculate_physical_stats(bm, manifest):
     try:
         vol = bm.calc_volume(signed=True)
         vol = abs(vol)
-    except:
+    except Exception:
         vol = 0.0
 
     if vol < 0.000001:
@@ -180,7 +180,7 @@ def write_identity_layers(bm, manifest, op):
         uv_layer = bm.loops.layers.uv.get("UVMap")
         if not uv_layer:
             uv_layer = bm.loops.layers.uv.new("UVMap")
-    except:
+    except Exception:
         uv_layer = bm.loops.layers.uv.verify()  # Fallback
         uv_layer.name = "UVMap"
 
@@ -310,7 +310,7 @@ def auto_detect_edge_slots(bm):
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-    except:
+    except Exception:
         return
 
     bm.edges.ensure_lookup_table()
@@ -557,7 +557,7 @@ def auto_detect_sharp_edges(bm, op):
 
     try:
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-    except:
+    except Exception:
         edge_slots = None
 
     bm.edges.ensure_lookup_table()
@@ -630,7 +630,7 @@ def tag_structure_edges(bm, op):
         viz_layer = bm.edges.layers.int.get("Massa_Viz_ID")
         if not viz_layer:
             viz_layer = bm.edges.layers.int.new("Massa_Viz_ID")
-    except:
+    except Exception:
         viz_layer = bm.edges.layers.int.new("Massa_Viz_ID")
 
     try:
@@ -818,14 +818,14 @@ def generate_surface_maps(bm, op, convex, concave):
     try:
         cl1 = bm.loops.layers.float_color.get("Data_Colors_1")
         if not cl1: cl1 = bm.loops.layers.float_color.new("Data_Colors_1")
-    except:
+    except Exception:
         cl1 = bm.loops.layers.color.get("Data_Colors_1") or bm.loops.layers.color.new("Data_Colors_1")
 
     # Layer 2
     try:
         cl2 = bm.loops.layers.float_color.get("Data_Colors_2")
         if not cl2: cl2 = bm.loops.layers.float_color.new("Data_Colors_2")
-    except:
+    except Exception:
         cl2 = bm.loops.layers.color.get("Data_Colors_2") or bm.loops.layers.color.new("Data_Colors_2")
 
     # Delete old "Massa_Surface" if it exists to avoid confusion
@@ -1096,19 +1096,19 @@ def bake_strain_map(bm, op):
         layer = bm.loops.layers.float_color.get("MASSA_YieldMap")
         if not layer:
             layer = bm.loops.layers.float_color.new("MASSA_YieldMap")
-    except:
+    except Exception:
         # Fallback to Byte Color if needed (though Float is standard now)
         try:
             layer = bm.loops.layers.color.get("MASSA_YieldMap")
             if not layer:
                 layer = bm.loops.layers.color.new("MASSA_YieldMap")
-        except:
+        except Exception:
             print("MASSA ERROR: Could not create Strain Map layer.")
             return
 
     try:
         edge_slots_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-    except:
+    except Exception:
          edge_slots_layer = None
 
     if not edge_slots_layer:
@@ -1175,7 +1175,7 @@ def bake_kinematic_anchors(obj, bm, op):
     
     try:
         edge_slots_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-    except:
+    except Exception:
         edge_slots_layer = None
 
     if not edge_slots_layer:

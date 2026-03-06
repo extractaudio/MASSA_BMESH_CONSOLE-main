@@ -17,82 +17,10 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
     bl_label = "Massa Base"
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
-    # --- UI PROPERTIES (Syncs with Console) ---
-    ui_tab: EnumProperty(
-        name="Tab",
-        items=[
-            ("SHAPE", "Shape", "Base Geometry", "MOD_BUILD", 0),
-            ("DATA", "Data", "Surface Data & Wear", "BRUSH_DATA", 1),
-            ("POLISH", "Polish", "Modifiers & Refinement", "MOD_SMOOTH", 2),
-            ("UVS", "UVs", "Unwrapping & Seams", "GROUP_UVS", 3),
-            ("SLOTS", "Slots", "Material Assignments", "MATERIAL", 4),
-            ("EDGES", "Edges", "Edge Role Interpreter", "EDGESEL", 5),
-            ("COLLISION", "Collision", "Collision & Physics", "PHYSICS", 6),
-            ("SOCKETS", "Sockets", "Socket Generation", "EMPTY_AXIS", 7),
-        ],
-        default="SHAPE",
-    )
+    # --- OPERATOR-ONLY PROPERTIES ---
+    # (All shared properties inherited from MassaPropertiesMixin)
 
-    # Visualization (Synced)
-    debug_view: EnumProperty(
-        name="Preview",
-        items=[
-            ("NONE", "Final", "Show Final Result", "SHADING_RENDERED", 0),
-            ("UV", "UV Check", "UV Checker Map", "UV", 1),
-            ("SEAM", "Seams", "Seam Inspection (Neutral)", "EDGE_SEAM", 2),
-            ("DATA_SET_1", "Set 1 (RGBW)", "Show Set 1 Channels (Wear, Thick, Grav, Cavity)", "BRUSH_DATA", 5),
-            ("DATA_SET_2", "Set 2 (Alt)", "Show Set 2 Channels (Edge, Flow, Cover, Peak)", "BRUSH_DATA", 6),
-            ("PHYS", "Physics ID", "Physical Material IDs", "PHYSICS", 3),
-            ("PARTS", "Part ID", "Slot Indices", "GROUP", 4),
-            ("PROTECT", "Protect", "Seam Protection Mask", "LOCKED", 9),
-        ],
-        default="NONE",
-    )
-
-    # Global UV Overrides
-    auto_unwrap: BoolProperty(name="Auto Smart UV", default=False, description="Force Smart UV Project on result")
-    auto_unwrap_use_slots: BoolProperty(
-        name="Use Edge Slots",
-        default=True,
-        description="If True, uses Edge Slots 1, 3, 5 as Seams and runs LSCM Unwrap.",
-    )
-    auto_unwrap_margin: FloatProperty(
-        name="Margin", default=0.02, min=0.001, max=0.5, description="Island Margin for Auto Unwrap"
-    )
-
-    viz_edge_mode: EnumProperty(
-        name="Viz",
-        items=[
-            ("OFF", "Off", "Standard View", "X", 0),
-            ("NATIVE", "Native", "Show Blender Overlays", "OVERLAY", 1),
-            ("SLOTS", "Slots", "Show Colored Edge Slots (Shader)", "SHADING_WIRE", 2),
-        ],
-        default="NATIVE",
-    )
-
-    # Edge Actions
-    edge_action_items = [
-        ("IGNORE", "Ignore", "Do nothing with these edges", "X", 0),
-        ("SEAM", "Seam", "Mark as UV Seam", "EDGE_SEAM", 1),
-        ("SHARP", "Sharp", "Mark as Sharp", "EDGE_SHARP", 2),
-        ("CREASE", "Crease", "Mark as Subsurf Crease", "EDGE_CREASE", 3),
-        ("BEVEL", "Bevel", "Mark for Bevel Modifier", "EDGE_BEVEL", 4),
-        ("BOTH", "Both", "Mark as both", "MOD_EDGESPLIT", 5),
-    ]
-
-    edge_slot_1_action: EnumProperty(name="S1", items=edge_action_items, default="BOTH")
-    edge_slot_2_action: EnumProperty(
-        name="S2", items=edge_action_items, default="SHARP"
-    )
-    edge_slot_3_action: EnumProperty(name="S3", items=edge_action_items, default="SEAM")
-    edge_slot_4_action: EnumProperty(
-        name="S4", items=edge_action_items, default="IGNORE"
-    )
-    edge_slot_5_action: EnumProperty(
-        name="S5", items=edge_action_items, default="IGNORE"
-    )
-
-    # [ARCHITECT NEW] Internal flag for Resurrection Mode
+    # Internal flag for Resurrection Mode
     rerun_mode: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
 
     # [ARCHITECT NEW] Resurrection Transform Persistence
@@ -108,7 +36,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             mod = sys.modules[self.__module__]
             if hasattr(mod, "CARTRIDGE_META"):
                 return mod.CARTRIDGE_META
-        except:
+        except Exception:
             pass
         return {}
 
@@ -176,36 +104,9 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     f"phys_bond_{i}",
                 ]
             )
-        all_keys.extend(
-            [
-                "ui_tab",
-                "auto_unwrap",
-                "auto_unwrap_use_slots",
-                "auto_unwrap_margin",
-                "edge_slot_1_action",
-                "edge_slot_2_action",
-                "edge_slot_3_action",
-                "edge_slot_4_action",
-                "edge_slot_5_action",
-                "viz_edge_mode",
-                "debug_view",
-                "seam_from_edges",
-                "seam_use_peri",
-                "seam_use_cont",
-                "seam_use_guide",
-                "seam_use_detail",
-                "seam_use_fold",
-                "phys_gen_ucx",
-                "phys_bake_strain",
-                "phys_kinematic_pin",
-                "phys_auto_rig",
-                "phys_yield_strength",
-                "sock_enable",
-                "sock_constraint_type",
-                "sock_break_strength",
-                "sock_visual_size",
-            ]
-        )
+        # Note: All shared properties (ui_tab, debug_view, edge_slot_*_action,
+        # viz_edge_mode, auto_unwrap*, seam_*, phys_*, sock_*) are already
+        # captured via MassaPropertiesMixin.__annotations__ above.
 
         for key in all_keys:
             if not hasattr(console, key):
@@ -219,7 +120,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     val = getattr(self, key, None)
                     if val is not None:
                         setattr(console, key, val)
-            except:
+            except Exception:
                 pass
 
     def invoke(self, context, event):
@@ -261,7 +162,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                         if hasattr(self, k):
                             try:
                                 setattr(self, k, v)
-                            except:
+                            except Exception:
                                 pass
 
                     # 3. Destroy Old Object (Full Re-Birth)
@@ -282,7 +183,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     if hasattr(self, k):
                         try:
                             setattr(self, k, v)
-                        except:
+                        except Exception:
                             pass
                 del context.scene["MASSA_TEMP_RESTORE"]
             except Exception as e:
@@ -418,7 +319,7 @@ class MASSA_OT_ReRun_Active(Operator):
         if "MASSA_PARAMS" in obj:
             try:
                 massa_params = dict(obj["MASSA_PARAMS"].items())
-            except:
+            except Exception:
                 pass
 
         if massa_params:
@@ -444,7 +345,7 @@ class MASSA_OT_ReRun_Active(Operator):
             op_module = getattr(bpy.ops, op_category)
             op_func = getattr(op_module, op_name)
             op_func("INVOKE_DEFAULT")
-        except:
+        except Exception:
             return {"CANCELLED"}
         new_obj = context.active_object
         if new_obj:

@@ -77,7 +77,7 @@ def unregister_cartridge_props():
     for cls in CARTRIDGE_PROP_CLASSES.values():
         try:
             bpy.utils.unregister_class(cls)
-        except:
+        except Exception:
             pass
     CARTRIDGE_PROP_CLASSES.clear()
 

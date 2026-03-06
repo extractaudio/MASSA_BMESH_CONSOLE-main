@@ -212,7 +212,7 @@ class MASSA_OT_PrimRockBoulder(Massa_OT_Base):
                         amplitude *= n_rough
                         frequency *= n_lacun
                     
-            except:
+            except Exception:
                 total_noise = 0.5 # Fallback
             
             # Displacement Intensity based on type
@@ -332,7 +332,7 @@ class MASSA_OT_PrimRockBoulder(Massa_OT_Base):
                             for f in new_faces:
                                 f.material_index = 1 
                                 f.smooth = (self.rock_type == 'RIVER')
-                    except:
+                    except Exception:
                         pass
 
         # E. CLEANUP

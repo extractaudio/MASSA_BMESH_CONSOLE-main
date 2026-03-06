@@ -34,7 +34,7 @@ def get_or_create_sdf_fuse_tree():
         n_sdf.location = (-200, 0)
         if "Resolution Mode" in n_sdf.inputs:
             n_sdf.inputs["Resolution Mode"].default_value = "VOXEL_AMOUNT"
-    except:
+    except Exception:
         nt.links.new(node_in.outputs["Geometry"], node_out.inputs["Geometry"])
         return nt
 
@@ -179,7 +179,7 @@ def get_or_create_viz_overlay_tree():
         try:
             if not n_out.inputs["Geometry"].is_linked:
                 nt.links.new(n_in.outputs["Geometry"], n_out.inputs["Geometry"])
-        except:
+        except Exception:
             pass
 
     return nt
