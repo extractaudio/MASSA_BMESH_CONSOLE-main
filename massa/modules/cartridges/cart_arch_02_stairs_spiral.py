@@ -476,7 +476,7 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                     f.normal_flip()
                     for e in f.edges:
                         e[edge_slots] = 1 # Perimeter Seam
-        except:
+        except Exception:
             pass
 
         # Cap End
@@ -487,5 +487,5 @@ class MASSA_OT_ArchStairsSpiral(Massa_OT_Base):
                     f.material_index = slot_idx
                     for e in f.edges:
                         e[edge_slots] = 1 # Perimeter Seam
-        except:
+        except Exception:
             pass

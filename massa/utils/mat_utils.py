@@ -263,7 +263,7 @@ def create_debug_channel_material(channel_idx):
     # Safe Separation
     try:
         sep = nt.nodes.new("ShaderNodeSeparateColor")
-    except:
+    except Exception:
         sep = nt.nodes.new("ShaderNodeSeparateRGB") # Fallback
 
     nt.links.new(attr.outputs["Color"], sep.inputs["Color"] if "Color" in sep.inputs else sep.inputs["Image"])

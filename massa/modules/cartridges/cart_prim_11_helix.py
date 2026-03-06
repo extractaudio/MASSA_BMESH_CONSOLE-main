@@ -280,7 +280,7 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
                         l.vert.co.x * self.uv_scale,
                         l.vert.co.y * self.uv_scale,
                     )
-            except:
+            except Exception:
                 pass
 
         # Start Cap

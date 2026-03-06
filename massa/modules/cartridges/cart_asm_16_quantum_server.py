@@ -192,7 +192,7 @@ class MASSA_OT_AsmQuantumServer(Massa_OT_Base):
                             # Assign random LED status to the inner face?
                             # Or subdivide inner face
                             pass
-                        except:
+                        except Exception:
                             pass
 
                         # Create a small LED grid on the front

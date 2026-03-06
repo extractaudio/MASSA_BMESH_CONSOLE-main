@@ -1,16 +1,15 @@
 schema_version = "1.0.0"
 
 id = "massa_mesh_gen"
-version = "1.0.2"
+version = "2.0.0"
 name = "Massa Mesh Generator"
-tagline = "Procedural Geometry for UE5 Pipeline"
+tagline = "Procedural Geometry Engine with BMesh Cartridges"
 maintainer = "3D_Massa"
 type = "add-on"
-website = "https://yourwebsite.com"
 
 
 # --- COMPATIBILITY ---
-blender_version_min = "4.5.0"
+blender_version_min = "5.0.0"
 
 # --- LICENSE ---
 license = ["SPDX:GPL-3.0-or-later"]

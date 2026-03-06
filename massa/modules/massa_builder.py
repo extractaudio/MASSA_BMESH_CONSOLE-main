@@ -870,7 +870,7 @@ class MassaBuilder:
         vol = 0.0
         try:
             vol = self.bm.calc_volume()
-        except:
+        except Exception:
             pass # Non-manifold or open
 
         sel_faces = len(self.active_faces)

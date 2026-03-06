@@ -298,7 +298,7 @@ def audit_evaluated(obj_name):
 
     try:
         stats["volume"] = mesh.calc_volume() # 5.0 API check
-    except:
+    except Exception:
         pass
 
     bm.free()

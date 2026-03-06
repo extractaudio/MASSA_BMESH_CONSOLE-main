@@ -185,7 +185,7 @@ class MASSA_OT_PrimLathe(Massa_OT_Base):
                             l[uv_layer].uv = (u2 * s_u, v_top * s_v)
                         elif l.vert == v4:
                             l[uv_layer].uv = (u1 * s_u, v_top * s_v)
-                except:
+                except Exception:
                     pass
 
         # 4. CAP CENTERS (Triangle Fans)
@@ -220,7 +220,7 @@ class MASSA_OT_PrimLathe(Massa_OT_Base):
                         l[uv_layer].uv = (u2 * s_u, v_outer * s_v)
                     elif l.vert == v1:
                         l[uv_layer].uv = (u1 * s_u, v_outer * s_v)
-            except:
+            except Exception:
                 pass
 
             # --- Top Cap (Inner Floor) ---
@@ -243,7 +243,7 @@ class MASSA_OT_PrimLathe(Massa_OT_Base):
                         l[uv_layer].uv = (u1 * s_u, v_ring * s_v)
                     elif l.vert == v2:
                         l[uv_layer].uv = (u2 * s_u, v_ring * s_v)
-            except:
+            except Exception:
                 pass
 
         # 5. MARK SEAMS & EDGE SLOTS

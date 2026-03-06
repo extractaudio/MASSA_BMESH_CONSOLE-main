@@ -116,7 +116,7 @@ def run_pipeline(op, context):
                 loose_verts = [v for v in bm.verts if not v.link_edges]
                 if loose_verts:
                     bmesh.ops.delete(bm, geom=loose_verts, context="VERTS")
-            except:
+            except Exception:
                 pass
 
         stats = massa_surface.write_identity_layers(bm, manifest, op)
@@ -213,7 +213,7 @@ def _capture_operator_params(op):
                 val = val.to_list()
 
             params[prop.identifier] = val
-        except:
+        except Exception:
             pass
 
     return params
@@ -365,7 +365,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
                      # Slot 1 (Perimeter), 3 (Guide), 5 (Fold) -> Seam
                      if sid in {1, 3, 5}:
                          e.seam = True
-        except:
+        except Exception:
             pass
 
     bm.to_mesh(mesh)
@@ -386,7 +386,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
         meta_id = op._get_cartridge_meta().get("id", "")
         if meta_id:
             op_id = f"massa.gen_{meta_id}"
-    except:
+    except Exception:
         pass
 
     # Fallback: Fix internal class name leakage (MASSA_OT_gen_ -> massa.gen_)
@@ -474,7 +474,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
                             correct_aspect=True,
                             scale_to_bounds=False,
                         )
-                    except:
+                    except Exception:
                         pass
                 else:
                     try:
@@ -493,7 +493,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
                                 correct_aspect=True,
                                 scale_to_bounds=False,
                             )
-                        except:
+                        except Exception:
                             pass
                 bpy.ops.mesh.select_all(action="DESELECT")
                 if is_debug_override:
@@ -536,7 +536,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
             obj.select_set(True)
         try:
             bpy.ops.object.modifier_apply(modifier="Massa_Fuse")
-        except:
+        except Exception:
             pass
 
     # [ARCHITECT VIZ OVERLAY]
@@ -579,7 +579,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
             overlay.show_edge_crease = True
             try:
                 overlay.show_edge_bevel_weight = True
-            except:
+            except Exception:
                 pass
             overlay.show_overlays = True
 
@@ -690,7 +690,7 @@ def phys_gen_ucx(obj, op, manifest, slot_map):
             meta = op.get_slot_meta()
             for i, data in meta.items():
                 slot_names[i] = data.get("name", f"Slot_{i}")
-    except:
+    except Exception:
         pass
 
     for i in target_slots:
@@ -993,7 +993,7 @@ def phys_auto_rig(obj, op, manifest):
                 rbc.object2 = child
                 rbc.use_breaking = True
                 rbc.breaking_threshold = break_force
-            except:
+            except Exception:
                 # Fallback if ops fail (e.g. no RB world)
                 pass
                 

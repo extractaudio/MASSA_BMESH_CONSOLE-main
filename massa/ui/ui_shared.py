@@ -525,7 +525,7 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
                 # Green check if good ratio, Warning if distorted
                 icon_e = "CHECKMARK" if eff_f < 1.1 else "ERROR"
                 row.label(text=f"{eff_f:.2f}", icon=icon_e)
-            except:
+            except Exception:
                 pass
 
         # Internal Controls

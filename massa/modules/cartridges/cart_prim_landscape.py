@@ -238,20 +238,20 @@ class MASSA_OT_PrimLandscape(Massa_OT_Base):
             if noise_func:
                 try:
                     z_val = noise_func(p, *noise_args_fixed)
-                except:
+                except Exception:
                     z_val = 0.0
             
             elif n_type == 'vl_noise_voronoi':
                 # Voronoi logic
                 try:
                     z_val = mathutils.noise.voronoi(p)[0]
-                except:
+                except Exception:
                     z_val = 0.0
             else:
                 # Default Perlin
                 try:
                      z_val = mathutils.noise.noise(p)
-                except:
+                except Exception:
                      z_val = 0.0
 
             # Distortion

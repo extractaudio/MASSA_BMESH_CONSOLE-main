@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"except:\")",
+      "Bash(xargs sed -i 's/\\\\bexcept:\\\\s*$/except Exception:/g; s/\\\\bexcept:\\\\s*pass/except Exception: pass/g')",
+      "Bash(ls massa/modules/cartridges/*.py)",
+      "Bash(python -c \"import ast; import sys; files=[''massa/__init__.py'',''massa/operators/massa_base.py'',''massa/modules/massa_console.py'',''massa/modules/massa_properties.py'',''massa/modules/cartridges/__init__.py'']; errors=[]; [errors.append\\(f''{f}: {e}''\\) for f in files for e in [None] if not \\(lambda: \\(ast.parse\\(open\\(f\\).read\\(\\)\\), True\\)[-1]\\) or True]; print\\(''Syntax OK'' if not errors else errors\\)\")",
+      "Bash(python -c \":*)"
+    ]
+  }
+}

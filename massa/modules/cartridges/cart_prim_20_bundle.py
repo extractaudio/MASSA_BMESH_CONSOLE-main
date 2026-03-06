@@ -88,7 +88,7 @@ class MASSA_OT_PrimBundle(Massa_OT_Base):
         # Color layer for material variation (e.g. multi-colored wires)
         try:
             col_layer = bm.loops.layers.color.verify()
-        except:
+        except Exception:
             col_layer = bm.loops.layers.color.new("Massa_Variation")
 
         # 2. CALC CONSTANTS

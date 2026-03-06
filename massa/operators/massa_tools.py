@@ -34,7 +34,7 @@ class MASSA_OT_Condemn(bpy.types.Operator):
             if k in obj:
                 try:
                     del obj[k]
-                except:
+                except Exception:
                     pass
 
         self.report({'INFO'}, "Object Condemned (Finalized)")
@@ -133,7 +133,7 @@ class MASSA_OT_Finalize_And_Inspect(bpy.types.Operator):
         for k in keys_to_remove:
             if k in obj:
                 try: del obj[k]
-                except: pass
+                except Exception: pass
 
         # 2. Enter Edit Mode & Select All
         bpy.ops.object.mode_set(mode='EDIT')
