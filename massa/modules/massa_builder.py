@@ -89,7 +89,7 @@ class MassaBuilder:
             self.bm,
             x_segments=x_segments,
             y_segments=y_segments,
-            size=size  # Fix: create_grid uses diameter/width
+            size=size / 2  # Fix: bmesh.ops.create_grid uses radius for size
         )
         verts = ret['verts']
         bmesh.ops.translate(self.bm, vec=center, verts=verts)
