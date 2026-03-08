@@ -304,12 +304,15 @@ class MASSA_OT_Scaffolding(Massa_OT_Base, MassaPropertiesMixin):
             ]
             
             for p in posts:
-                # Wheel Hub
-                # Rotate cylinder to lie on Y axis
-                # Actually, simplest representation: Vertical cylinder (caster) + Horizontal cylinder (wheel)
-                # Just a simple vertical extension for now
-                make_strut(p, p - Vector((0,0,0.2)), r, 4) # Stem
-                # Wheel TODO
+                # Wheel Hub & Stem
+                # Stem (Metal Rust/Joints)
+                stem_end = p - Vector((0, 0, 0.15))
+                make_strut(p, stem_end, r, 2)
+
+                # Wheel (Rubber) - Horizontal cylinder along Y axis
+                wheel_start = stem_end - Vector((0, 0.08, 0))
+                wheel_end = stem_end + Vector((0, 0.08, 0))
+                make_strut(wheel_start, wheel_end, r * 2.5, 4)
 
         # 6. EDGE ROLE INTERPRETER
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")

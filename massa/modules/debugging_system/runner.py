@@ -47,9 +47,11 @@ def prepare_cartridge_env():
         # Import using full package path 'massa.x.y' to support relative imports inside them
         import massa.operators.massa_base as massa_base_mod
         import massa.modules.massa_builder as massa_builder_mod
+        import massa.modules.massa_properties as massa_props_mod
 
         globals()['Massa_OT_Base'] = massa_base_mod.Massa_OT_Base
         globals()['MassaBuilder'] = massa_builder_mod.MassaBuilder
+        globals()['MassaPropertiesMixin'] = massa_props_mod.MassaPropertiesMixin
         return True
     except ImportError as e:
         print(f"Failed to import dependencies: {e}")
@@ -425,6 +427,8 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
                 code = re.sub(r'from\s+\.+\s*operators\.massa_base\s+import\s+Massa_OT_Base', '# [MOCKED] Massa_OT_Base', code)
                 # Allow optional 'modules.' prefix for MassaBuilder
                 code = re.sub(r'from\s+\.+\s*(?:modules\.)?massa_builder\s+import\s+MassaBuilder', '# [MOCKED] MassaBuilder', code)
+                # Mock MassaPropertiesMixin
+                code = re.sub(r'from\s+\.+\s*(?:modules\.)?massa_properties\s+import\s+MassaPropertiesMixin', '# [MOCKED] MassaPropertiesMixin', code)
 
                 # Check for remaining relative imports
                 if "from ." in code:
