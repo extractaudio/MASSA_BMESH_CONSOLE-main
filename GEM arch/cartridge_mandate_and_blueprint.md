@@ -74,6 +74,8 @@ The core logic resides in `build_shape(self, bm)`. Modifies `bm` in place.
 - **Pure BMesh**: Never use `bpy.ops` inside `build_shape`. It crashes in background mode. Use `bmesh.ops` or math.
 - **No Loose Geometry**: Always run `remove_doubles` and `recalc_face_normals` at the end.
 - **Context Safe**: Do not assume `bpy.context.object` exists. Work only on `bm`.
+- **Memory Ownership**: The Cartridge is strictly prohibited from calling `bm.free()` or updating the Blender context (e.g., `bmesh.update_edit_mesh`). The Engine (Console) holds exclusive responsibility for instantiating the BMesh, passing it to the Cartridge (Phase 1), and eventually writing it to `bpy.data.meshes` and freeing it.
+- **Local Space Generation**: Cartridges must generate geometry centered at local origin `(0,0,0)`. Do not attempt to calculate or apply world-space transforms within `build_shape`; the Engine/Shooter handles all matrix translations and rotations.
 
 ```python
     def build_shape(self, bm: bmesh.types.BMesh):
