@@ -13,6 +13,7 @@ The MASSA Engine is built to be non-destructive until finalized. These systems h
 - **Rule**: The Engine often runs in background threads, unit tests, or CI where `bpy.context.view_layer` or `bpy.ops` might fail.
 - **Context Free**: Cartridges must not access `bpy.context` inside `build_shape`.
 - **Materials**: Use `mat_utils.ensure_default_library()` to load materials without a viewport context.
+- **Pre-Flight Parameter Validation**: Cartridges must ensure relational variables are recalculated and hard-clamped *before* executing any `bmesh.ops` inside `build_shape`. Blender's native UI property bounds do not account for relative parameter collisions (e.g., `radius_inner` becoming larger than `radius_outer`).
 
 ## 3. The "Rule of Five" (Modifying the Engine)
 If you need to add a new *global* parameter to the engine (e.g., `global_scale`), you must touch 5 places. (Note: This does not apply to Cartridge-specific parameters):
