@@ -23,6 +23,14 @@ parent_of_repo = os.path.dirname(repo_root)
 if parent_of_repo not in sys.path:
     sys.path.append(parent_of_repo)
 
+def is_path_safe(filepath, base_dir=repo_root):
+    """
+    Validates that the given filepath is within the base_dir to prevent path traversal.
+    """
+    abs_filepath = os.path.abspath(filepath)
+    abs_base_dir = os.path.abspath(base_dir)
+    return os.path.commonpath([abs_filepath, abs_base_dir]) == abs_base_dir
+
 # 2. Import your attached files
 # NOTE: Ensure your attached files are in the 'auditors' folder
 try:
@@ -136,9 +144,11 @@ def prepare_cartridge_env():
         # Import using full package path 'massa.x.y' to support relative imports inside them
         import massa.operators.massa_base as massa_base_mod
         import massa.modules.massa_builder as massa_builder_mod
+        import massa.modules.massa_properties as massa_props_mod
 
         globals()['Massa_OT_Base'] = massa_base_mod.Massa_OT_Base
         globals()['MassaBuilder'] = massa_builder_mod.MassaBuilder
+        globals()['MassaPropertiesMixin'] = massa_props_mod.MassaPropertiesMixin
         return True
     except ImportError as e:
         print(f"Failed to import dependencies: {e}")
@@ -400,57 +410,6 @@ def skill_transform_object(params):
         }
     }
 
-def skill_execute_code(params):
-    code = params.get("code", "")
-    output_capture = io.StringIO()
-    
-    try:
-        with contextlib.redirect_stdout(output_capture):
-            exec(code, globals())
-        return {
-            "status": "SUCCESS",
-            "output": output_capture.getvalue()
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "msg": str(e),
-            "output": output_capture.getvalue()
-        }
-
-def skill_create_bmesh(params):
-    name = params.get("name", "New_Object")
-    script = params.get("script_content", "")
-    
-    try:
-        bm = bmesh.new()
-        # Env for script
-        env = {
-            "bm": bm,
-            "bmesh": bmesh,
-            "bpy": bpy,
-            "mathutils": importlib.import_module("mathutils")
-        }
-        
-        exec(script, env)
-        
-        # Finish
-        mesh = bpy.data.meshes.new(name)
-        bm.to_mesh(mesh)
-        bm.free()
-        
-        obj = bpy.data.objects.new(name, mesh)
-        bpy.context.collection.objects.link(obj)
-        
-        # Ensure 10 slots (Hard 10)
-        while len(obj.data.materials) < 10:
-            obj.data.materials.append(None)
-            
-        return {"status": "SUCCESS", "object_name": obj.name}
-        
-    except Exception as e:
-        return {"status": "FAIL", "msg": str(e)}
-
 def skill_get_vision(params):
     mode = params.get("mode", "SOLID")
     # Set view mode if possible (requires view3d context, tricky in background)
@@ -475,10 +434,6 @@ def handle_skill_execution(payload):
         return skill_get_object_info(params)
     elif skill == "transform_object":
         return skill_transform_object(params)
-    elif skill == "execute_code":
-        return skill_execute_code(params)
-    elif skill == "create_bmesh":
-        return skill_create_bmesh(params)
     elif skill == "get_vision":
         return skill_get_vision(params)
     else:
@@ -506,6 +461,9 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
 
     if mode == "VISUAL_DIFF":
         # 1. Run First Cartridge (Target A)
+        if not is_path_safe(cartridge_path):
+            return {"status": "FAIL", "message": f"Access Denied: Cartridge A path '{cartridge_path}' is outside authorized directory"}
+
         try:
             with open(cartridge_path) as f:
                 exec(f.read(), globals())
@@ -524,6 +482,9 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
                  # Assume same dir as cartridge A if relative
                  file_b = os.path.join(os.path.dirname(cartridge_path), file_b)
             
+            if not is_path_safe(file_b):
+                return {"status": "FAIL", "message": f"Access Denied: Cartridge B path '{file_b}' is outside authorized directory"}
+
             if os.path.exists(file_b):
                 try:
                     with open(file_b) as f:
@@ -553,6 +514,9 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
         start_time = time.perf_counter()
         print(f"Runner: Checking cartridge {cartridge_path}")
         if os.path.exists(cartridge_path) and cartridge_path != "global_skill_placeholder.py":
+            if not is_path_safe(cartridge_path):
+                return {"status": "FAIL", "errors": [f"Access Denied: Cartridge path '{cartridge_path}' is outside authorized directory"]}
+
             print("Runner: File exists, executing...")
             prepare_cartridge_env()
             with open(cartridge_path) as f:
@@ -563,6 +527,8 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
                 code = re.sub(r'from\s+\.+\s*operators\.massa_base\s+import\s+Massa_OT_Base', '# [MOCKED] Massa_OT_Base', code)
                 # Allow optional 'modules.' prefix for MassaBuilder
                 code = re.sub(r'from\s+\.+\s*(?:modules\.)?massa_builder\s+import\s+MassaBuilder', '# [MOCKED] MassaBuilder', code)
+                # Mock MassaPropertiesMixin
+                code = re.sub(r'from\s+\.+\s*(?:modules\.)?massa_properties\s+import\s+MassaPropertiesMixin', '# [MOCKED] MassaPropertiesMixin', code)
 
                 # Check for remaining relative imports
                 if "from ." in code:
