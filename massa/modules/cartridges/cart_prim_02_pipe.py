@@ -245,11 +245,15 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
                     e.verts[0].co.x > 0
                     and abs(e.verts[0].co.y) < 0.001
                     and abs(e.verts[1].co.y) < 0.001
+                    and abs(e.verts[0].co.z - e.verts[1].co.z) > 0.001
                 ):
                     e.seam = True
             elif self.shape_mode == "ELBOW":
                 if abs(e.verts[0].co.y) < 0.001 and abs(e.verts[1].co.y) < 0.001:
-                    e.seam = True
+                    dist0 = math.hypot(e.verts[0].co.x, e.verts[0].co.z)
+                    dist1 = math.hypot(e.verts[1].co.x, e.verts[1].co.z)
+                    if abs(dist0 - dist1) < 0.001 and dist0 > self.bend_radius:
+                        e.seam = True
 
     def execute(self, context):
         # 1. Run Standard Generation
