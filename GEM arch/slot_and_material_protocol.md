@@ -52,10 +52,12 @@ The UV unwrap style is defined in `get_slot_meta()` under the `"uv"` key:
 - `"UNWRAP"`: LSCM Unwrap. **REQUIRES SEAMS** (Edge Slot 1 or 3). Best for organic/curved geometry.
 - `"FIT"`: Stretches UVs to fill 0-1. Best for screens/glass (Slot 3, 4, 8).
 - `"STRIP"`: Unwraps long quads evenly. Best for frames, trim, piping.
-- `"SKIP"`: No auto-UVs generated. **MANDATORY for Golden Cartridges.** Signals that the script handles UVs manually mathematically inside `build_shape`.
+- `"SKIP"`: No auto-UVs generated. Signals that the script handles UVs manually mathematically inside `build_shape`. Strongly recommended for hero elements.
 
 ## 5. UV Mandate: Manual & Precise
-Golden Cartridges **do not rely on auto-unwrapping** unless falling back gracefully. You must calculate UVs mathematically within `build_shape`.
+Golden Cartridges **should preferably calculate UVs mathematically** within `build_shape` using the `"SKIP"` strategy. However, relying on the Engine's fallback strategies (`"BOX"`, `"UNWRAP"`, `"FIT"`, `"STRIP"`) is permissible and valid even in Golden Cartridges for non-hero elements or when procedural mathematical unwrapping is unnecessarily complex compared to the engine's auto-unwrap mechanisms.
+
+When using `"SKIP"`, adhere to the following:
 
 1. **Verify Layer**: `uv_layer = bm.loops.layers.uv.verify()`
 2. **Calculate**: Iterate over faces/loops. Calculate `u` and `v` based on vertex coordinates, arc length, or polar coordinates.
