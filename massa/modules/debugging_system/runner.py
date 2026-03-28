@@ -33,6 +33,103 @@ except ImportError:
     except ImportError:
         pass
 
+def setup_massa_env():
+    """
+    Sets up the 'massa' package environment by aliasing the addon directory
+    (which might have dashes) to a clean 'massa' package name in sys.modules.
+    Absorbed from runner_console.py — used by CONSOLE_AUDIT mode.
+    """
+    import importlib.util
+
+    # runner.py is in modules/debugging_system/
+    # addon root is ../../  (i.e. the MASSA_BMESH_CONSOLE-main folder)
+    addon_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
+
+    init_path = os.path.join(addon_root, "__init__.py")
+    if not os.path.exists(init_path):
+        return False, f"__init__.py not found at {init_path}"
+
+    try:
+        spec = importlib.util.spec_from_file_location("massa", init_path)
+        massa_mod = importlib.util.module_from_spec(spec)
+        sys.modules["massa"] = massa_mod
+        spec.loader.exec_module(massa_mod)
+
+        if hasattr(massa_mod, "register"):
+            massa_mod.register()
+            return True, "Massa Registered Successfully"
+        else:
+            return False, "No register function in massa module"
+
+    except Exception as e:
+        import traceback
+        return False, f"Setup Error: {str(e)}\n{traceback.format_exc()}"
+
+
+def handle_console_audit(is_direct=False):
+    """
+    Runs the CONSOLE_AUDIT health checks.
+    Verifies: addon registration, operator presence, MASSA_EDGE_SLOTS layer,
+    and massa_op_id custom property on generated objects.
+    Absorbed from runner_console.py.
+    """
+    report = {"status": "PASS", "errors": [], "logs": []}
+
+    if not is_direct:
+        ok, msg = setup_massa_env()
+        report["logs"].append(msg)
+        if not ok:
+            report["status"] = "FAIL"
+            report["errors"].append(msg)
+            return report
+
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+
+    # Test: Operator Registration
+    if not hasattr(bpy.ops, "massa") or not hasattr(bpy.ops.massa, "gen_prim_con_beam"):
+        report["status"] = "FAIL"
+        report["errors"].append("Operator massa.gen_prim_con_beam not found in bpy.ops")
+        return report
+
+    # Test: Execution
+    try:
+        bpy.ops.massa.gen_prim_con_beam()
+        obj = bpy.context.active_object
+        if not obj:
+            report["status"] = "FAIL"
+            report["errors"].append("Operator ran but no active object found.")
+            return report
+
+        report["logs"].append(f"Created Object: {obj.name}")
+
+        # Test: MASSA_EDGE_SLOTS layer
+        bm_test = bmesh.new()
+        bm_test.from_mesh(obj.data)
+        bm_test.edges.ensure_lookup_table()
+        edge_slots = bm_test.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            report["status"] = "FAIL"
+            report["errors"].append("MASSA_EDGE_SLOTS layer missing from generated mesh.")
+        else:
+            report["logs"].append("confirmed: MASSA_EDGE_SLOTS present")
+        bm_test.free()
+
+        # Test: massa_op_id custom property
+        if "massa_op_id" not in obj:
+            report["status"] = "FAIL"
+            report["errors"].append("Object missing 'massa_op_id' custom property.")
+        elif obj["massa_op_id"] != "massa.gen_prim_con_beam":
+            report["status"] = "FAIL"
+            report["errors"].append(f"Incorrect massa_op_id: {obj.get('massa_op_id')}")
+
+    except Exception as e:
+        import traceback
+        report["status"] = "FAIL"
+        report["errors"].append(f"Runtime Error: {str(e)}\n{traceback.format_exc()}")
+
+    return report
+
+
 def prepare_cartridge_env():
     # Import required modules
     try:
@@ -403,7 +500,10 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     
     if mode == "SKILL_EXEC":
         return handle_skill_execution(payload)
-    
+
+    if mode == "CONSOLE_AUDIT":
+        return handle_console_audit(is_direct=is_direct)
+
     if mode == "VISUAL_DIFF":
         # 1. Run First Cartridge (Target A)
         try:
@@ -782,7 +882,12 @@ def main():
         argv = argv[argv.index("--") + 1:]
     parser = argparse.ArgumentParser()
     parser.add_argument("--cartridge", required=True)
-    parser.add_argument("--mode", default="AUDIT")
+    parser.add_argument(
+        "--mode",
+        default="AUDIT",
+        choices=["AUDIT", "VISUAL_DIFF", "UV_HEATMAP", "UV_INSPECT",
+                 "PERFORMANCE", "CSG_DEBUG", "RENDER", "SKILL_EXEC", "CONSOLE_AUDIT"]
+    )
     parser.add_argument("--payload", default=None)
     
     args, _ = parser.parse_known_args(argv)

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -1 massa/modules/cartridges/*.py)",
+      "Bash(wc -l massa/modules/*.py)"
+    ]
+  }
+}

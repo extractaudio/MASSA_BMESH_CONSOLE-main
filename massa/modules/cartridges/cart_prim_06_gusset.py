@@ -99,6 +99,10 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
+        corner_layer = bm.verts.layers.int.get("MASSA_CORNER_ID")
+        if not corner_layer:
+            corner_layer = bm.verts.layers.int.new("MASSA_CORNER_ID")
+
         uv_layer = bm.loops.layers.uv.verify()
 
         # Resolution Check
@@ -164,8 +168,6 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
 
             # Tag Geometric Corners (for vertical cuts later)
             # Use INT layer for data persistence
-            corner_layer = bm.verts.layers.int.get("MASSA_CORNER_ID")
-            if not corner_layer: corner_layer = bm.verts.layers.int.new("MASSA_CORNER_ID")
 
             # Indices for corners: 45, 135, 225, 315 degrees
             # segs=16 -> indices 2, 6, 10, 14.
@@ -290,7 +292,7 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         # ----------------------------------------------------------------------
         # 3. POST-PROCESS & THICKNESS
         # ----------------------------------------------------------------------
-        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=0.0001)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
         
         bm.verts.ensure_lookup_table()
         bm.edges.ensure_lookup_table()
@@ -500,4 +502,4 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         except ValueError:
             pass
 
-        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=0.0001)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)

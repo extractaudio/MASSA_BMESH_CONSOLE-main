@@ -113,10 +113,14 @@ The core logic resides in `build_shape(self, bm)`.
 
 You **must** create or retrieve the integer layer `MASSA_EDGE_SLOTS` to define edge roles.
 
-* **0**: None/Smooth.
-* **1 (Perimeter)**: Hard edges, borders, potential seams.
-* **2 (Detail)**: Soft feature lines, creases.
-* **3 (Guide)**: Topological guides (e.g., longitudinal lines on a cylinder).
+| ID | Name | Behavior |
+| :--- | :--- | :--- |
+| **0** | **None** | Smooth / unassigned. |
+| **1** | **Perimeter** | Seam + Sharp + Bevel. The outer silhouette and end-cap borders. |
+| **2** | **Contour** | Sharp + Bevel. Hard internal angles (90°+) not on the perimeter. |
+| **3** | **Guide** | Seam Only. Manual UV cut lines for cylinders, tubes, and organic surfaces. |
+| **4** | **Detail** | Bevel Only. Small chamfers and soft feature lines. No sharp shading. |
+| **5** | **Fold** | Crease. Subdivision surface weighting and cloth pinning (manual only). |
 
 ```python
 edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
