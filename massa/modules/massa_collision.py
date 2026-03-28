@@ -186,7 +186,16 @@ def _calculate_lines(obj, slot_id, shape_type):
 
 # --- DRAW HANDLER ---
 _handler = None
-_shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+_shader = None
+
+def get_shader():
+    global _shader
+    if _shader is None:
+        try:
+            _shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+        except Exception:
+            pass
+    return _shader
 
 def draw():
     context = bpy.context
@@ -236,9 +245,11 @@ def draw():
                 (1, 1, 1, 1) # 9 White
             ]
 
-            _shader.uniform_float("color", colors[i % 10])
-            batch = batch_for_shader(_shader, 'LINES', {"pos": world_lines})
-            batch.draw(_shader)
+            shader = get_shader()
+            if shader is None: continue
+            shader.uniform_float("color", colors[i % 10])
+            batch = batch_for_shader(shader, 'LINES', {"pos": world_lines})
+            batch.draw(shader)
 
     gpu.state.depth_test_set('LESS_EQUAL')
 
