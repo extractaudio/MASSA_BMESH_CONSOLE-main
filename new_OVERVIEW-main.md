@@ -31,6 +31,8 @@ This document defines the strict protocols for the **MASSA_BMESH_CONSOLE** syste
 
 ## 1. The Philosophy
 
+**MASSA** is a Blender addon for generating complex, production-ready 3D assets — architectural structures, industrial equipment, urban furniture, mechanical assemblies, and more — through a library of 130+ parametric **Cartridges**. Every generated object stays fully live and editable (via the Redo Panel) until explicitly finalized. The engine automatically handles UVs, physics materials, edge sharpness, and bevels; cartridge authors only need to define shape.
+
 The Massa Console is a **Procedural Engine** that consumes **Cartridges** (Generators).
 *   **The Console** handles the "Boring Stuff": UI, Undo/Redo, Material Assignment, UV Unwrapping, Physics Generation, Socket Constraints, Polish (Bevels/Chamfers), and File Management.
 *   **The Cartridge** handles the "Fun Stuff": Pure BMesh geometry generation (`build_shape`).

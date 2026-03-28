@@ -38,6 +38,7 @@ def package_addon():
         '.github',
         '.agent',
         'debugging_system',
+        '_pkg_env',
     }
     EXCLUDE_FILES = {
         '.gitignore', 

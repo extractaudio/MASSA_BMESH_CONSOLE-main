@@ -17,7 +17,7 @@ Do not write custom execution scripts. You have a built-in headless debugging su
 | :--- | :--- | :--- |
 | **Inspect Live State** | `python modules/debugging_system/debug_agent.py --code "import bpy; print(bpy.data.objects.keys())"` | Execute arbitrary Python inside the active headless Blender instance to inspect context. |
 | **Audit Cartridge** | `python modules/debugging_system/runner.py --cartridge modules/cartridges/<name>.py --mode AUDIT` | Runs geometric checks (zero area faces, loose verts, non-manifold geometry, pinched UVs). |
-| **Fuzz Test** | The `runner.py` tool automatically utilizes `auditors/massa_fuzz_auditor.py` during audits to randomize parameters and check for crashes. |
+| **Fuzz Test** | *(automatic during AUDIT mode)* | The `runner.py` tool automatically utilizes `auditors/massa_fuzz_auditor.py` to randomize parameters and check for crashes. |
 | **Visual Diff** | `python modules/debugging_system/runner.py --cartridge <path_a> --mode VISUAL_DIFF --payload '{"filename_b": "<path_b>"}'` | Generates a red/green comparison image of two cartridge versions. |
 
 ## 3. The Prime Directives for Cartridge Development
@@ -33,7 +33,7 @@ When tasked with creating or modifying a Cartridge in `modules/cartridges/`, you
    - 2 = Contour
    - 3 = Guide
    - 4 = Detail
-   - 5 = Special
+   - 5 = Fold
 
    **Auto-Detection:** If you do not assign these manually, the system uses intelligent geometric analysis:
    - **Slot 1 (Perimeter):** End Caps / Silhouette.

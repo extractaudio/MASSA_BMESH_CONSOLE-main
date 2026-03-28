@@ -1,3 +1,19 @@
+# =============================================================================
+# DEPRECATED — runner_console.py
+#
+# This file has been unified into runner.py as the CONSOLE_AUDIT mode.
+# Do NOT add new logic here. Use runner.py instead:
+#
+#   python massa/modules/debugging_system/runner.py \
+#       --cartridge global_skill_placeholder.py \
+#       --mode CONSOLE_AUDIT
+#
+# Or via the outer launcher:
+#   python test_run_cartridge.py <any_cartridge.py> --mode CONSOLE_AUDIT
+#
+# All functions (setup_massa_env, handle_console_audit) now live in runner.py.
+# =============================================================================
+
 import bpy
 import sys
 import os
