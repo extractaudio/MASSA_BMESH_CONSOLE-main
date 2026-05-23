@@ -51,12 +51,16 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         default="STANDARD"
     )
 
+    # §3.1 — Required UV properties
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
+    fit_uvs:  BoolProperty(name="Fit UVs 0-1", default=False)
+
     def get_slot_meta(self):
         return {
-            0: {"name": "Wall Surface", "uv": "UNWRAP", "phys": "DEBUG_1"},
-            1: {"name": "Detail", "uv": "UNWRAP", "phys": "DEBUG_2"},
-            2: {"name": "Trim", "uv": "SKIP", "phys": "DEBUG_3"},
-            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
+            0: {"name": "Wall Surface", "uv": "SKIP", "phys": "MASSA_DEBUG_1"},
+            1: {"name": "Detail",       "uv": "SKIP", "phys": "MASSA_DEBUG_2"},
+            2: {"name": "Trim",         "uv": "SKIP", "phys": "MASSA_DEBUG_3"},
+            9: {"name": "Socket Anchor","sock": True,  "uv": "SKIP", "phys": "MASSA_DEBUG_9"}
         }
 
     def build_shape(self, bm):
@@ -137,7 +141,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                         builder.create_box(r['w'], t * 1.2, rail_h) \
                                .translate(cx, t/2, rail_z + rail_h/2) \
                                .tag_slot(2) \
-                               .select_boundary().tag_edge_role(2).tag_uvs(1.0, 'BOX')
+                               .select_boundary().tag_edge_role(2)
 
         # Merge Segments before tagging seams to ensure continuous mesh
         builder.clean()
@@ -186,8 +190,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                 builder.create_box(r['w'], bd, bh) \
                        .translate(cx, -bd/2, cz) \
                        .tag_slot(2) \
-                       .select_boundary().tag_edge_role(2).tag_uvs(1.0, 'BOX') # Sharp/Contour (No Seam for baseboard internal?)
-                       # Actually baseboard is usually separate island. Let's mark perimeter as Seam (1)
+                       .select_boundary().tag_edge_role(2)
 
                 builder.select_boundary().tag_edge_role(1)
 
@@ -195,7 +198,7 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                 builder.create_box(r['w'], bd, bh) \
                        .translate(cx, t + bd/2, cz) \
                        .tag_slot(2) \
-                       .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+                       .select_boundary().tag_edge_role(1)
 
         # Sockets (Tagging existing faces)
         builder.clean() # Final cleanup
@@ -207,6 +210,13 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         # End Socket (x=l) - Find face at x=l
         builder.select_faces_by_normal(Vector((1, 0, 0)), tolerance=0.1) \
                .tag_socket(2)
+
+        # §7.2 — Dual-mode UV pass (respects uv_scale / fit_uvs)
+        uv_sc   = 1.0 if self.fit_uvs else self.uv_scale
+        uv_proj = 'FIT' if self.fit_uvs else 'BOX'
+        builder.select_faces_by_slot(0).tag_uvs(scale=uv_sc, projection=uv_proj)
+        builder.select_faces_by_slot(1).tag_uvs(scale=uv_sc, projection=uv_proj)
+        builder.select_faces_by_slot(2).tag_uvs(scale=uv_sc, projection=uv_proj)
 
     def draw_shape_ui(self, layout):
         box_dim = layout.box()
