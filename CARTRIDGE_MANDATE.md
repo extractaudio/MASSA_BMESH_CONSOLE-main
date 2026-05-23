@@ -2,9 +2,13 @@
 
 > **The "Golden Standard" for Procedural Geometry Cartridges**
 
-This document defines the strict requirements for creating a "Golden Cartridge" in the Massa system. All new geometry scripts must adhere to these protocols to ensure consistency, stability, headless safety, and high-quality output (clean topology + correct UVs + working sockets + functional edge slot visualization).
+This document defines the requirements for creating a "Golden Cartridge" in the Massa system. While these protocols ensure consistency, stability, headless safety, and high-quality output, it is understood that different types of cartridges may require different implementations.
 
-The canonical reference implementation is [`massa/modules/cartridges/cart_prim_01_beam.py`](massa/modules/cartridges/cart_prim_01_beam.py). Any pattern in this document marked **"Beam Reference"** is implemented exactly that way in the beam.
+The canonical reference implementation for a simple structural extrusion is [`massa/modules/cartridges/cart_prim_01_beam.py`](massa/modules/cartridges/cart_prim_01_beam.py). Any pattern in this document marked **"Beam Reference"** is implemented exactly that way in the beam. However, complex architectural or mechanical cartridges may diverge from these exact patterns while still adhering to the core principles.
+
+**The most critical requirements across ALL cartridges are:**
+1. **Order of Operations**: UVs must be calculated *after* geometry creation, normal calculation, slot assignment, and seam marking.
+2. **Proper Connections**: Sockets and edges must be correctly tagged to ensure compatibility with the rest of the system.
 
 ---
 
@@ -282,7 +286,7 @@ The `"uv"` key tells the engine how to handle UVs for faces assigned to that slo
 | `"TUBE_Z"` / `"TUBE_Y"` / `"TUBE_X"` | Cylindrical projection along the named axis. Use for radial trim if you don't want to compute it manually. |
 | `"UNWRAP"` | LSCM / Angle-Based Unwrap. Requires seams to be marked (`e.seam = True` or via Edge Slots 1/3). Use as a fallback for organic/complex slots where manual UVs aren't tractable. |
 
-> **Golden Rule:** The main "Surface" slot (slot 0 for structural cartridges) should almost always be `"SKIP"` with manual UVs. The Beam Reference uses `"SKIP"` for walls and `"BOX"` for caps.
+> **Golden Rule:** The main "Surface" slot (slot 0 for structural cartridges) is often `"SKIP"` with manual UVs for simple primitives. However, auto-UV strategies are completely acceptable for complex geometry where manual unwrapping is impractical.
 
 ---
 
@@ -543,9 +547,11 @@ This geometric detection works because `bisect_plane` doesn't return a clean lis
 
 ---
 
-## 7. UV Mandate: Manual & Precise
+## 7. UV Mandate: Order and Strategy
 
-**Golden Cartridges do not rely on auto-unwrapping.** UVs must be calculated mathematically inside `build_shape`.
+While manual UVs (`SKIP`) are highly recommended for "hero" surfaces (like the main walls of a beam), auto-UV strategies (`BOX`, `UNWRAP`, `FIT`) are perfectly valid and often preferred for complex, non-hero, or secondary elements.
+
+**Crucial Order of Operations:** UV manipulation (whether manual scaling or explicit assignment) must occur **at the very end** of `build_shape`, after all geometry changes, normal adjustments, slot assignments, and seam markings are complete.
 
 ### 7.1 Setup
 
