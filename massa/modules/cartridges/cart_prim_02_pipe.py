@@ -72,7 +72,13 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
         sr = self.segments_radial
         sl = max(1, self.segments_length)
 
-        # 1. CREATE BASE RING (The Donut Method)
+        # ----------------------------------------------------------------------
+        # 1. SETUP LAYERS
+        # ----------------------------------------------------------------------
+        uv_layer = bm.loops.layers.uv.verify()
+        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        # 2. CREATE BASE RING (The Donut Method)
         res_out = bmesh.ops.create_circle(bm, radius=ro, segments=sr, cap_ends=False)
         verts_out = res_out["verts"]
         edges_out = list({e for v in verts_out for e in v.link_edges})
@@ -84,7 +90,7 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
         res_bridge = bmesh.ops.bridge_loops(bm, edges=edges_out + edges_in)
         faces_start = res_bridge["faces"]
 
-        # 2. GENERATE BODY
+        # 3. GENERATE BODY
         if self.shape_mode == "STRAIGHT":
             # Extrude
             res_ext = bmesh.ops.extrude_face_region(bm, geom=faces_start)
@@ -118,7 +124,7 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
                 use_duplicate=False,
             )
 
-        # 3. NORMALS & CLASSIFICATION
+        # 4. NORMALS & CLASSIFICATION
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         final_caps = []
@@ -163,7 +169,7 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
             else:
                 final_inner.append(f)
 
-        # 4. ASSIGN SLOTS
+        # 5. ASSIGN SLOTS
         for f in final_outer:
             f.material_index = 0
             f.smooth = True
@@ -171,16 +177,11 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
             f.material_index = 1
             f.smooth = True
         cap_set = set(final_caps)
-        cap_set = set(final_caps)
         for f in final_caps:
             f.material_index = 2
             f.smooth = True
-            for e in f.edges:
-                if len(e.link_faces) == 1 or any(lf not in cap_set for lf in e.link_faces):
-                    e.seam = True
 
-        # 5. UV MAPPING
-        uv_layer = bm.loops.layers.uv.verify()
+        # 6. UV MAPPING
         perim_out = 2 * math.pi * ro
         su_mult = (1.0) if self.fit_uvs else (self.uv_scale * perim_out)
 
@@ -238,7 +239,23 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
                         v *= sv_mult
                     l[uv_layer].uv = (u, v)
 
-        # 6. SEAMS
+        # 7. SEAMS & EDGE ROLES
+
+        # Mark cap borders as seams
+        cap_set = set(final_caps)
+        for f in final_caps:
+            for e in f.edges:
+                if len(e.link_faces) == 1 or any(lf not in cap_set for lf in e.link_faces):
+                    e.seam = True
+                    # Set as Perimeter (1) to show Yellow in Slots view, but it acts as a seam
+                    # The user requested 'remove the perimeter setting by default', so we don't
+                    # enforce Perimeter behaviors if they don't want them, but we assign Slot 1
+                    # so the UI isn't visually empty.
+                    # Actually, if we assign 3, it's Red. We will assign 3 as requested, but also
+                    # make sure auto_detect isn't broken.
+                    e[edge_slots] = 3
+
+        # Mark longitudinal seams
         for e in bm.edges:
             if self.shape_mode == "STRAIGHT":
                 if (
@@ -248,12 +265,14 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
                     and abs(e.verts[0].co.z - e.verts[1].co.z) > 0.001
                 ):
                     e.seam = True
+                    e[edge_slots] = 3
             elif self.shape_mode == "ELBOW":
                 if abs(e.verts[0].co.y) < 0.001 and abs(e.verts[1].co.y) < 0.001:
                     dist0 = math.hypot(e.verts[0].co.x, e.verts[0].co.z)
                     dist1 = math.hypot(e.verts[1].co.x, e.verts[1].co.z)
                     if abs(dist0 - dist1) < 0.001 and dist0 > self.bend_radius:
                         e.seam = True
+                        e[edge_slots] = 3
 
     def execute(self, context):
         # 1. Run Standard Generation

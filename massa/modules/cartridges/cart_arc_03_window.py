@@ -45,17 +45,21 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
         default="GRID"
     )
 
+    # §3.1 — Required UV properties
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
+    fit_uvs:  BoolProperty(name="Fit UVs 0-1", default=False)
+
     def get_slot_meta(self):
         return {
-            0: {"name": "Frame", "uv": "SKIP", "phys": "DEBUG_1"},
-            3: {"name": "Glass", "uv": "SKIP", "phys": "DEBUG_4"}, # FIT is manual
-            4: {"name": "Louver", "uv": "SKIP", "phys": "DEBUG_2"},
-            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "DEBUG_9"}
+            0: {"name": "Frame",         "uv": "SKIP", "phys": "MASSA_DEBUG_1"},
+            3: {"name": "Glass",         "uv": "SKIP", "phys": "MASSA_DEBUG_4"},
+            4: {"name": "Louver",        "uv": "SKIP", "phys": "MASSA_DEBUG_2"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "MASSA_DEBUG_9"}
         }
 
     def build_shape(self, bm):
         builder = MassaBuilder(bm)
-        
+
         W = self.win_width
         H = self.win_height
         ft = self.frame_width
@@ -78,7 +82,7 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                 builder.create_box(ft, fd, H) \
                        .translate(cx, fd/2, H/2) \
                        .tag_slot(0) \
-                       .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+                       .select_boundary().tag_edge_role(1)
 
             # 2. Horizontal Transoms
             for j in range(rows + 1):
@@ -89,9 +93,9 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                     builder.create_box(pane_w, fd, ft) \
                            .translate(px, fd/2, cz) \
                            .tag_slot(0) \
-                           .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+                           .select_boundary().tag_edge_role(1)
 
-            # 3. Glass Panes (Keep FIT)
+            # 3. Glass Panes
             gt = 0.02
             for i in range(cols):
                 for j in range(rows):
@@ -99,29 +103,29 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                     pz = (j * (pane_h + ft)) + ft + pane_h/2
                     builder.create_box(pane_w, gt, pane_h) \
                            .translate(px, fd/2, pz) \
-                           .tag_slot(3).tag_uvs(1.0, 'FIT')
+                           .tag_slot(3)
 
         elif self.window_style == 'PICTURE':
             # Frame Perimeter
             # Left
-            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
             # Right
-            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
             # Bottom
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
             # Top
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
 
             # Glass
             gt = 0.02
-            builder.create_box(W - 2*ft, gt, H - 2*ft).translate(W/2, fd/2, H/2).tag_slot(3).tag_uvs(1.0, 'FIT')
+            builder.create_box(W - 2*ft, gt, H - 2*ft).translate(W/2, fd/2, H/2).tag_slot(3)
 
         elif self.window_style == 'LOUVER':
             # Frame Perimeter
-            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
-            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
-            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+            builder.create_box(ft, fd, H).translate(ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(ft, fd, H).translate(W - ft/2, fd/2, H/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
+            builder.create_box(W - 2*ft, fd, ft).translate(W/2, fd/2, H - ft/2).tag_slot(0).select_boundary().tag_edge_role(1)
 
             # Slats
             rows = self.mullion_y * 2
@@ -133,7 +137,7 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
                        .translate(W/2, fd/2, cz) \
                        .rotate(-30, 'X') \
                        .tag_slot(4) \
-                       .select_boundary().tag_edge_role(1).tag_uvs(1.0, 'BOX')
+                       .select_boundary().tag_edge_role(1)
 
         # Sockets (Tag Existing Faces)
         builder.clean()
@@ -141,6 +145,13 @@ class MASSA_OT_ArcWindow(Massa_OT_Base):
         # Center Socket (Front/Back)
         builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1).tag_socket(1)
         builder.select_faces_by_normal(Vector((0, -1, 0)), tolerance=0.1).tag_socket(2)
+
+        # §7.2 — Dual-mode UV pass (respects uv_scale / fit_uvs)
+        uv_sc   = 1.0 if self.fit_uvs else self.uv_scale
+        uv_proj = 'FIT' if self.fit_uvs else 'BOX'
+        builder.select_faces_by_slot(0).tag_uvs(scale=uv_sc, projection=uv_proj)   # Frame
+        builder.select_faces_by_slot(3).tag_uvs(scale=1.0, projection='FIT')        # Glass: always FIT regardless of fit_uvs
+        builder.select_faces_by_slot(4).tag_uvs(scale=uv_sc, projection=uv_proj)   # Louver
 
     def draw_shape_ui(self, layout):
         box = layout.box()
