@@ -30,6 +30,12 @@ where = ["."]
     "data/api/**/*.rst",
     # Blender user manual.
     "data/manual/**/*.rst",
+    # Vendored NodeToPython addon source used by ntp_snapshot_graph.
+    "vendor/NodeToPython/**/*.py",
+    # Vendored geonodes package source, demos, and markdown reference docs.
+    "vendor/geonodes/**/*.py",
+    "vendor/geonodes/**/*.md",
+    "vendor/geonodes/LICENSE",
 ]
 
 [tool.mypy]
@@ -64,4 +70,3 @@ ignore = [
     "W690",
 ]
 aggressive = 2
-

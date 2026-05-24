@@ -28,7 +28,17 @@
       "Skill(update-config)",
       "Skill(update-config:*)",
       "mcp__blender__get_screenshot_of_window_as_image",
-      "mcp__blender__execute_blender_code"
+      "mcp__blender__execute_blender_code",
+      "WebFetch(domain:github.com)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\extra\\\\AppData\\\\Roaming\\\\Blender Foundation\\\\Blender\\\\5.1\\\\\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "Bash(ls -la \"C:\\\\Users\\\\extra\\\\AppData\\\\Roaming\\\\Blender Foundation\\\\Blender\\\\5.1\\\\\" 2>/dev/null | head -20)",
+      "Bash(find \"C:\\\\Users\\\\extra\\\\AppData\\\\Roaming\\\\Blender Foundation\\\\Blender\" -name \"*NodeToPython*\" -o -name \"*node_to_python*\" 2>/dev/null)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://api.github.com/repos/al1brn/geonodes/contents/\")",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s \"https://api.github.com/repos/al1brn/geonodes\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/al1brn/geonodes/main/demos/counters.py\")",
+      "Bash(grep -E \"\\\\.py$\")"
     ]
   }
 }

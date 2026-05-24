@@ -249,6 +249,44 @@ If you get a connection error, check:
 | `set_geonode_input` | Update a single input on an existing modifier |
 | `get_geonode_modifier_state` | Read current input values from a GN modifier |
 
+#### Node Graphs / NodeToPython (`ntp_graphs.py`)
+| Tool | Description |
+|---|---|
+| `ntp_list_graphs` | List material, Geometry Nodes, shader, compositor, world, light, and line-style node graphs |
+| `ntp_snapshot_graph` | Export one graph to NodeToPython Python code; registers vendored NodeToPython on first use |
+| `ntp_analyze_graph` | Read structural stats, orphan/dead-end nodes, broken links, outputs, and group dependencies |
+| `ntp_inspect_node` | Inspect one node's sockets, links, default values, and readable RNA properties |
+
+NodeToPython v4.1.0 is vendored under `_MCP/vendor/NodeToPython/`, so no extra
+install step is required. To refresh the vendored source, run:
+
+```bash
+uv run --project _MCP python _Scripts/vendor_nodetopython.py
+```
+
+#### geonodes Design Material + Runtime (`geonodes_tools.py`)
+| Tool | Description |
+|---|---|
+| `geonodes_list_demos` | List vendored geonodes demo scripts with descriptions, sizes, line counts, and inferred tags |
+| `geonodes_get_demo` | Read a full demo source file, its module docstring, and related demos |
+| `geonodes_list_types` | Enumerate public geonodes classes grouped by geometry, socket, domain, and control-flow roles |
+| `geonodes_get_type_doc` | Read the markdown reference for a geonodes type such as `Float`, `Mesh`, or `Vector` |
+| `geonodes_search` | Search demos, docs, and core source with line context and enclosing function/class hints |
+| `geonodes_execute_script` | Execute a geonodes script inside Blender and report newly created node groups/materials |
+
+geonodes is vendored under `_MCP/vendor/geonodes/`, with the pinned upstream
+commit recorded in `_MCP/vendor/geonodes/.vendored_commit`. To refresh it, run:
+
+```bash
+uv run --project _MCP python _Scripts/vendor_geonodes.py
+```
+
+##### Learning Patterns
+
+For node creation work, start with `geonodes_search` to find a matching pattern,
+read the most relevant demo with `geonodes_get_demo`, check type specifics with
+`geonodes_get_type_doc`, adapt the script, then call `geonodes_execute_script`.
+
 #### Slots (`massa_slots.py`)
 | Tool | Description |
 |---|---|
