@@ -269,18 +269,18 @@ class MASSA_OT_PrimTank(Massa_OT_Base):
 
                     l[uv_layer].uv = (u, v)
 
-        # 5. MARK SEAMS
-        # ----------------------------------------------------------------------
         # 5. MARK SEAMS AND ASSIGN EDGE SLOTS
         # ----------------------------------------------------------------------
-        edge_slots_layer = bm.edges.layers.int.get("edge_slots") or bm.edges.layers.int.new("edge_slots")
+        edge_slots_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS") or bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        force_seam_layer = bm.edges.layers.int.get("massa_force_seam") or bm.edges.layers.int.new("massa_force_seam")
 
         for e in bm.edges:
             if len(e.link_faces) >= 2:
-                # Material Boundaries (Caps vs Body) -> Slot 1
+                # Material Boundaries (Caps vs Body) -> Slot 1 cap loops
                 mats = {f.material_index for f in e.link_faces}
                 if len(mats) > 1:
                     e[edge_slots_layer] = 1
+                    e[force_seam_layer] = 1
                     e.seam = True
                     continue
 
@@ -297,6 +297,7 @@ class MASSA_OT_PrimTank(Massa_OT_Base):
                             # Must be approximately diagonal (X ≈ Z) to hit the "corner"
                             if abs(v1.co.x - v1.co.z) < 0.1:
                                 e[edge_slots_layer] = 3
+                                e[force_seam_layer] = 1
                                 e.seam = True
 
         # 6. PIVOT CORRECTION & CLEANUP
