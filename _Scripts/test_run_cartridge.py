@@ -5,7 +5,7 @@ import json
 import subprocess
 
 # Add root folder to sys.path so we can import the massa module correctly
-repo_root = os.path.dirname(os.path.abspath(__file__))
+repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if repo_root not in sys.path:
     sys.path.append(repo_root)
 

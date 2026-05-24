@@ -195,13 +195,16 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
             f.material_index = 0
 
         # 6. MARK SEAMS & EDGE SLOTS
-        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        edge_slots = (bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+                      or bm.edges.layers.int.new("MASSA_EDGE_SLOTS"))
 
-        # Mark Caps Seams
+        # Mark Cap Perimeters — Slot 1 (Perimeter): Seam + Sharp
+        # Cap edges are at constant Y (Y≈0 or Y≈length) so they never
+        # overlap the longitudinal Guide (slot 3) edges that span in Y.
         for f in final_start_caps + final_end_caps:
             for e in f.edges:
                 e.seam = True
-                # REMOVED: e[edge_slots] = 1 (Let auto-detect handle Perimeters)
+                e[edge_slots] = 1  # Perimeter — explicit, not via auto-detect
 
         # Mark Longitudinal Seam (Use pts[0] as guide)
         # using pts[0] ensures we follow a valid geometry edge (usually a corner)
@@ -221,7 +224,33 @@ class MASSA_OT_PrimBeam(Massa_OT_Base):
                 
                 if on_seam_1 and on_seam_2:
                     e.seam = True
-                    e[edge_slots] = 3 # Slot 3: Guide
+                    e[edge_slots] = 3  # Slot 3: Guide
+
+        # Mark Profile Corners as Contour — Slot 2 (Contour): Sharp
+        # Every longitudinal corner edge that is NOT the seam line (pts[0]) gets
+        # Slot 2 so the Console applies a hard-sharp everywhere there is no seam cut.
+        # Geometry distinction: these edges vary in Y; cap and segment rings are at
+        # constant Y so the Y-delta guard keeps them cleanly separated.
+        if len(pts) > 1:
+            seam_x = pts[0][0]
+            seam_z = pts[0][1]
+            bm.edges.ensure_lookup_table()
+            for e in bm.edges:
+                v1, v2 = e.verts[0], e.verts[1]
+                # Only longitudinal edges (Y changes between the two verts)
+                if abs(v1.co.y - v2.co.y) < 0.001:
+                    continue
+                # Skip the seam corner — already Slot 3
+                if (abs(v1.co.x - seam_x) < 0.005 and abs(v1.co.z - seam_z) < 0.005 and
+                        abs(v2.co.x - seam_x) < 0.005 and abs(v2.co.z - seam_z) < 0.005):
+                    continue
+                # Tag any edge whose both verts share a non-seam profile corner
+                for pt in pts[1:]:
+                    px, pz = pt
+                    if (abs(v1.co.x - px) < 0.005 and abs(v1.co.z - pz) < 0.005 and
+                            abs(v2.co.x - px) < 0.005 and abs(v2.co.z - pz) < 0.005):
+                        e[edge_slots] = 2  # Slot 2: Contour (Sharp)
+                        break
 
         # Mark Segment Seams (if any)
         # Identify edges that are strictly horizontal (perpendicular to Y) and inside the beam volume

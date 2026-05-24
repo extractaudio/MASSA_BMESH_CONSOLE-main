@@ -109,7 +109,21 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
         # 1. SETUP LAYERS
         # ----------------------------------------------------------------------
         uv_layer = bm.loops.layers.uv.verify()
-        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        edge_slots = (bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+                      or bm.edges.layers.int.new("MASSA_EDGE_SLOTS"))
+        force_seam = (bm.edges.layers.int.get("massa_force_seam")
+                      or bm.edges.layers.int.new("massa_force_seam"))
+
+        def mark_edge(e, slot=None, seam=False, sharp=False, protect=False):
+            """Spatial edge marker — slot, seam, sharp, and force-seam protection."""
+            if slot is not None:
+                e[edge_slots] = slot
+            if seam:
+                e.seam = True
+            if sharp:
+                e.smooth = False
+            if protect:
+                e[force_seam] = 1
 
         # ----------------------------------------------------------------------
         # 2. BACKING PLATE (Base)
@@ -304,35 +318,70 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         # ----------------------------------------------------------------------
-        # 7. EDGE ROLES & SEAMS
+        # 7. EDGE ROLES & SEAMS  (Spatial UV Unwrap Workflow)
         # ----------------------------------------------------------------------
+        # Archetype classification:
+        #   Slot 1 Backing plate  → UV_PRIM_SHEET      outer perimeter seams only
+        #   Slot 0 Frame bars     → UV_PRIM_PLANK       boundary seams (slot 1)
+        #   Slot 2 Tile bodies    → UV_PRIM_BOX_DETAIL  contour sharp, mat-boundary seam
+        #   Slot 3 Tile insets    → UV_PRIM_BOX_DETAIL  contour sharp, mat-boundary seam
+        #   Slot 4 Tech detail    → UV_PRIM_BOX_DETAIL  contour sharp
+        #   Slots 8/9 Sockets     → UV_PRIM_SOCKET      fully isolated perimeters
+        #
+        # Rules:
+        #   • Boundary (non-manifold) edges ARE the outer perimeters → slot 1, seam, sharp
+        #   • Socket face edges → slot 1, seam, sharp, protected  (isolate UV island)
+        #   • Interior hard angles (cos < 0.17, i.e. > ~80°) → slot 2, sharp only (no seam)
+        #   • Material boundaries between visible slots → seam, protected
+        #   • 45° blanket seam threshold is intentionally NOT used — too many random cuts
+
+        _SOCKET_MATS = {8, 9}
+
         bm.edges.ensure_lookup_table()
+
+        # Collect every edge that borders a socket face
+        socket_face_edges = set()
+        for f in bm.faces:
+            if f.material_index in _SOCKET_MATS:
+                for e in f.edges:
+                    socket_face_edges.add(e)
+
+        # Step 1 — Isolate socket faces (UV_PRIM_SOCKET)
+        for e in socket_face_edges:
+            mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
+
+        # Step 2 — Outer perimeters: every boundary edge is a hard seam (UV_PRIM_SHEET / PLANK)
         for e in bm.edges:
-            # Angle check
-            if not e.is_manifold:
+            if e in socket_face_edges:
+                continue
+            if e.is_boundary:
+                mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
+
+        # Step 3 — Interior manifold edges
+        for e in bm.edges:
+            if e in socket_face_edges:
+                continue
+            if e.is_boundary:
                 continue
             if len(e.link_faces) < 2:
                 continue
 
             f1, f2 = e.link_faces[0], e.link_faces[1]
-            angle = f1.normal.dot(f2.normal)
 
-            # Sharp / Seam for > 45 deg (dot < 0.7)
-            if angle < 0.7:
-                e.seam = True
-                e.smooth = False
-                e[edge_slots] = 1 # Perimeter / Hard
+            # Skip edges adjacent to socket faces — already handled above
+            if f1.material_index in _SOCKET_MATS or f2.material_index in _SOCKET_MATS:
+                continue
 
-            # Material Boundary
+            angle_cos = f1.normal.dot(f2.normal)
+
+            # Hard contour edge (> ~80°): sharp for correct shading, but NOT a UV seam.
+            # Box-mapped tiles only need their outer boundary cut, not every box edge.
+            if angle_cos < 0.17:
+                mark_edge(e, slot=2, sharp=True)
+
+            # Material boundary: separate UV islands at slot transitions
             if f1.material_index != f2.material_index:
-                e.seam = True
-                e[edge_slots] = 2 # Detail
-
-            # Frame edges?
-            if f1.material_index == 0 or f2.material_index == 0:
-                # Mark frame outer edges as perimeter
-                if angle < 0.7:
-                    e[edge_slots] = 1
+                mark_edge(e, seam=True, protect=True)
 
         # ----------------------------------------------------------------------
         # 8. UV MAPPING (Manual Box Map)

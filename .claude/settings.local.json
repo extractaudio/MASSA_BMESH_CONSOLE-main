@@ -20,7 +20,8 @@
       "Bash(Get-ChildItem -Path massa/modules -Name)",
       "Bash(python3 -c ' *)",
       "Bash(find /c/Users/extra -name \"massa_properties.py\" -type f 2>/dev/null | head -1)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "Bash(python -c ' *)"
     ]
   }
 }
