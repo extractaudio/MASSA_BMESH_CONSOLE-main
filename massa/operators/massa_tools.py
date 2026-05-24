@@ -61,7 +61,7 @@ class MASSA_OT_Resurrect_Wrapper(bpy.types.Operator):
             # Delegate to the robust MASSA_OT_ReRun_Active operator
             # which properly captures MASSA_PARAMS into the scene's MASSA_TEMP_RESTORE
             # dictionary before invoking the generation operator.
-            bpy.ops.massa.rerun_active('INVOKE_DEFAULT')
+            bpy.ops.massa.rerun_active('EXEC_DEFAULT')
             return {'FINISHED'}
         except Exception as e:
             self.report({'ERROR'}, f"Resurrection failed: {e}")

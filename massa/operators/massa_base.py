@@ -312,7 +312,9 @@ class MASSA_OT_ReRun_Active(Operator):
     def execute(self, context):
         obj = context.active_object
         op_id = obj.get("massa_op_id")
-        saved_matrix = obj.matrix_world.copy()
+        # Note: saved_matrix removed — location/rotation are applied by Massa_OT_Base.execute()
+        # via self.obj_location / self.obj_rotation (sourced from MASSA_TEMP_RESTORE in invoke).
+        # Scale is intentionally NOT restored.
 
         # [ARCHITECT NEW] Capture parameters before deletion
         massa_params = None
@@ -347,7 +349,4 @@ class MASSA_OT_ReRun_Active(Operator):
             op_func("INVOKE_DEFAULT")
         except Exception:
             return {"CANCELLED"}
-        new_obj = context.active_object
-        if new_obj:
-            new_obj.matrix_world = saved_matrix
         return {"FINISHED"}
