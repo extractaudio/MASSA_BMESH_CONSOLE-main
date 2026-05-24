@@ -75,7 +75,8 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
     rib_spacing: FloatProperty(name="Rib Spacing", default=0.6, min=0.2)
     rib_depth: FloatProperty(name="Rib Depth", default=0.01, min=0.002)
 
-    uv_scale: FloatProperty(name="UV Scale", default=1.0)
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
+    fit_uvs: BoolProperty(name="Fit UVs 0-1", default=False)
 
     def get_slot_meta(self):
         return {
@@ -89,7 +90,7 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         layout.prop(self, "shape_type")
 
         box = layout.box()
-        box.label(text="Dimensions", icon="arrow_up_down")
+        box.label(text="Dimensions", icon="AXIS_SIDE")
         col = box.column(align=True)
         col.prop(self, "width")
         col.prop(self, "height")
@@ -106,7 +107,7 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
 
         if self.shape_type == 'TEE':
             box.separator()
-            box.label(text="Branch Settings", icon="BRANCH")
+            box.label(text="Branch Settings", icon="GROUP_VERTEX")
             col = box.column(align=True)
             col.prop(self, "branch_width")
             col.prop(self, "branch_height")
@@ -139,19 +140,20 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
 
     def build_shape(self, bm: bmesh.types.BMesh):
         if self.shape_type == 'STRAIGHT':
-            self._build_straight(bm)
+            MASSA_OT_PrimDuct._build_straight(self, bm)
         elif self.shape_type == 'ELBOW':
-            self._build_elbow(bm)
+            MASSA_OT_PrimDuct._build_elbow(self, bm)
         elif self.shape_type == 'TEE':
-            self._build_tee(bm)
+            MASSA_OT_PrimDuct._build_tee(self, bm)
         elif self.shape_type == 'REDUCER':
-            self._build_reducer(bm)
+            MASSA_OT_PrimDuct._build_reducer(self, bm)
         elif self.shape_type == 'CAP':
-            self._build_cap(bm)
+            MASSA_OT_PrimDuct._build_cap(self, bm)
         elif self.shape_type == 'COUPLER':
-            self._build_coupler(bm)
+            MASSA_OT_PrimDuct._build_coupler(self, bm)
 
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        MASSA_OT_PrimDuct._apply_box_uvs(self, bm)
 
         # Post-Process: Seams & Edge Roles
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
@@ -204,15 +206,13 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         for f in bm.faces:
             f.material_index = 0
 
-        self._apply_box_uvs(bm)
-
     def _build_straight(self, bm):
         w, h, l = self.width, self.height, self.length
         t = self.wall_thick
-        self._build_hollow_box(bm, w, h, l, t)
+        MASSA_OT_PrimDuct._build_hollow_box(self, bm, w, h, l, t)
         if self.has_ribs:
-            self._add_ribs(bm, w, h, l)
-        self._add_flanges(bm, w, h, l, start=True, end=True)
+            MASSA_OT_PrimDuct._add_ribs(self, bm, w, h, l)
+        MASSA_OT_PrimDuct._add_flanges(self, bm, w, h, l, start=True, end=True)
 
     def _build_elbow(self, bm):
         w, h = self.width, self.height
@@ -253,13 +253,11 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         # Move elbow to start at (0,0,0)
         # Shift back by radius in X
         bmesh.ops.translate(bm, verts=bm.verts, vec=(-radius, 0, 0))
-        
-        self._apply_box_uvs(bm)
 
     def _build_tee(self, bm):
         w, h, l = self.width, self.height, self.length
         t = self.wall_thick
-        self._build_hollow_box(bm, w, h, l, t)
+        MASSA_OT_PrimDuct._build_hollow_box(self, bm, w, h, l, t)
         
         bw, bh = self.branch_width, self.branch_height
         offset_z = l * self.branch_offset
@@ -270,7 +268,7 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         bmesh.ops.scale(bm, verts=b_verts, vec=(bl, bh, bw))
         bmesh.ops.translate(bm, verts=b_verts, vec=(w/2 + bl/2 - 0.02, 0, offset_z))
         
-        self._add_flanges(bm, w, h, l, start=True, end=True)
+        MASSA_OT_PrimDuct._add_flanges(self, bm, w, h, l, start=True, end=True)
 
     def _build_reducer(self, bm):
         w1, h1 = self.width, self.height
@@ -300,11 +298,9 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         for i in range(4):
             bm.faces.new((v1i[(i+1)%4], v2i[(i+1)%4], v2i[i], v1i[i]))
             
-        self._add_flanges(bm, w1, h1, l, start=True, end=False)
+        MASSA_OT_PrimDuct._add_flanges(self, bm, w1, h1, l, start=True, end=False)
         if self.flange_style in {'BOTH', 'END'}:
-            self._create_flange_geo(bm, w2, h2, l, self.flange_width, self.flange_thick, mat_idx=1)
-
-        self._apply_box_uvs(bm)
+            MASSA_OT_PrimDuct._create_flange_geo(self, bm, w2, h2, l, self.flange_width, self.flange_thick, mat_idx=1)
 
     def _build_cap(self, bm):
         w, h = self.width, self.height
@@ -312,15 +308,13 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         bmesh.ops.create_cube(bm, size=1.0)
         bmesh.ops.scale(bm, vec=(w, h, l), verts=bm.verts)
         bmesh.ops.translate(bm, vec=(0, 0, l/2), verts=bm.verts)
-        self._add_flanges(bm, w, h, l, start=True, end=False)
-        self._apply_box_uvs(bm)
+        MASSA_OT_PrimDuct._add_flanges(self, bm, w, h, l, start=True, end=False)
 
     def _build_coupler(self, bm):
         w, h = self.width, self.height
         ft = self.flange_thick
         fw = self.flange_width
-        self._create_flange_geo(bm, w, h, 0, fw, ft*2, mat_idx=1)
-        self._apply_box_uvs(bm)
+        MASSA_OT_PrimDuct._create_flange_geo(self, bm, w, h, 0, fw, ft*2, mat_idx=1)
 
     def _add_flanges(self, bm, w, h, l, start=False, end=False):
         fw = self.flange_width
@@ -328,9 +322,9 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         style = self.flange_style
         if style == 'NONE': return
         if start and style in {'BOTH', 'START'}:
-            self._create_flange_geo(bm, w, h, 0, fw, ft, mat_idx=1)
+            MASSA_OT_PrimDuct._create_flange_geo(self, bm, w, h, 0, fw, ft, mat_idx=1)
         if end and style in {'BOTH', 'END'}:
-            self._create_flange_geo(bm, w, h, l - ft, fw, ft, mat_idx=1)
+            MASSA_OT_PrimDuct._create_flange_geo(self, bm, w, h, l - ft, fw, ft, mat_idx=1)
 
     def _create_flange_geo(self, bm, w, h, z, fw, ft, mat_idx=1):
         pts_out = [(-(w/2+fw), -(h/2+fw)), ((w/2+fw), -(h/2+fw)), ((w/2+fw), (h/2+fw)), (-(w/2+fw), (h/2+fw))]
@@ -361,19 +355,20 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         step = l / (count + 1)
         for i in range(1, count + 1):
             z = i * step
-            self._create_flange_geo(bm, w, h, z - 0.01, depth, 0.02, mat_idx=2)
+            MASSA_OT_PrimDuct._create_flange_geo(self, bm, w, h, z - 0.01, depth, 0.02, mat_idx=2)
 
     def _apply_box_uvs(self, bm):
-        scale = self.uv_scale
+        scale = 1.0 if getattr(self, "fit_uvs", False) else self.uv_scale
         uv_layer = bm.loops.layers.uv.verify()
+        bm.normal_update()
         for f in bm.faces:
             n = f.normal
             for l in f.loops:
                 v = l.vert.co
                 nx, ny, nz = abs(n.x), abs(n.y), abs(n.z)
-                if nx > ny and nx > nz:
+                if nx >= ny and nx >= nz:
                     u, v_ = v.y, v.z
-                elif ny > nx and ny > nz:
+                elif ny >= nx and ny >= nz:
                     u, v_ = v.x, v.z
                 else:
                     u, v_ = v.x, v.y

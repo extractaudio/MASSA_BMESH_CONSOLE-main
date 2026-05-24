@@ -40,6 +40,7 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
 
     # --- UVs ---
     uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
+    fit_uvs: BoolProperty(name="Fit UVs 0-1", default=False)
 
     def get_slot_meta(self):
         return {
@@ -48,7 +49,7 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
         }
 
     def draw_shape_ui(self, layout):
-        layout.label(text="DIMENSIONS", icon="arrow_up_down")
+        layout.label(text="DIMENSIONS", icon="AXIS_SIDE")
         col = layout.column(align=True)
         col.prop(self, "width")
         col.prop(self, "height")
@@ -70,9 +71,6 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
         col = layout.column(align=True)
         col.prop(self, "cap_scale")
         col.prop(self, "cap_height")
-
-        layout.separator()
-        layout.prop(self, "uv_scale")
 
     def build_shape(self, bm: bmesh.types.BMesh):
         # 1. Setup
@@ -184,7 +182,9 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
                              else: e.smooth = True
 
         # UVs for Shaft
-        uv_s = self.uv_scale
+        uv_s = 1.0 if self.fit_uvs else self.uv_scale
+        u_mult = 1.0 if self.fit_uvs else 3.0
+        v_mult = 1.0 if self.fit_uvs else (shaft_h / base_radius)
         bm.faces.ensure_lookup_table()
         
         for f in shaft_faces:
@@ -204,7 +204,7 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
                 # Usually we want square UVs.
                 # u goes 0..1 (Circumference). v goes 0..1 (Height).
                 # To make texture square: u * (Circumference / Unit), v * (Height / Unit)
-                l[uv_layer].uv = (u * uv_s * 3.0, v_coord * uv_s * (shaft_h / base_radius))
+                l[uv_layer].uv = (u * uv_s * u_mult, v_coord * uv_s * v_mult)
 
             # Seam fix
             us = [l[uv_layer].uv[0] for l in f.loops]
