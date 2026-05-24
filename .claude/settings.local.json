@@ -21,7 +21,14 @@
       "Bash(python3 -c ' *)",
       "Bash(find /c/Users/extra -name \"massa_properties.py\" -type f 2>/dev/null | head -1)",
       "Bash(python3)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "mcp__mcp-registry__list_connectors",
+      "mcp__mcp-registry__search_mcp_registry",
+      "PowerShell(Get-Process -Id 23704 -ErrorAction SilentlyContinue)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "mcp__blender__get_screenshot_of_window_as_image",
+      "mcp__blender__execute_blender_code"
     ]
   }
 }
