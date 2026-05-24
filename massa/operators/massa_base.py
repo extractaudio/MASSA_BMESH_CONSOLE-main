@@ -85,10 +85,6 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                 # 1. Get Physics ID Key (e.g. 'METAL_STEEL')
                 phys_id = data.get("phys", "GENERIC")
 
-                # [ARCHITECT FIX] Skip Generic to allow Surface Map Fallbacks (Debug Colors)
-                if phys_id == "GENERIC":
-                    continue
-
                 # 2. Look up the Human-Readable Name from DB
                 vis_name = mat_utils.get_visual_name_from_id(phys_id)
 

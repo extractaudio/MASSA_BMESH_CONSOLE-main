@@ -71,6 +71,14 @@ python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_02_pipe
 
 Results are JSON printed to stdout (bracketed by `---AUDIT_START---` / `---AUDIT_END---` markers).
 
+### Verification Policy
+
+Prefer the smallest targeted verification that proves the change. Do not run a broad full Python sweep unless the edit needs syntax verification across multiple modules.
+
+- For syntax-only checks in this repo, use Blender's bundled Python and redirect pycache outside the repo, for example `PYTHONPYCACHEPREFIX=C:\tmp\massa_pycache`.
+- For cartridge geometry changes, run one focused headless `AUDIT` first. Add UV/visual modes only when the change directly affects UVs or rendering.
+- Package the addon only when packaging behavior changed, the user asks for an export, or release readiness matters.
+
 ---
 
 ## Architecture
@@ -94,6 +102,8 @@ The same file handles hot-reload: if `massa_console` is already in `locals()`, a
 **Cartridges** are the core content unit. Each is a self-contained `.py` file in [`massa/modules/cartridges/`](massa/modules/cartridges/) that defines a parametric mesh primitive.
 
 **Auto-discovery** (`massa/modules/cartridges/__init__.py`) scans the directory on import, validates each file, and registers/unregisters its operator class. **No manual registration is needed** — drop a file in the folder and reload.
+
+Discovery warnings for incomplete metadata are non-fatal so legacy helper files do not block the addon. A discovered operator that is missing the mandate methods `build_shape()` or `get_slot_meta()` is fatal and must not be registered.
 
 #### Cartridge Mandate (required for discovery)
 
@@ -132,6 +142,8 @@ def get_slot_meta(self):
 ```
 
 `uv` values: `"BOX"` (analytic box-map), `"UNWRAP"` (LSCM/conformal), `"SKIP"`, `"KEEP"`. Slot 9 with `"sock": True` generates a socket empty at the tagged face.
+
+`phys="GENERIC"` is valid. It resolves to the real Generic material from `MASTER_MAT_DB` rather than being skipped.
 
 **Reference implementation:** [`massa/modules/cartridges/cart_massa_builder_example.py`](massa/modules/cartridges/cart_massa_builder_example.py)
 
@@ -211,11 +223,13 @@ Key methods: `create_box`, `create_grid`, `create_cylinder`, `extrude`, `inset`,
 
 Slots 1, 3, 5 are also used as seam boundaries by the auto-unwrap system when `auto_unwrap_use_slots` is on.
 
+Bevel weights use `bevel_weight_edge` as the canonical Blender 4/5 edge layer. Legacy `bevel_weight` data is copied into the canonical layer when encountered.
+
 ---
 
 ### Resurrection / Redo System
 
-Each generated object stores its full parameter state in `obj["MASSA_PARAMS"]`. `MASSA_OT_ReRun_Active` (bl_idname: `massa.rerun_active`) re-fires the original operator with those params, deletes the old object, and restores the transform. The Redo Panel in Blender then lets the user tweak parameters live.
+Each generated object stores its full parameter state in `obj["MASSA_PARAMS"]`. The payload includes `MASSA_PARAMS_VERSION`; migrations live in `massa/operators/massa_base.py` and should translate known old keys before restore. `MASSA_OT_ReRun_Active` (bl_idname: `massa.rerun_active`) re-fires the original operator with those params, deletes the old object, and restores the transform. The Redo Panel in Blender then lets the user tweak parameters live.
 
 Console props (`context.scene.massa_console`) act as the persistent settings store between operator invocations — synced in `invoke()` and `execute()` via `Massa_OT_Base._sync()`.
 

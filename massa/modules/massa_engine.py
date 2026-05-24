@@ -52,6 +52,26 @@ def _verify_layer(bm, attr_name, internal_name):
     return layer
 
 
+def _canonical_bevel_layer(bm, create=False):
+    canonical = bm.edges.layers.float.get("bevel_weight_edge")
+    legacy = bm.edges.layers.float.get("bevel_weight")
+    if canonical is None and (create or legacy):
+        canonical = bm.edges.layers.float.new("bevel_weight_edge")
+    if canonical is None:
+        return None
+    if legacy and legacy != canonical:
+        for edge in bm.edges:
+            canonical_value = edge[canonical]
+            legacy_value = edge[legacy]
+            if legacy_value and not canonical_value:
+                edge[canonical] = legacy_value
+        try:
+            bm.edges.layers.float.remove(legacy)
+        except Exception as e:
+            print(f"[MASSA] legacy bevel layer cleanup failed: {e}")
+    return canonical
+
+
 def process_edge_slots(bm, op):
     try:
         edge_slots = bm.edges.layers.int["MASSA_EDGE_SLOTS"]
@@ -75,7 +95,7 @@ def process_edge_slots(bm, op):
         crease_layer = _verify_layer(bm, "crease", "crease_edge")
     bevel_layer = None
     if any(a == "BEVEL" for a in manifest.values()):
-        bevel_layer = _verify_layer(bm, "bevel_weight", "bevel_weight_edge")
+        bevel_layer = _canonical_bevel_layer(bm, create=True)
 
     for edge in bm.edges:
         slot_id = edge[edge_slots]
@@ -352,11 +372,7 @@ def _run_polish_stack(bm, op, flags, manifest):
 
 
 def _generate_output(op, context, bm, socket_data, manifest):
-    has_bevel = False
-    if bm.edges.layers.float.get("bevel_weight_edge") or bm.edges.layers.float.get(
-        "bevel_weight"
-    ):
-        has_bevel = True
+    has_bevel = _canonical_bevel_layer(bm, create=False) is not None
 
     viz_mode = getattr(op, "viz_edge_mode", "NATIVE")
     debug_mode = getattr(op, "debug_view", "NONE")

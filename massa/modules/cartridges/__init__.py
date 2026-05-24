@@ -53,8 +53,8 @@ def _discover():
         # Validate required keys
         missing = _REQUIRED_META_KEYS - set(meta.keys())
         if missing:
-            raise RuntimeError(
-                f"Massa Cartridge: '{pkg_dir / (name + '.py')}' missing meta keys: {missing}"
+            print(
+                f"Massa Cartridge Warning: '{pkg_dir / (name + '.py')}' missing meta keys: {missing}"
             )
 
         # Find the operator class (subclass of Massa_OT_Base, not Base itself)

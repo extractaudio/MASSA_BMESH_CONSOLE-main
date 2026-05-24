@@ -181,6 +181,8 @@ This means every property is accessible identically from the Scene (UI, persiste
 
 > **Rule:** NEVER rename existing properties. Deprecate them instead. Renaming breaks the Resurrection system for all generated objects that have `obj["MASSA_PARAMS"]` stored with the old key name.
 
+Current resurrection payloads include `MASSA_PARAMS_VERSION`. Known property renames must be handled in the migration table in `operators/massa_base.py`, and stale unknown keys are reported instead of being silently ignored.
+
 ---
 
 ### Muscle — Operator Shell
@@ -206,7 +208,7 @@ invoke()
         └── _sync(from_console=False) ← Push Operator → Console props
 ```
 
-**`_sync()`**: Bidirectionally copies all `MassaPropertiesMixin.__annotations__` keys plus all 10 per-slot properties (`mat_i`, `sep_i`, `uv_mode_i`, etc.) between operator and `context.scene.massa_console`.
+**`_sync()`**: Bidirectionally copies all `MassaPropertiesMixin.__annotations__` keys between operator and `context.scene.massa_console`. Per-slot properties are discovered dynamically by matching annotation names like `mat_0`, `sep_0`, `uv_mode_0`, etc., so new slot-scoped mixin properties do not need a second hardcoded sync list.
 
 **`MASSA_OT_ReRun_Active`** (`massa.rerun_active`): Saves `MASSA_PARAMS` + current transform to `context.scene["MASSA_TEMP_RESTORE"]`, deletes the active object, and re-fires its original operator via `bpy.ops` using the stored `massa_op_id`.
 
@@ -217,6 +219,8 @@ invoke()
 **File:** `modules/massa_engine.py` → `run_pipeline(op, context)`
 
 Full generation pipeline from BMesh creation to final committed Blender object.
+
+Pipeline failures are reported by phase (`Build shape`, `Edge preparation`, `Polish stack`, `Seam and surface maps`, `Output generation`) so headless and UI runs expose the failing stage instead of returning a generic cancellation.
 
 ```
 Step  1   mat_utils.ensure_default_library()
@@ -324,7 +328,7 @@ Intelligently places UV seams on the final mesh. Runs as step 26 of the pipeline
 
 ### Phase 4 — Physics & Socket Forge
 
-Executes inside `_generate_output` after the mesh is committed to Blender. All Phase 4 operations are wrapped in try/except for headless safety.
+Executes inside `_generate_output` after the mesh is committed to Blender. UCX generation, Auto-Rig, and Socket Forge each run in their own guarded sub-phase so one failure does not prevent the others from running. Phase 4 links helper objects through the generated object's collection when available instead of relying on `bpy.context.collection`.
 
 **UCX Collision Generation** (`phys_gen_ucx = True`):
 
@@ -528,10 +532,10 @@ def build_shape(self, bm: bmesh.types.BMesh):
 
 ### C. The Golden Rules
 
-1.  **Pure BMesh in `build_shape`**: Never call `bpy.ops.*` inside `build_shape`. It crashes in headless/background mode. Use `bmesh.ops`, `MassaBuilder`, or pure `mathutils`.
+1.  **Pure BMesh in `build_shape`**: Never call `bpy.ops.*` inside `build_shape`. It crashes in headless/background mode. Use `bmesh.ops`, `MassaBuilder`, or pure `mathutils`. If a cartridge needs initial UVs, assign them through BMesh UV loops; object/edit-mode unwraps belong in the engine output stage.
 2.  **No Loose Geometry**: Always end `build_shape` with `bmesh.ops.remove_doubles` and `bmesh.ops.recalc_face_normals`. The engine's `FIX_DEGENERATE` pass provides additional safety but is not a substitute.
 3.  **Inheritance**: The operator class MUST inherit `Massa_OT_Base`.
-4.  **Metadata**: MUST provide valid `CARTRIDGE_META` (with `name`, `id`, `icon`, `flags`) and implement `get_slot_meta()`.
+4.  **Metadata**: MUST provide valid `CARTRIDGE_META` (with `name`, `id`, `icon`, `flags`) and implement `get_slot_meta()`. Missing metadata keys currently warn for legacy compatibility, but a discovered operator missing `build_shape()` or `get_slot_meta()` is fatal and must not register.
 5.  **Context Safe**: Never assume `bpy.context.object` or `bpy.context.view_layer` exists inside `build_shape`. Work only on the provided `bm` argument.
 6.  **Never Rename Properties**: Renaming breaks Resurrection for existing objects. Deprecate with a migration path instead.
 
@@ -593,6 +597,8 @@ The `MASSA_EDGE_SLOTS` integer layer on BMesh edges drives all post-process shad
 **User-configurable actions** per role (EDGES tab):
 `IGNORE` | `SEAM` | `SHARP` | `BOTH` (Seam+Sharp) | `CREASE` | `BEVEL`
 
+`BEVEL` writes to `bevel_weight_edge`, the canonical Blender 4/5 edge layer. If legacy `bevel_weight` data is encountered, the engine copies it into `bevel_weight_edge` and removes the legacy layer when possible.
+
 **Auto-detection note:** When `edge_auto_detect = True` (default), the engine automatically assigns roles 1 and 2 based on material boundaries and angle analysis. You can assign roles manually in `build_shape` and the auto-detection will layer additive sharp detection on top (`edge_sharp_convex_angle` / `edge_sharp_concave_angle` thresholds).
 
 **Critical:** For meshes with >12 faces that use `UNWRAP` UV mode, the auditor will flag `CRITICAL_NO_SEAMS_ON_COMPLEX_MESH` if no edges are tagged with role 1 or 3. UV unwrap will fail or produce severe distortion without them.
@@ -613,7 +619,7 @@ Defined in `get_slot_meta()` under `"uv"` key. Overridable per-slot at runtime v
 | `"UNWRAP"` | LSCM/Angle-Based — seam-driven | Organic shapes, complex surfaces |
 | `"SKIP"` | Manual UVs from `build_shape`, or Auto-Unwrap fallback | **Golden Cartridge standard** |
 
-**Golden Cartridge UV standard:** Use `"SKIP"` and write UVs manually using `bm.loops.layers.uv.verify()` inside `build_shape`. Auto-unwrap is a fallback, not the primary standard.
+**Golden Cartridge UV standard:** Use `"SKIP"` and write UVs manually using `bm.loops.layers.uv.verify()` inside `build_shape`. Auto-unwrap is a fallback, not the primary standard. Manual UV assignment must remain pure BMesh and must not round-trip through temporary Blender objects.
 
 **Manual UV pattern:**
 ```python
@@ -645,6 +651,8 @@ The `"phys"` key in `get_slot_meta()` sets both the default visual material AND 
 | **Debug Slots** | `MASSA_DEBUG_0` … `MASSA_DEBUG_9` (colored debug view) |
 
 Each material has an associated density value (kg/m³). The engine calculates weighted-average mass from slot area fractions × slot density, stored in `massa_temp_stats`.
+
+`GENERIC` is a valid physics ID and resolves to the real Generic visual material. Do not rely on missing or skipped material assignment as a debug-color fallback.
 
 ---
 
@@ -709,8 +717,8 @@ To add a new **global** parameter shared across the Console UI and all Operators
 
 Every generated Massa object carries its full parameter state and can be fully re-edited at any time.
 
-*   **Saving**: `_capture_operator_params(op)` iterates all non-readonly RNA properties and serializes them into a plain dict stored as `obj["MASSA_PARAMS"]`. The `bl_idname` (or meta-derived ID) is stored as `obj["massa_op_id"]`.
-*   **Restoring**: When `Massa_OT_Base.invoke()` runs in `rerun_mode`, it reads `MASSA_PARAMS` from the target object and calls `setattr(self, k, v)` for each key. Material, UV, Seam, and Transform properties are intentionally skipped so Console overrides take precedence.
+*   **Saving**: `_capture_operator_params(op)` iterates all non-readonly RNA properties and serializes them into a plain dict stored as `obj["MASSA_PARAMS"]`. The payload includes `MASSA_PARAMS_VERSION`. The `bl_idname` (or meta-derived ID) is stored as `obj["massa_op_id"]`.
+*   **Restoring**: When `Massa_OT_Base.invoke()` runs in `rerun_mode`, it reads `MASSA_PARAMS` from the target object, migrates known old keys, and calls `setattr(self, k, v)` for each current key. Material, UV, Seam, and Transform properties are intentionally skipped so Console overrides take precedence. Unknown stale keys are reported to the info bar.
 *   **Redo Panel persistence**: `obj_location` and `obj_rotation` are stored as operator properties so they survive redo steps and keep the object in place while the user adjusts shape parameters live.
 *   **Transform restore**: The new object's `.location` and `.rotation_euler` are set from stored values AFTER `run_pipeline()` completes, so the new mesh always lands exactly where the old one was.
 *   **Golden Rule**: **NEVER rename a cartridge property or a mixin property.** Existing objects will fail to resurrect because their `MASSA_PARAMS` stores the old key name. Write a migration function that reads both old and new key names.
@@ -721,7 +729,7 @@ Every generated Massa object carries its full parameter state and can be fully r
 *   **Never call `bpy.ops.*` inside `build_shape`** — no Blender context exists headlessly.
 *   **Never read `bpy.context.object`** inside `build_shape` — use only the provided `bm`.
 *   **Use `mat_utils.ensure_default_library()`** at the top of any method that creates/reads materials — it is headless-safe.
-*   UCX, Auto-Rig, and Socket Forge operations are in `_generate_output` (outside `build_shape`) and are wrapped in `try/except` for graceful degradation.
+*   UCX, Auto-Rig, and Socket Forge operations are in `_generate_output` (outside `build_shape`) and are wrapped independently in `try/except` for graceful degradation.
 
 ### Golden Cartridge Workflow
 
