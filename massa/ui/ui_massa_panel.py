@@ -43,22 +43,22 @@ class MASSA_PT_Main(bpy.types.Panel):
         layout.separator()
 
         # [ARCHITECT UI UPDATE] High-Priority Actions (Resurrect/Condemn)
-        # Moved to Top for immediate visibility
-        if obj and "massa_op_id" in obj:
-            box = layout.box()
-            col = box.column(align=True)
-            col.scale_y = 1.2
+        # Always drawn — poll() on each operator handles the disabled/greyed state
+        # when no Massa object is active, so no guard needed here.
+        box = layout.box()
+        col = box.column(align=True)
+        col.scale_y = 1.2
 
-            # Resurrect
-            row = col.row()
-            row.alert = True
-            row.scale_y = 1.2
-            op = row.operator("massa.resurrect_wrapper", text="Resurrect Selected", icon="FILE_REFRESH")
+        # Resurrect
+        row = col.row()
+        row.alert = True
+        row.scale_y = 1.2
+        row.operator("massa.resurrect_wrapper", text="Resurrect Selected", icon="FILE_REFRESH")
 
-            # Condemn
-            col.separator(factor=0.5)
-            col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
-            layout.separator()
+        # Condemn
+        col.separator(factor=0.5)
+        col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
+        layout.separator()
 
         if console.massa_op_mode == 'ACTIVE':
             # --- 1. PRIMITIVES GROUP ---

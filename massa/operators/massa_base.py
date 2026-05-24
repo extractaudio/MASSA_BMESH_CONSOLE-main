@@ -303,7 +303,9 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
 class MASSA_OT_ReRun_Active(Operator):
     bl_idname = "massa.rerun_active"
     bl_label = "Update Active Object"
-    bl_options = {"REGISTER", "UNDO"}
+    # REGISTER intentionally omitted: this operator is infrastructure, not a user-facing
+    # redo step. The generation operator it fires owns the Redo Panel (F9) slot.
+    bl_options = {"UNDO"}
 
     @classmethod
     def poll(cls, context):
@@ -316,7 +318,7 @@ class MASSA_OT_ReRun_Active(Operator):
         # via self.obj_location / self.obj_rotation (sourced from MASSA_TEMP_RESTORE in invoke).
         # Scale is intentionally NOT restored.
 
-        # [ARCHITECT NEW] Capture parameters before deletion
+        # Capture parameters before deletion
         massa_params = None
         if "MASSA_PARAMS" in obj:
             try:
@@ -325,8 +327,8 @@ class MASSA_OT_ReRun_Active(Operator):
                 pass
 
         if massa_params:
-            # [ARCHITECT FIX] Inject current transform so the operator property matches the visual location
-            # This ensures the Redo Panel starts with the correct values instead of jumping to 0,0,0
+            # Inject current transform so the operator property matches the visual location.
+            # This ensures the Redo Panel starts with the correct values instead of origin.
             massa_params["obj_location"] = obj.location[:]
             massa_params["obj_rotation"] = obj.rotation_euler[:]
             context.scene["MASSA_TEMP_RESTORE"] = massa_params
@@ -334,6 +336,8 @@ class MASSA_OT_ReRun_Active(Operator):
         if not obj.select_get():
             obj.select_set(True)
         bpy.ops.object.delete()
+
+        # Parse the stored operator ID into category + name
         op_category, op_name = "", ""
         if "." in op_id:
             op_category, op_name = op_id.split(".")
@@ -343,10 +347,19 @@ class MASSA_OT_ReRun_Active(Operator):
             op_name = parts[1]
         else:
             return {"CANCELLED"}
-        try:
-            op_module = getattr(bpy.ops, op_category)
-            op_func = getattr(op_module, op_name)
-            op_func("INVOKE_DEFAULT")
-        except Exception:
-            return {"CANCELLED"}
+
+        # Deferred invoke via timer so the generation operator runs at the TOP of
+        # Blender's event loop, not nested inside this execute().  That is what
+        # causes Blender to register it as the "last operator" and open the
+        # Redo Panel (F9 / Adjust Last Operation).
+        def _deferred_invoke():
+            try:
+                op_module = getattr(bpy.ops, op_category)
+                op_func = getattr(op_module, op_name)
+                op_func("INVOKE_DEFAULT")
+            except Exception as e:
+                print(f"[Massa Resurrect] Deferred invoke error: {e}")
+            return None  # None unregisters the timer after one fire
+
+        bpy.app.timers.register(_deferred_invoke, first_interval=0.0)
         return {"FINISHED"}
