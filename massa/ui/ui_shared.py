@@ -154,6 +154,11 @@ def draw_polish_tab(layout, owner):
     b.prop(owner, "pol_merge_mode", text="")
     if owner.pol_merge_mode == "BOOLEAN":
         b.label(text="Creates Intersection Seams", icon="INFO")
+    row = b.row(align=True)
+    row.prop(owner, "pol_solidify_active", text="Solidify", icon="MOD_SOLIDIFY", toggle=True)
+    row.prop(owner, "pol_bridge_active", text="Bridge", icon="MOD_SKIN", toggle=True)
+    if owner.pol_solidify_active:
+        b.prop(owner, "pol_solidify_thick", text="Thickness")
 
     layout.separator()
     b = layout.box()

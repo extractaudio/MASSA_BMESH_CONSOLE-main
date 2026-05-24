@@ -1,7 +1,7 @@
 import bpy
 import bmesh
 import math
-from mathutils import Vector, Matrix, Quaternion
+from mathutils import Vector
 from bpy.props import FloatProperty, IntProperty, BoolProperty
 from ...operators.massa_base import Massa_OT_Base
 
@@ -135,12 +135,12 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
             )  # Pitch ratio
             tangent = Vector((tx, ty, tz)).normalized()
 
-            # Construct Rotation Matrix for Ring (Z-Axis -> Tangent)
-            # We want the ring normal to point along the tangent
-            quat = Vector((0, 0, 1)).rotation_difference(tangent)
-            mat_rot = quat.to_matrix().to_4x4()
-            mat_trans = Matrix.Translation(center_pos)
-            mat_final = mat_trans @ mat_rot
+            # Construct a stable ring frame for the swept tube.
+            # rotation_difference() can bank a helix tube in ways that make a
+            # fixed seam index wander visually. The radial/binormal frame keeps
+            # the seam following the coil smoothly from ring to ring.
+            radial_axis = Vector((math.cos(angle), math.sin(angle), 0.0)).normalized()
+            binormal_axis = tangent.cross(radial_axis).normalized()
 
             current_v_coord = t * sv  # V coordinate is progress along length
 
@@ -150,12 +150,11 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
                 # Radial Angle (U coordinate)
                 theta = (j / seg_rad) * 2 * math.pi
 
-                # Circle Point in Local Space (X/Y plane of the wire cross-section)
-                lx = math.cos(theta) * r_wire
-                ly = math.sin(theta) * r_wire
-                local_p = Vector((lx, ly, 0.0))
-
-                world_p = mat_final @ local_p
+                # Circle Point in the local frame perpendicular to the helix tangent.
+                world_p = center_pos + (
+                    (radial_axis * math.cos(theta) + binormal_axis * math.sin(theta))
+                    * r_wire
+                )
 
                 # U Coordinate (0-1 around wire)
                 u_coord = j / seg_rad
@@ -246,15 +245,6 @@ class MASSA_OT_PrimHelix(Massa_OT_Base):
                          if e_long:
                              e_long[edge_slots] = 3  # GUIDE
                              e_long.seam = True
-
-                    # 2. Vertical Cuts (Rings) every 12 segments
-                    # Edge connecting v1 -> v4 (radial ring)
-                    # We cut the ring *before* the current segment if r % 12 == 0
-                    if r > 0 and r % 12 == 0:
-                        e_ring = bm.edges.get([v1, v4])
-                        if e_ring:
-                            e_ring[edge_slots] = 3  # GUIDE
-                            e_ring.seam = True
 
                 except ValueError:
                     pass  # Face already exists (rare)

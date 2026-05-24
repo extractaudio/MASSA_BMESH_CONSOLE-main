@@ -143,7 +143,11 @@ class MassaPropertiesMixin:
     )
 
     # 2. CLEANUP
-    seam_cleanup_flat: BoolProperty(name="Remove Flat Seams", default=False)
+    seam_cleanup_flat: BoolProperty(
+        name="Remove Flat Seams",
+        default=False,
+        description="Removes low-angle seams after Hard Surface/Strip solving; Smart Tube, Organic, and Box Strip keep their solver seams.",
+    )
     seam_cleanup_thresh: FloatProperty(
         name="Flat Tol",
         default=5.0,

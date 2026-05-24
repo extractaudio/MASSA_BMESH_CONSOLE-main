@@ -79,9 +79,7 @@ def register():
 
     # 2. Register Operators
     bpy.utils.register_class(massa_base.Massa_OT_Base)
-    bpy.utils.register_class(massa_base.MASSA_OT_ReRun_Active)
     bpy.utils.register_class(massa_tools.MASSA_OT_Condemn)
-    bpy.utils.register_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
     bpy.utils.register_class(massa_tools.MASSA_OT_Finalize_And_Inspect)
     bpy.utils.register_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.register_class(massa_shooter.MASSA_OT_ShootDispatcher)
@@ -138,9 +136,7 @@ def unregister():
     bpy.utils.unregister_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Finalize_And_Inspect)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Condemn)
-    bpy.utils.unregister_class(massa_tools.MASSA_OT_Resurrect_Wrapper)
     bpy.utils.unregister_class(massa_base.Massa_OT_Base)
-    bpy.utils.unregister_class(massa_base.MASSA_OT_ReRun_Active)
 
     # 4. Unregister Console
     massa_console.unregister()

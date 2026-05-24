@@ -4,7 +4,6 @@ Content: Parametric Structural Beam Generator (I, H, T, Channel, Angle)
 Status: FIXED (Seam Sanitization + PRIM_01 Logic)
 """
 
-import bpy
 import bmesh
 import math
 from bpy.props import FloatProperty, EnumProperty, IntProperty
@@ -328,50 +327,31 @@ class MASSA_OT_prim_con_beam(Massa_OT_Base):
                 elif e.calc_face_angle() > 0.01:
                     e[edge_slots] = 3  # Role: Guide
 
-        # 10. UV UNWRAP (CLASSIC ROUNDTRIP)
-        # User requested Angle-Based Unwrap using the Seams we marked.
-        # Since bmesh.ops.unwrap is technically missing/broken in some contexts,
-        # we perform a "Roundtrip": BMesh -> Temp Object -> Edit Mode -> Unwrap -> BMesh.
-        headless_classic_unwrap(bm)
+        # 10. UV SEEDING (HEADLESS SAFE)
+        # The engine performs operator-based unwraps after the mesh object exists.
+        # Cartridge build logic must stay pure BMesh for background audit runs.
+        assign_headless_beam_uvs(bm, l, self.prop_width, self.prop_depth)
 
 
-def headless_classic_unwrap(bm):
-    """
-    Flushes the BMesh to a temporary object / mesh, performs
-    a standard bpy.ops.uv.unwrap (using the Context Override),
-    and loads the result back into the BMesh.
-    """
-    # 1. Create Temp Mesh & Object
-    me = bpy.data.meshes.new("_temp_unwrap_mesh")
-    bm.to_mesh(me)
-    
-    obj = bpy.data.objects.new("_temp_unwrap_obj", me)
-    col = bpy.data.collections.get("Collection")
-    if not col:
-        col = bpy.data.collections.new("Collection")
-        bpy.context.scene.collection.children.link(col)
-    col.objects.link(obj)
-    
-    # 2. Set Context
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
-    
-    # 3. Enter Edit Mode
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    
-    # 4. Unwrap
-    # 'ANGLE_BASED' or 'CONFORMAL'. Margin 0.001 is standard.
-    try:
-       bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
-    except Exception as e:
-        print(f"UNWRAP ERROR: {e}")
-        
-    # 5. Read Back
-    bpy.ops.object.mode_set(mode='OBJECT')
-    bm.clear()
-    bm.from_mesh(me)
-    
-    # 6. Cleanup
-    bpy.data.objects.remove(obj, do_unlink=True)
-    bpy.data.meshes.remove(me, do_unlink=True)
+def assign_headless_beam_uvs(bm, length, width, depth):
+    """Assign deterministic UVs without touching Blender object/edit operators."""
+    uv_layer = bm.loops.layers.uv.get("UVMap") or bm.loops.layers.uv.new("UVMap")
+    safe_length = max(length, 0.001)
+    safe_width = max(width, 0.001)
+    safe_depth = max(depth, 0.001)
+
+    bm.faces.ensure_lookup_table()
+    for face in bm.faces:
+        normal = face.normal
+        for loop in face.loops:
+            co = loop.vert.co
+            if abs(normal.y) > 0.9:
+                u = (co.x / safe_width) + 0.5
+                v = (co.z / safe_depth) + 0.5
+            elif abs(normal.z) > 0.5:
+                u = co.y / safe_length
+                v = (co.x / safe_width) + 0.5
+            else:
+                u = co.y / safe_length
+                v = (co.z / safe_depth) + 0.5
+            loop[uv_layer].uv = (u, v)

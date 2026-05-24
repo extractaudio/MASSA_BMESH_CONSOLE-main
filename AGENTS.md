@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Code Exploration Policy
 
@@ -16,7 +16,7 @@ If `resolve_repo` returns a different repo identifier for this checkout, use the
 
 **Start any session:**
 1. `resolve_repo { "path": "." }` — confirm the project is indexed. If not: `index_folder { "path": "." }`
-2. `plan_turn { "repo": "local/MASSA_BMESH_CONSOLE-main-baadc0ec", "query": "<task>", "model": "claude-sonnet-4-6" }` before any code task
+2. `plan_turn { "repo": "local/MASSA_BMESH_CONSOLE-main-baadc0ec", "query": "<task>", "model": "Codex-sonnet-4-6" }` before any code task
 
 **Finding code:**
 - symbol by name → `search_symbols`
@@ -45,6 +45,15 @@ PostToolUse hooks are installed — edited files are auto-reindexed. For bulk ed
 ---
 
 ## Commands
+
+### Verification Policy
+
+Prefer the smallest targeted verification that proves the change. Do not run a broad "full Python test sequence" from Superpowers by default.
+
+- Avoid `py_compile` / Python import sweeps unless the user asks or the edit specifically needs syntax verification.
+- If Python verification is needed, prefer commands that do not leave `__pycache__` files, or clean generated cache files afterward.
+- For cartridge geometry changes, use one focused Blender audit mode first. Add UV/visual modes only when the change directly affects UVs or rendering.
+- Package the addon only when packaging behavior changed, the user asks for an export, or release readiness matters.
 
 ### Package the Addon
 

@@ -34,8 +34,11 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
 
 
 
-        gz_res.target_set_operator("massa.resurrect_wrapper")
+        # Placeholder target — the real cartridge operator is bound dynamically
+        # in draw_prepare() based on the active object's `massa_op_id`.
+        gz_res.target_set_operator("massa.condemn")
         self.gizmo_resurrect = gz_res
+        self._resurrect_op_id_cache = None
 
         # 2. Condemnation Button (Bottom)
         gz_con = self.gizmos.new("GIZMO_GT_button_2d")
@@ -63,9 +66,23 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
                 return
     
             obj = context.active_object
-            if not obj: 
+            if not obj:
                 return
-    
+
+            # [NEW] Dynamically retarget the resurrect gizmo to the live cartridge
+            # operator stored on the object. Clicking the gizmo will then invoke
+            # `bpy.ops.massa.gen_XXX('INVOKE_DEFAULT', rerun_mode=True)` as a true
+            # top-level operator call — UI context intact, Redo Panel registers it.
+            op_id = obj.get("massa_op_id")
+            if op_id and op_id != self._resurrect_op_id_cache:
+                try:
+                    props = self.gizmo_resurrect.target_set_operator(op_id)
+                    props.rerun_mode = True
+                    self._resurrect_op_id_cache = op_id
+                except Exception as e:
+                    # Stale id (cartridge uninstalled) — silently leave previous target
+                    print(f"[Massa Gizmo] Resurrect retarget failed for '{op_id}': {e}")
+
             # [ARCHITECT FIX] Robust World Space Calculation
             # This ensures even if bound_box is weird, we have a fallback
             pos_x, pos_y, top_z = 0.0, 0.0, 0.0

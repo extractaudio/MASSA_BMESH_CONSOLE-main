@@ -39,8 +39,10 @@ def _discover():
         try:
             mod = importlib.import_module(f".{name}", __package__)
         except Exception as e:
-            print(f"Massa Cartridge: Failed to import '{name}': {e}")
-            continue
+            file_path = pkg_dir / f"{name}.py"
+            raise RuntimeError(
+                f"Massa Cartridge: Failed to import '{file_path}': {e}"
+            ) from e
 
         # Must have CARTRIDGE_META
         if not hasattr(mod, "CARTRIDGE_META"):
@@ -51,7 +53,9 @@ def _discover():
         # Validate required keys
         missing = _REQUIRED_META_KEYS - set(meta.keys())
         if missing:
-            print(f"Massa Cartridge Warning: '{name}' missing meta keys: {missing}")
+            raise RuntimeError(
+                f"Massa Cartridge: '{pkg_dir / (name + '.py')}' missing meta keys: {missing}"
+            )
 
         # Find the operator class (subclass of Massa_OT_Base, not Base itself)
         op_cls = None
@@ -72,9 +76,13 @@ def _discover():
 
         # Validate mandate requirements
         if not hasattr(op_cls, "build_shape"):
-            print(f"Massa Cartridge Warning: '{name}' missing build_shape()")
+            raise RuntimeError(
+                f"Massa Cartridge: '{pkg_dir / (name + '.py')}' missing build_shape()"
+            )
         if not hasattr(op_cls, "get_slot_meta"):
-            print(f"Massa Cartridge Warning: '{name}' missing get_slot_meta()")
+            raise RuntimeError(
+                f"Massa Cartridge: '{pkg_dir / (name + '.py')}' missing get_slot_meta()"
+            )
 
         MODULES.append(mod)
         CLASSES.append(op_cls)

@@ -2,7 +2,7 @@
 
 > **The "Golden Standard" for Procedural Geometry Cartridges**
 
-This document defines the strict requirements for creating a "Golden Cartridge" in the Massa system. All new geometry scripts must adhere to these protocols to ensure consistency, stability, headless safety, and high-quality output (clean topology + correct UVs + working sockets + functional edge slot visualization).
+This document defines the core contracts for creating a "Golden Cartridge" in the Massa system. Geometry construction is allowed to vary by shape family, but every cartridge must preserve the shared protocol order, slot/edge/socket data contracts, headless safety, and high-quality output (clean topology + correct UVs + working sockets + functional edge slot visualization).
 
 The canonical reference implementation is [`massa/modules/cartridges/cart_prim_01_beam.py`](massa/modules/cartridges/cart_prim_01_beam.py). Any pattern in this document marked **"Beam Reference"** is implemented exactly that way in the beam.
 
@@ -69,7 +69,7 @@ A **Golden Cartridge** is a self-contained, parametric geometry generator. It is
 *   **Sockets**: Explicit attachment points derived from existing geometry — never extra helper geometry. Socket orientation may be customized via an `execute()` override.
 *   **Compatibility**: Must work with `viz_edge_mode = SLOTS` (so Edge Roles 1-5 visualize correctly), the Polish Stack, the Seam Solver, UCX collision generation, and the Resurrection system.
 
-The Console grants the Cartridge superpowers (Auto-UVs, Physics IDs, UCX Colliders, Socket Forge) for free — **but only if these protocols are followed exactly.**
+The Console grants the Cartridge superpowers (Auto-UVs, Physics IDs, UCX Colliders, Socket Forge) for free when these contracts are respected. Beam-style examples are reference recipes, not the only valid topology strategy for swept, radial, organic, or assembly cartridges.
 
 ---
 
@@ -92,16 +92,16 @@ from ...operators.massa_base import Massa_OT_Base
 
 ### 2.2 Axis Convention
 
-> **MANDATORY for all extruded cartridges (beams, pipes, ducts, conduits, etc.):**
+> **Default for straight structural extrusions (beams, pipes, ducts, conduits, etc.):**
 > - **X axis** = WIDTH
 > - **Y axis** = LENGTH (extrusion direction)
 > - **Z axis** = HEIGHT
 >
 > This is documented in the Beam Reference with the comment: `# AXIS STANDARD: Y-AXIS IS LENGTH`.
 >
-> Profile/cross-section geometry lives in the **XZ plane**. The extrusion happens along **+Y**. This convention ensures sockets, snap points, and downstream tools (like the Polish Stack's `pol_bend_axis`) align consistently across cartridges.
+> Profile/cross-section geometry usually lives in the **XZ plane**. The extrusion happens along **+Y**. This convention ensures sockets, snap points, and downstream tools (like the Polish Stack's `pol_bend_axis`) align consistently across cartridges.
 
-For non-extruded cartridges (towers, tanks, radial objects), Z is the primary axis of symmetry.
+For non-extruded, swept, radial, helical, or path-following cartridges, choose the axis and local frame that produce stable topology and UVs. Document the choice in `build_shape`, keep pivots/sockets predictable, and preserve the slot/edge/UV contracts below.
 
 ### 2.3 Metadata (`CARTRIDGE_META`)
 
@@ -308,7 +308,7 @@ def build_shape(self, bm: bmesh.types.BMesh):
     # 7. UV MAPPING
 ```
 
-Adapt the phase list to your geometry (a radial cartridge might have different phases) but always keep the **commented separators**.
+Adapt the phase list to your geometry (a radial or swept cartridge might have different phases) but keep the build readable and preserve this dependency order: setup/data layers, geometry, slot assignment, seams/edge slots, UVs, then cleanup.
 
 ### 5.2 Headless Safety Rules (Non-Negotiable)
 
@@ -318,7 +318,7 @@ Adapt the phase list to your geometry (a radial cartridge might have different p
 
 ### 5.3 The Clean Extrusion Idiom (Beam Reference)
 
-For extruded profiles, the canonical pattern is:
+For straight extruded profiles, the recommended pattern is:
 
 ```python
 # 1. Define 2D profile points in the XZ plane
@@ -347,9 +347,11 @@ bmesh.ops.translate(bm, verts=verts_ext, vec=(0.0, self.length, 0.0))
 - `try/except ValueError` catches degenerate profiles (collinear points, self-intersection) without crashing the operator.
 - `ensure_lookup_table()` after raw `bm.verts.new` is mandatory before any `bm.verts[N]` indexing or face creation that references those verts.
 
+Swept tubes, helices, radial generators, and complex assemblies may build rings, patches, or sub-parts directly when extrusion would create unstable frames or poor UV seams. In those cases, the replacement pattern must still create valid faces, assign slots by role, mark coherent seams/edge roles, and write or enable correct UVs.
+
 ### 5.4 Segmentation via `bisect_plane` (Beam Reference)
 
-To add interior loop cuts along the extrusion, use `bmesh.ops.bisect_plane` — **not** `bmesh.ops.subdivide_edges`. Bisect produces a single clean perpendicular cut without altering existing edge topology.
+For straight extrusions that need interior loop cuts, use `bmesh.ops.bisect_plane` — **not** `bmesh.ops.subdivide_edges`. Bisect produces a single clean perpendicular cut without altering existing edge topology.
 
 ```python
 if self.segments_y > 0:
@@ -370,6 +372,8 @@ if self.segments_y > 0:
 ```
 
 Each cut subdivides every wall face it crosses, producing a clean ring of edges at `y_cut`. These rings can be tagged as Edge Slot 3 (Guide) afterwards (see §6.5).
+
+For swept/path meshes, prefer native ring generation over planar bisects when it produces cleaner edge flow.
 
 ### 5.5 Face Categorization by Position (Beam Reference)
 
@@ -498,7 +502,7 @@ This guarantees the cap boundary is a UV seam even if auto-detect's heuristic mi
 
 ### 6.4 The Longitudinal Seam Algorithm (Beam Reference)
 
-For closed-loop walls (any extruded profile), you need exactly ONE seam line running the length of the extrusion to allow UV unwrapping. Use `pts[0]` (the first profile corner) as the known seam line:
+For closed-loop walls, provide a coherent seam path running with the surface flow so UV unwrapping has a clean cut. Straight extrusions usually need one longitudinal seam; complex swept forms may need a different continuous path or a small number of intentional extra cuts. Use `pts[0]` (the first profile corner) as the known seam line for beam-style profiles:
 
 ```python
 if pts:
@@ -523,11 +527,11 @@ if pts:
 - Tagging as Slot 3 (Guide) means the Console's edge viz will show this seam in the Guide color, and the seam solver will respect it.
 - Both `e.seam = True` AND `e[edge_slots] = 3` are set — the first is the hard Blender seam, the second is the Massa role marker.
 
-For non-corner profiles (circles, ellipses), pick any known vertex position as the seam guide.
+For non-corner profiles (circles, ellipses), pick a stable vertex path as the seam guide. For helices and other swept tubes, the seam should follow the swept frame smoothly instead of jumping between ring indices or adding unnecessary cross-ring cuts.
 
 ### 6.5 Segment Cut Seams (Beam Reference)
 
-When `segments_y > 0`, the bisect cuts create ring edges. Tag them as Guide so the user can manipulate them later:
+When `segments_y > 0`, the bisect cuts create ring edges. Tag them as Guide only when those rings are intended editing guides or UV island boundaries:
 
 ```python
 if self.segments_y > 0:
@@ -541,11 +545,13 @@ if self.segments_y > 0:
 
 This geometric detection works because `bisect_plane` doesn't return a clean list of newly-created edges — we detect them by the fact that segment cuts are perpendicular to the extrusion axis.
 
+Do not mark every topology segment as a seam by default; extra cross-cuts can fragment UV islands and create choppy unwraps.
+
 ---
 
 ## 7. UV Mandate: Manual & Precise
 
-**Golden Cartridges do not rely on auto-unwrapping.** UVs must be calculated mathematically inside `build_shape`.
+**Golden Cartridges prefer explicit UV control.** Use mathematical UVs inside `build_shape` for predictable surfaces. Auto/LSCM unwrap is acceptable for geometry where manual UVs are impractical, but only when the cartridge provides the seams, edge slots, and slot UV strategies needed for a clean unwrap.
 
 ### 7.1 Setup
 

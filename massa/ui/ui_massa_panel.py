@@ -44,18 +44,38 @@ class MASSA_PT_Main(bpy.types.Panel):
 
         # [ARCHITECT UI UPDATE] High-Priority Actions (Resurrect/Condemn)
         # Always drawn — poll() on each operator handles the disabled/greyed state
-        # when no Massa object is active, so no guard needed here.
+        # when no Massa object is active.
+        # Resurrect uses DYNAMIC DISPATCH: at draw time we read the active object's
+        # stored bl_idname (`massa_op_id`) and wire the button directly to that
+        # cartridge operator with `rerun_mode=True`. This makes the cartridge the
+        # top-level invocation, which (a) actually fires its invoke() in a real
+        # UI context and (b) registers it as the Redo Panel (F9) last operator.
         box = layout.box()
         col = box.column(align=True)
         col.scale_y = 1.2
 
-        # Resurrect
+        # Resurrect — dynamic per-object dispatch
         row = col.row()
         row.alert = True
         row.scale_y = 1.2
-        row.operator("massa.resurrect_wrapper", text="Resurrect Selected", icon="FILE_REFRESH")
 
-        # Condemn
+        op_id = obj.get("massa_op_id") if obj else None
+        if op_id:
+            try:
+                op_props = row.operator(op_id, text="Resurrect Selected", icon="FILE_REFRESH")
+                op_props.rerun_mode = True
+            except Exception:
+                # op_id refers to an uninstalled/renamed cartridge — show disabled placeholder
+                sub = row.row()
+                sub.enabled = False
+                sub.label(text="Resurrect (invalid id)", icon="ERROR")
+        else:
+            # No Massa object active — greyed-out placeholder
+            sub = row.row()
+            sub.enabled = False
+            sub.label(text="Resurrect Selected", icon="FILE_REFRESH")
+
+        # Condemn — unchanged (works via standard operator dispatch)
         col.separator(factor=0.5)
         col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
         layout.separator()

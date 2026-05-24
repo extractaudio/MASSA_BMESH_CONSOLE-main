@@ -16,7 +16,11 @@
       "Bash(grep -n \"uv_scale\\\\|fit_uvs\" \"D:\\\\AntiGravity_google\\\\MASSA_BMESH_CONSOLE-main\\\\massa\\\\modules\\\\massa_properties.py\" 2>nul | head -40)",
       "Bash(grep -n \"uv_scale\\\\|fit_uvs\\\\|uv_mode\" \"D:\\\\AntiGravity_google\\\\MASSA_BMESH_CONSOLE-main\\\\massa\\\\modules\\\\cartridges\\\\cart_ind_01_truss.py\" 2>nul | head -30)",
       "mcp__jcodemunch__search_symbols",
-      "mcp__jcodemunch__search_text"
+      "mcp__jcodemunch__search_text",
+      "Bash(Get-ChildItem -Path massa/modules -Name)",
+      "Bash(python3 -c ' *)",
+      "Bash(find /c/Users/extra -name \"massa_properties.py\" -type f 2>/dev/null | head -1)",
+      "Bash(python3)"
     ]
   }
 }

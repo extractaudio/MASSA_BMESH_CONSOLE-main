@@ -1,10 +1,28 @@
 import bpy
 import sys
+import re
 from bpy.types import Operator
 from bpy.props import BoolProperty, EnumProperty, FloatProperty, IntProperty, FloatVectorProperty, StringProperty
 from ..modules.massa_properties import MassaPropertiesMixin
 from ..modules import massa_engine
 from ..utils import mat_utils
+
+
+MASSA_PARAMS_VERSION = 1
+_SLOT_PROP_PATTERN = re.compile(r"^[a-z_]+_\d$")
+_PARAM_RENAMES = {
+    # version: {"old_key": "new_key"}
+}
+
+
+def _migrate_params(params, version):
+    migrated = dict(params)
+    for source_version in range(int(version or 0), MASSA_PARAMS_VERSION):
+        for old_key, new_key in _PARAM_RENAMES.get(source_version, {}).items():
+            if old_key in migrated and new_key not in migrated:
+                migrated[new_key] = migrated.pop(old_key)
+    migrated["MASSA_PARAMS_VERSION"] = MASSA_PARAMS_VERSION
+    return migrated
 
 
 class Massa_OT_Base(Operator, MassaPropertiesMixin):
@@ -16,6 +34,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
     bl_idname = "massa.base_gen"
     bl_label = "Massa Base"
     bl_options = {"REGISTER", "UNDO", "PRESET"}
+    MASSA_PARAMS_VERSION = MASSA_PARAMS_VERSION
 
     # --- OPERATOR-ONLY PROPERTIES ---
     # (All shared properties inherited from MassaPropertiesMixin)
@@ -84,26 +103,10 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         if not hasattr(context.scene, "massa_console"):
             return
         console = context.scene.massa_console
-        all_keys = list(MassaPropertiesMixin.__annotations__.keys())
-        for i in range(10):
-            all_keys.extend(
-                [
-                    f"mat_{i}",
-                    f"sep_{i}",
-                    f"uv_mode_{i}",
-                    f"expand_{i}",
-                    f"phys_mat_{i}",
-                    f"uv_scale_{i}",
-                    f"sock_{i}",
-                    f"off_{i}",
-                    f"prot_{i}",
-                    f"collision_shape_{i}",
-                    f"show_coll_{i}",
-                    f"phys_friction_{i}",
-                    f"phys_bounce_{i}",
-                    f"phys_bond_{i}",
-                ]
-            )
+        annotations = MassaPropertiesMixin.__annotations__
+        shared_keys = [k for k in annotations if not _SLOT_PROP_PATTERN.match(k)]
+        slot_keys = [k for k in annotations if _SLOT_PROP_PATTERN.match(k)]
+        all_keys = shared_keys + slot_keys
         # Note: All shared properties (ui_tab, debug_view, edge_slot_*_action,
         # viz_edge_mode, auto_unwrap*, seam_*, phys_*, sock_*) are already
         # captured via MassaPropertiesMixin.__annotations__ above.
@@ -142,7 +145,12 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     # 2. Restore Parameters
                     # [ARCHITECT FIX] Use safe dict conversion for IDProperty
                     params = dict(obj["MASSA_PARAMS"].items())
+                    version = params.get("MASSA_PARAMS_VERSION", 0)
+                    params = _migrate_params(params, version)
+                    ignored_keys = []
                     for k, v in params.items():
+                        if k == "MASSA_PARAMS_VERSION":
+                            continue
                         # Skip materials to allow Console override
                         if k.startswith("mat_") or k.startswith("phys_mat_"):
                             continue
@@ -164,11 +172,19 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                                 setattr(self, k, v)
                             except Exception:
                                 pass
+                        else:
+                            ignored_keys.append(k)
 
                     # 3. Destroy Old Object (Full Re-Birth)
                     # [ARCHITECT FIX] Ensure we only delete the target object
                     # MOVED TO EXECUTE TO SUPPORT REDO
                     self.target_delete_name = obj.name
+                    if ignored_keys:
+                        self.report(
+                            {"WARNING"},
+                            "Ignored stale MASSA_PARAMS keys: "
+                            + ", ".join(sorted(ignored_keys)[:6]),
+                        )
 
                 except Exception as e:
                     print(f"Massa Resurrection Error: {e}")
@@ -177,7 +193,12 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
         elif "MASSA_TEMP_RESTORE" in context.scene:
             try:
                 restore_data = context.scene["MASSA_TEMP_RESTORE"]
+                version = restore_data.get("MASSA_PARAMS_VERSION", 0)
+                restore_data = _migrate_params(restore_data, version)
+                ignored_keys = []
                 for k, v in restore_data.items():
+                    if k == "MASSA_PARAMS_VERSION":
+                        continue
                     if k.startswith("mat_") or k.startswith("phys_mat_"):
                         continue
                     if hasattr(self, k):
@@ -185,6 +206,14 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                             setattr(self, k, v)
                         except Exception:
                             pass
+                    else:
+                        ignored_keys.append(k)
+                if ignored_keys:
+                    self.report(
+                        {"WARNING"},
+                        "Ignored stale MASSA restore keys: "
+                        + ", ".join(sorted(ignored_keys)[:6]),
+                    )
                 del context.scene["MASSA_TEMP_RESTORE"]
             except Exception as e:
                 print(f"Massa Resurrection Error: {e}")
@@ -300,66 +329,9 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
             ui_shared.draw_sockets_ui(col, self, slots)
 
 
-class MASSA_OT_ReRun_Active(Operator):
-    bl_idname = "massa.rerun_active"
-    bl_label = "Update Active Object"
-    # REGISTER intentionally omitted: this operator is infrastructure, not a user-facing
-    # redo step. The generation operator it fires owns the Redo Panel (F9) slot.
-    bl_options = {"UNDO"}
-
-    @classmethod
-    def poll(cls, context):
-        return context.active_object and "massa_op_id" in context.active_object
-
-    def execute(self, context):
-        obj = context.active_object
-        op_id = obj.get("massa_op_id")
-        # Note: saved_matrix removed — location/rotation are applied by Massa_OT_Base.execute()
-        # via self.obj_location / self.obj_rotation (sourced from MASSA_TEMP_RESTORE in invoke).
-        # Scale is intentionally NOT restored.
-
-        # Capture parameters before deletion
-        massa_params = None
-        if "MASSA_PARAMS" in obj:
-            try:
-                massa_params = dict(obj["MASSA_PARAMS"].items())
-            except Exception:
-                pass
-
-        if massa_params:
-            # Inject current transform so the operator property matches the visual location.
-            # This ensures the Redo Panel starts with the correct values instead of origin.
-            massa_params["obj_location"] = obj.location[:]
-            massa_params["obj_rotation"] = obj.rotation_euler[:]
-            context.scene["MASSA_TEMP_RESTORE"] = massa_params
-
-        if not obj.select_get():
-            obj.select_set(True)
-        bpy.ops.object.delete()
-
-        # Parse the stored operator ID into category + name
-        op_category, op_name = "", ""
-        if "." in op_id:
-            op_category, op_name = op_id.split(".")
-        elif "_OT_" in op_id:
-            parts = op_id.split("_OT_")
-            op_category = parts[0].lower()
-            op_name = parts[1]
-        else:
-            return {"CANCELLED"}
-
-        # Deferred invoke via timer so the generation operator runs at the TOP of
-        # Blender's event loop, not nested inside this execute().  That is what
-        # causes Blender to register it as the "last operator" and open the
-        # Redo Panel (F9 / Adjust Last Operation).
-        def _deferred_invoke():
-            try:
-                op_module = getattr(bpy.ops, op_category)
-                op_func = getattr(op_module, op_name)
-                op_func("INVOKE_DEFAULT")
-            except Exception as e:
-                print(f"[Massa Resurrect] Deferred invoke error: {e}")
-            return None  # None unregisters the timer after one fire
-
-        bpy.app.timers.register(_deferred_invoke, first_interval=0.0)
-        return {"FINISHED"}
+# [REMOVED] MASSA_OT_ReRun_Active — replaced by dynamic dispatch from the UI.
+# The N-panel button and the gizmo now call the cartridge operator directly with
+# `rerun_mode=True`, and the existing `if self.rerun_mode:` branch in
+# Massa_OT_Base.invoke() handles param restore from obj["MASSA_PARAMS"], transform
+# capture, and scheduling deletion of the old object via `target_delete_name`.
+# This eliminates the nested-operator + timer chain that was silently failing.

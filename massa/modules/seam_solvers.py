@@ -55,6 +55,10 @@ def _get_islands(edges):
 # ==================================================================================================
 
 
+VALID_SEAM_MODES = {"NONE", "HARD_SURFACE", "STRIP", "SMART_TUBE", "ORGANIC", "BOX_STRIP"}
+_DEPRECATED_SEAM_MODES = {"AUTO": "HARD_SURFACE"}
+
+
 def apply_base_drivers(
     bm,
     use_angle=True,
@@ -111,7 +115,8 @@ def apply_base_drivers(
             # Slot IDs are 1-based (1,2,3,4,5)
             # Mask tuple is 0-based (0,1,2,3,4)
             if 1 <= slot_id <= 5:
-                if edge_mask[slot_id - 1]:
+                enabled = edge_mask[slot_id - 1] if slot_id - 1 < len(edge_mask) else False
+                if enabled:
                     is_seam = True
                     # CRITICAL: Edge Roles are manual decisions.
                     # We MUST protect them from the "Flat Seam Cleaner" (Enforcer).
@@ -527,6 +532,17 @@ def apply_seams_smart_tube(bm, hide_vector_enum="BACK", strict_slots=True):
 
 def solve_seams(bm, mode="AUTO", **kwargs):
     strict = kwargs.get("strict_slots", True)
+    if mode in _DEPRECATED_SEAM_MODES:
+        fallback = _DEPRECATED_SEAM_MODES[mode]
+        print(f"[MASSA] Deprecated seam mode '{mode}', using '{fallback}'")
+        mode = fallback
+    if mode not in VALID_SEAM_MODES:
+        raise ValueError(
+            f"Unknown seam mode '{mode}'. Valid modes: {', '.join(sorted(VALID_SEAM_MODES))}"
+        )
+
+    if mode == "NONE":
+        return
 
     if mode == "HARD_SURFACE":
         tol = kwargs.get("cluster_tol", 5.0)

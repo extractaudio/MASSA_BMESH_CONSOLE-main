@@ -5,6 +5,40 @@ from . import massa_polish, massa_surface, massa_sockets, seam_solvers, massa_no
 from ..utils import mat_utils
 import traceback
 
+MASSA_PARAMS_VERSION = 1
+
+
+def _report_phase_error(op, phase, error, detail=None):
+    msg = f"{phase} failed: {type(error).__name__}: {error}"
+    if detail:
+        msg = f"{msg} ({detail})"
+    try:
+        op.report({"ERROR"}, msg)
+    except Exception:
+        pass
+    print(f"[MASSA] {msg}")
+    traceback.print_exc()
+
+
+def _link_object(context, obj, anchor=None):
+    if anchor and anchor.users_collection:
+        anchor.users_collection[0].objects.link(obj)
+        return
+    collection = getattr(context, "collection", None)
+    if collection is None and getattr(context, "scene", None):
+        collection = context.scene.collection
+    if collection is None:
+        raise RuntimeError(f"No collection available to link {obj.name}")
+    collection.objects.link(obj)
+
+
+def _set_active(context, obj):
+    view_layer = getattr(context, "view_layer", None)
+    if view_layer is None:
+        return False
+    view_layer.objects.active = obj
+    return True
+
 
 def _verify_layer(bm, attr_name, internal_name):
     try:
@@ -77,9 +111,14 @@ def run_pipeline(op, context):
 
     try:
         op.build_shape(bm)
+    except Exception as e:
+        _report_phase_error(op, "Build shape", e)
+        bm.free()
+        return {"CANCELLED"}
 
+    try:
         # [ARCHITECT NEW] Initial Cleanup (Fix pin-sharp faces at source)
-        if flags.get("FIX_DEGENERATE", True):
+        if flags.get("FIX_DEGENERATE", False):
              massa_polish.apply_cleanup(bm, fix_degenerate=True, fix_thin=True)
 
         # [ARCHITECT FIX] Ensure layer exists before detection
@@ -93,7 +132,12 @@ def run_pipeline(op, context):
 
         # [ARCHITECT NEW] Additive Sharp Detection (Runs after slots)
         massa_surface.auto_detect_sharp_edges(bm, op)
+    except Exception as e:
+        _report_phase_error(op, "Edge preparation", e)
+        bm.free()
+        return {"CANCELLED"}
 
+    try:
         if abs(op.global_scale - 1.0) > 0.001:
             bmesh.ops.scale(bm, vec=(op.global_scale,) * 3, verts=bm.verts)
         if not flags.get("LOCK_PIVOT", False):
@@ -106,18 +150,23 @@ def run_pipeline(op, context):
 
         if not op.draft_mode:
             _run_polish_stack(bm, op, flags, manifest)
+    except Exception as e:
+        _report_phase_error(op, "Polish stack", e)
+        bm.free()
+        return {"CANCELLED"}
 
+    try:
         massa_polish.apply_safety_decimate(bm)
-        if flags.get("FIX_DEGENERATE", True):
+        if flags.get("FIX_DEGENERATE", False):
             bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=bm.edges[:])
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        if flags.get("REMOVE_LOOSE", True):
+        if flags.get("REMOVE_LOOSE", False):
             try:
                 loose_verts = [v for v in bm.verts if not v.link_edges]
                 if loose_verts:
                     bmesh.ops.delete(bm, geom=loose_verts, context="VERTS")
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[MASSA] loose-vert cleanup failed: {e}")
 
         stats = massa_surface.write_identity_layers(bm, manifest, op)
 
@@ -127,7 +176,12 @@ def run_pipeline(op, context):
 
         context.scene["massa_temp_stats"] = {str(k): v for k, v in stats.items()}
         socket_data = massa_sockets.calculate_transforms(bm, active_sockets)
+    except Exception as e:
+        _report_phase_error(op, "Identity and stats", e)
+        bm.free()
+        return {"CANCELLED"}
 
+    try:
         viz_mode = getattr(op, "viz_edge_mode", "NATIVE")
         if not op.draft_mode or viz_mode == "SLOTS":
             # Tag ID 5 for Seams here
@@ -172,7 +226,12 @@ def run_pipeline(op, context):
                         )
             
             massa_surface.generate_surface_maps(bm, op, cvx, cnv)
+    except Exception as e:
+        _report_phase_error(op, "Seam and surface maps", e)
+        bm.free()
+        return {"CANCELLED"}
 
+    try:
         if op.ui_use_rot:
             bmesh.ops.transform(
                 bm,
@@ -182,10 +241,11 @@ def run_pipeline(op, context):
         _generate_output(op, context, bm, socket_data, manifest)
 
     except Exception as e:
-        op.report({"ERROR"}, f"Pipeline Error: {e}")
-        traceback.print_exc()
-        if bm:
+        _report_phase_error(op, "Output generation", e)
+        try:
             bm.free()
+        except Exception:
+            pass
         return {"CANCELLED"}
     return {"FINISHED"}
 
@@ -216,11 +276,13 @@ def _capture_operator_params(op):
         except Exception:
             pass
 
+    params["MASSA_PARAMS_VERSION"] = getattr(op, "MASSA_PARAMS_VERSION", MASSA_PARAMS_VERSION)
     return params
 
 
 def _run_polish_stack(bm, op, flags, manifest):
-    if op.pol_fuse_active and flags.get("ALLOW_FUSE", True):
+    # Step 1: concave fuse/bevel before topology-changing cleanup.
+    if op.pol_fuse_active and flags.get("ALLOW_FUSE", False):
         massa_polish.apply_concave_bevel(
             bm,
             op.pol_fuse_radius * op.global_scale,
@@ -228,16 +290,21 @@ def _run_polish_stack(bm, op, flags, manifest):
             op.pol_fuse_square,
         )
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    if op.pol_solidify_active and flags.get("ALLOW_SOLIDIFY", True):
+    # Step 2: thicken eligible shells.
+    if op.pol_solidify_active and flags.get("ALLOW_SOLIDIFY", False):
         massa_polish.apply_solidify(bm, op.pol_solidify_thick * op.global_scale)
+    # Step 3: bridge compatible open loops.
     if op.pol_bridge_active:
         massa_polish.apply_bridge_loops(bm)
+    # Step 4: fill simple holes.
     if op.pol_holes_active:
         massa_polish.apply_fill_holes(bm, op.pol_holes_sides)
+    # Step 5: mirror/symmetrize before spatial deforms.
     if op.pol_symmetrize_active:
         massa_polish.apply_symmetrize(
             bm, op.pol_symmetrize_dir, op.pol_symmetrize_offset
         )
+    # Step 6: taper broad form.
     if op.pol_taper_active:
         massa_polish.apply_taper(
             bm,
@@ -247,8 +314,10 @@ def _run_polish_stack(bm, op, flags, manifest):
             op.pol_taper_mirror,
             op.pol_taper_invert,
         )
+    # Step 7: bend broad form.
     if hasattr(op, "pol_bend_active") and op.pol_bend_active:
         massa_polish.apply_bend(bm, op.pol_bend_angle, op.pol_bend_axis)
+    # Step 8: plate/inset protected surface regions.
     if hasattr(op, "pol_plate_active") and op.pol_plate_active:
         massa_polish.apply_plating(
             bm,
@@ -256,17 +325,22 @@ def _run_polish_stack(bm, op, flags, manifest):
             op.pol_plate_thick * op.global_scale,
             op.pol_plate_depth * op.global_scale,
         )
+    # Step 9: add surface variation.
     if op.pol_noise_active:
         massa_polish.apply_noise(
             bm, op.pol_noise_str * op.global_scale, op.pol_noise_scl, 0, op.global_scale
         )
+    # Step 10: smooth after noise.
     if op.pol_smooth_active:
         massa_polish.apply_smooth(bm, op.pol_smooth_iter, op.pol_smooth_fac)
+    # Step 11: decay/delete after smoothing.
     if hasattr(op, "pol_decay_active") and op.pol_decay_active:
         massa_polish.apply_decay(bm, manifest, op.pol_decay_str, op.pol_decay_seed)
+    # Step 12: triangulate before final chamfer.
     if op.pol_triangulate_active:
         massa_polish.apply_triangulate(bm, op.pol_triangulate_method)
-    if op.pol_chamfer_active and flags.get("ALLOW_CHAMFER", True):
+    # Step 13: final edge chamfer for eligible cartridges.
+    if op.pol_chamfer_active and flags.get("ALLOW_CHAMFER", False):
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         massa_polish.apply_chamfer(
             bm,
@@ -374,10 +448,10 @@ def _generate_output(op, context, bm, socket_data, manifest):
     if mesh.uv_layers:
         mesh.uv_layers[0].name = "UVMap"
 
-    context.collection.objects.link(obj)
+    _link_object(context, obj)
 
     bpy.ops.object.select_all(action="DESELECT")
-    context.view_layer.objects.active = obj
+    _set_active(context, obj)
     obj.select_set(True)
 
     # [ARCHITECT FIX] Robust ID Storage
@@ -398,7 +472,9 @@ def _generate_output(op, context, bm, socket_data, manifest):
 
     # [ARCHITECT NEW] Save Parameters for Resurrection
     try:
-        obj["MASSA_PARAMS"] = _capture_operator_params(op)
+        params = _capture_operator_params(op)
+        params["target_delete_name"] = obj.name
+        obj["MASSA_PARAMS"] = params
     except Exception as e:
         print(f"Massa Save Error: {e}")
 
@@ -564,7 +640,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
 
     massa_polish.handle_separation(obj, op, manifest, context, slot_map=slot_map)
 
-    context.view_layer.objects.active = obj
+    _set_active(context, obj)
     if is_debug_override:
         obj.select_set(False)
     else:
@@ -587,14 +663,23 @@ def _generate_output(op, context, bm, socket_data, manifest):
             context.space_data.shading.type = "MATERIAL"
 
     # [ARCHITECT NEW] Phase 4 Protocol: Physics Volumes & Socket Forge
-    try:
-        if getattr(op, "phys_gen_ucx", False):
+    if getattr(op, "phys_gen_ucx", False):
+        try:
             phys_gen_ucx(obj, op, manifest, slot_map)
-        if getattr(op, "phys_auto_rig", False):
-            phys_auto_rig(obj, op, manifest)
+        except Exception as e:
+            print(f"[MASSA] Phase 4 UCX failed for {obj.name}: {e}")
+            traceback.print_exc()
 
-        # [ARCHITECT NEW] Phase 4: Socket Forge (Physical)
-        if collected_sockets:
+    if getattr(op, "phys_auto_rig", False):
+        try:
+            phys_auto_rig(obj, op, manifest, context=context)
+        except Exception as e:
+            print(f"[MASSA] Phase 4 auto-rig failed for {obj.name}: {e}")
+            traceback.print_exc()
+
+    # [ARCHITECT NEW] Phase 4: Socket Forge (Physical)
+    if collected_sockets:
+        try:
             vis_size = getattr(op, "sock_visual_size", 0.1)
             con_type = getattr(op, "sock_constraint_type", 'NONE')
             break_force = getattr(op, "sock_break_strength", 250.0)
@@ -614,10 +699,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
                 sock.empty_display_size = vis_size
 
                 # Link
-                if context.collection:
-                    context.collection.objects.link(sock)
-                else:
-                    context.scene.collection.objects.link(sock)
+                _link_object(context, sock, anchor=obj)
 
                 # Parent First (Establishes Local Space)
                 sock.parent = obj
@@ -643,7 +725,7 @@ def _generate_output(op, context, bm, socket_data, manifest):
                     # Ensure selection for Operator
                     bpy.ops.object.select_all(action='DESELECT')
                     sock.select_set(True)
-                    context.view_layer.objects.active = sock
+                    _set_active(context, sock)
 
                     try:
                         # Add Rigid Body Constraint (Empty becomes a Constraint Object)
@@ -660,11 +742,11 @@ def _generate_output(op, context, bm, socket_data, manifest):
             # Restore Selection to Main Object
             bpy.ops.object.select_all(action='DESELECT')
             obj.select_set(True)
-            context.view_layer.objects.active = obj
+            _set_active(context, obj)
 
-    except Exception as e:
-        print(f"Phase 4 Physics/Socket Error: {e}")
-        traceback.print_exc()
+        except Exception as e:
+            print(f"[MASSA] Phase 4 socket forge failed for {obj.name}: {e}")
+            traceback.print_exc()
 
 
 def phys_gen_ucx(obj, op, manifest, slot_map):
@@ -900,7 +982,7 @@ def phys_gen_ucx(obj, op, manifest, slot_map):
             if obj.users_collection:
                 obj.users_collection[0].objects.link(ucx_obj)
             else:
-                bpy.context.collection.objects.link(ucx_obj)
+                print(f"[MASSA] UCX link skipped for {ucx_name}: parent has no collection")
 
             ucx_obj.parent = obj
             # [ARCHITECT FIX] Set display type to WIRE for cleanliness
@@ -914,7 +996,7 @@ def phys_gen_ucx(obj, op, manifest, slot_map):
             traceback.print_exc()
 
 
-def phys_auto_rig(obj, op, manifest):
+def phys_auto_rig(obj, op, manifest, context=None):
     """
     PHASE 4: AUTO-RIGGER
     Detects detached parts and auto-rigs them with Hinge Constraints.
@@ -970,7 +1052,8 @@ def phys_auto_rig(obj, op, manifest):
             if obj.users_collection:
                 obj.users_collection[0].objects.link(empty)
             else:
-                bpy.context.collection.objects.link(empty)
+                print(f"[MASSA] Auto-rig link skipped for {joint_name}: parent has no collection")
+                continue
 
             # Align Empty Matrix
             # [ARCHITECT FIX] Set location in local space AFTER parenting.
@@ -982,7 +1065,8 @@ def phys_auto_rig(obj, op, manifest):
             # We add it to the scene collection but need to enable RB
             bpy.ops.object.select_all(action="DESELECT")
             empty.select_set(True)
-            bpy.context.view_layer.objects.active = empty
+            if context is not None:
+                _set_active(context, empty)
 
             # Add Rigid Body Constraint via Operator (Safest)
             # This ensures physics world is respected/created

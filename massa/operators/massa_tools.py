@@ -41,31 +41,13 @@ class MASSA_OT_Condemn(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class MASSA_OT_Resurrect_Wrapper(bpy.types.Operator):
-    """
-    Wrapper to trigger the resurrection (re-run) of the specific
-    operator that created this object. Used by Gizmos.
-    """
-    bl_idname = "massa.resurrect_wrapper"
-    bl_label = "Resurrect"
-    bl_description = "Regenerate this object (Open Settings)"
-    bl_options = {'INTERNAL', 'UNDO'}
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.active_object
-        return obj and "massa_op_id" in obj
-
-    def execute(self, context):
-        try:
-            # Delegate to the robust MASSA_OT_ReRun_Active operator
-            # which properly captures MASSA_PARAMS into the scene's MASSA_TEMP_RESTORE
-            # dictionary before invoking the generation operator.
-            bpy.ops.massa.rerun_active('EXEC_DEFAULT')
-            return {'FINISHED'}
-        except Exception as e:
-            self.report({'ERROR'}, f"Resurrection failed: {e}")
-            return {'CANCELLED'}
+# [REMOVED] MASSA_OT_Resurrect_Wrapper — replaced by dynamic per-object dispatch.
+# The N-panel and gizmo now call `bpy.ops.massa.gen_XXX('INVOKE_DEFAULT', rerun_mode=True)`
+# directly using the op_id stored on the object. See:
+#   - massa/ui/ui_massa_panel.py (N-panel button)
+#   - massa/ui/gizmo_massa.py    (yellow resurrect gizmo, retargeted in draw_prepare)
+# The `rerun_mode` branch in Massa_OT_Base.invoke() handles param restore + transform
+# + scheduled deletion of the old object.
 
 
 class MASSA_OT_Finalize_And_Inspect(bpy.types.Operator):
