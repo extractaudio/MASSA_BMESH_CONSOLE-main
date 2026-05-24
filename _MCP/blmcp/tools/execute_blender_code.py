@@ -51,5 +51,8 @@ def register(mcp: FastMCP) -> None:
         # (e.g. Blender objects), handled by `run_blender_cli` via `default=repr`.
         with synced_blend_for_cli(blend_file) as synced_path:
             value = run_blender_cli(synced_path, code)
-            assert isinstance(value, dict), "Expected dict from `run_blender_cli`, got {!r}".format(type(value))
+            if not isinstance(value, dict):
+                raise TypeError(
+                    "run_blender_cli returned {:s}, expected dict".format(type(value).__name__)
+                )
             return value

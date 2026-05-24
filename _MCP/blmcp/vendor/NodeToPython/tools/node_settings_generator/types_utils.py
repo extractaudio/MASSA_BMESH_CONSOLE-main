@@ -1,0 +1,187 @@
+from enum import Enum, auto
+
+class ST(Enum):
+    """
+    Settings Types
+    """
+    # Primitives
+    BOOL        = auto()
+    COLOR       = auto()
+    ENUM        = auto()
+    ENUM_SET    = auto()
+    EULER       = auto()
+    FLOAT       = auto()
+    INT         = auto()
+    STRING      = auto()
+    VEC1        = auto()
+    VEC2        = auto()
+    VEC3        = auto()
+    VEC4        = auto()
+    
+    # Special settings
+    BAKE_ITEMS                           = auto()
+    CAPTURE_ATTRIBUTE_ITEMS              = auto()
+    CLOSURE_INPUT_ITEMS                  = auto()
+    CLOSURE_OUTPUT_ITEMS                 = auto()
+    COLOR_MANAGED_DISPLAY_SETTINGS       = auto()
+    COLOR_MANAGED_VIEW_SETTINGS          = auto()
+    COLOR_RAMP                           = auto()
+    COMBINE_BUNDLE_ITEMS                 = auto()
+    COMPOSITOR_FILE_OUTPUT_ITEMS         = auto()
+    CURVE_MAPPING                        = auto()
+    ENUM_DEFINITION                      = auto()
+    ENUM_ITEM                            = auto()
+    EVALUATE_CLOSURE_INPUT_ITEMS         = auto()
+    EVALUATE_CLOSURE_OUTPUT_ITEMS        = auto()
+    FIELD_TO_GRID_ITEMS                  = auto()
+    FOREACH_GEO_ELEMENT_GENERATION_ITEMS = auto()
+    FOREACH_GEO_ELEMENT_INPUT_ITEMS      = auto()
+    FOREACH_GEO_ELEMENT_MAIN_ITEMS       = auto()
+    FORMAT_STRING_ITEMS                  = auto()
+    GEOMETRY_VIEWER_ITEMS                = auto()
+    INDEX_SWITCH_ITEMS                   = auto()
+    MENU_SWITCH_ITEMS                    = auto()
+    NODE_TREE                            = auto()
+    REPEAT_OUTPUT_ITEMS                  = auto()
+    SEPARATE_BUNDLE_ITEMS                = auto()
+    SIM_OUTPUT_ITEMS                     = auto()
+
+    # Image
+    IMAGE       = auto() #needs refactor
+    IMAGE_USER  = auto() #needs refactor
+
+    # Currently unimplemented
+    COLLECTION                  = auto()
+    CRYPTOMATTE_ENTRIES         = auto()
+    FILE_SLOTS                  = auto()
+    FONT                        = auto()
+    IMAGE_FORMAT_SETTINGS       = auto()
+    LAYER_SLOTS                 = auto()
+    MASK                        = auto()
+    MATERIAL                    = auto() #TODO asset library
+    MOVIE_CLIP                  = auto() 
+    OBJECT                      = auto() #TODO asset library
+    PARTICLE_SYSTEM             = auto()
+    SCENE                       = auto()
+    TEXT                        = auto()
+    TEXTURE                     = auto()
+
+#types expected to be marked as read-only
+READ_ONLY_TYPES : set[ST] = {
+    ST.BAKE_ITEMS,
+    ST.CAPTURE_ATTRIBUTE_ITEMS,
+    ST.CLOSURE_INPUT_ITEMS,
+    ST.CLOSURE_OUTPUT_ITEMS,
+    ST.COLOR_MANAGED_DISPLAY_SETTINGS,
+    ST.COLOR_MANAGED_VIEW_SETTINGS,
+    ST.COLOR_RAMP,
+    ST.COMBINE_BUNDLE_ITEMS,
+    ST.COMPOSITOR_FILE_OUTPUT_ITEMS,
+    ST.CRYPTOMATTE_ENTRIES,
+    ST.CURVE_MAPPING,
+    ST.ENUM_DEFINITION,
+    ST.EVALUATE_CLOSURE_INPUT_ITEMS,
+    ST.EVALUATE_CLOSURE_OUTPUT_ITEMS,
+    ST.FIELD_TO_GRID_ITEMS,
+    ST.FILE_SLOTS,
+    ST.FOREACH_GEO_ELEMENT_GENERATION_ITEMS,
+    ST.FOREACH_GEO_ELEMENT_INPUT_ITEMS,
+    ST.FOREACH_GEO_ELEMENT_MAIN_ITEMS,
+    ST.FORMAT_STRING_ITEMS,
+    ST.GEOMETRY_VIEWER_ITEMS,
+    ST.IMAGE_FORMAT_SETTINGS,
+    ST.IMAGE_USER,
+    ST.INDEX_SWITCH_ITEMS,
+    ST.LAYER_SLOTS,
+    ST.MENU_SWITCH_ITEMS,
+    ST.REPEAT_OUTPUT_ITEMS,
+    ST.SEPARATE_BUNDLE_ITEMS,
+    ST.SIM_OUTPUT_ITEMS
+} 
+
+doc_to_NTP_type_dict : dict[str, ST | None] = {
+    "" : None,
+    "bpy_prop_collection of CryptomatteEntry": ST.CRYPTOMATTE_ENTRIES,
+    "boolean" : ST.BOOL,
+    "Collection" : ST.COLLECTION,
+    "ColorManagedDisplaySettings" : ST.COLOR_MANAGED_DISPLAY_SETTINGS,
+    "ColorManagedViewSettings" : ST.COLOR_MANAGED_VIEW_SETTINGS,
+    "ColorMapping" : None, # Always read-only
+    "ColorRamp" : ST.COLOR_RAMP,
+    "CompositorNodeOutputFileFileSlots" : ST.FILE_SLOTS,
+    "CompositorNodeOutputFileLayerSlots" : ST.LAYER_SLOTS,
+    "CurveMapping" : ST.CURVE_MAPPING,
+    "enum" : ST.ENUM,
+    "enum set" : ST.ENUM_SET,
+    "float" : ST.FLOAT,
+    "float array of 1" : ST.VEC1,
+    "float array of 2" : ST.VEC2,
+    "float array of 3" : ST.VEC3,
+    "float array of 4" : ST.VEC4,
+    "GeometryNodeFieldToGridItems" : ST.FIELD_TO_GRID_ITEMS,
+    "Image" : ST.IMAGE,
+    "ImageFormatSettings" : ST.IMAGE_FORMAT_SETTINGS,
+    "ImageUser" : ST.IMAGE_USER,
+    "int" : ST.INT,
+    "Mask" : ST.MASK,
+    "Material" : ST.MATERIAL,
+    "mathutils.Color" : ST.COLOR,
+    "mathutils.Euler" : ST.EULER, #TODO
+    "mathutils.Vector of 3" : ST.VEC3,
+    "MovieClip" : ST.MOVIE_CLIP,
+    "Node" : None, # (<4.2) Always used with zone inputs, need to make sure 
+                   # output nodes exist. Handled separately from NTP attr system
+    "NodeClosureInputItems" : ST.CLOSURE_INPUT_ITEMS,
+    "NodeClosureOutputItems" : ST.CLOSURE_OUTPUT_ITEMS,
+    "NodeCombineBundleItems" : ST.COMBINE_BUNDLE_ITEMS,
+    "NodeCompositorFileOutputItems" : ST.COMPOSITOR_FILE_OUTPUT_ITEMS,
+    "NodeEnumDefinition" : ST.ENUM_DEFINITION,
+    "NodeEnumItem" : ST.ENUM_ITEM,
+    "NodeEvaluateClosureInputItems" : ST.EVALUATE_CLOSURE_OUTPUT_ITEMS,
+    "NodeEvaluateClosureOutputItems" : ST.EVALUATE_CLOSURE_OUTPUT_ITEMS,
+    "NodeFunctionFormatStringItems" : ST.FORMAT_STRING_ITEMS,
+    "NodeGeometryBakeItems" : ST.BAKE_ITEMS,
+    "NodeGeometryCaptureAttributeItems" : ST.CAPTURE_ATTRIBUTE_ITEMS,
+    "NodeGeometryForeachGeometryElementGenerationItems": ST.FOREACH_GEO_ELEMENT_GENERATION_ITEMS,
+    "NodeGeometryForeachGeometryElementInputItems" : ST.FOREACH_GEO_ELEMENT_INPUT_ITEMS,
+    "NodeGeometryForeachGeometryElementMainItems": ST.FOREACH_GEO_ELEMENT_MAIN_ITEMS,
+    "NodeGeometryRepeatOutputItems" : ST.REPEAT_OUTPUT_ITEMS,
+    "NodeGeometrySimulationOutputItems" : ST.SIM_OUTPUT_ITEMS,
+    "NodeGeometryViewerItems" : ST.GEOMETRY_VIEWER_ITEMS,
+    "NodeIndexSwitchItems" : ST.INDEX_SWITCH_ITEMS,
+    "NodeMenuSwitchItems" : ST.MENU_SWITCH_ITEMS,
+    "NodeSeparateBundleItems" : ST.SEPARATE_BUNDLE_ITEMS,
+    "NodeTree" : ST.NODE_TREE,
+    "Object" : ST.OBJECT,
+    "ParticleSystem" : ST.PARTICLE_SYSTEM,
+    "PropertyGroup" : None, #Always read-only
+    "RepeatItem" : None, #Always set with index
+    "Scene" : ST.SCENE,
+    "SimulationStateItem" : None, #Always set with index
+    "string" : ST.STRING,
+    "TexMapping" : None, #Always read-only
+    "Text" : ST.TEXT,
+    "Texture" : ST.TEXTURE,
+    "VectorFont" : ST.FONT
+}
+
+def get_NTP_type(type_str: str) -> ST | None:
+    """
+    Time complexity isn't great, might be able to optimize with 
+    a trie or similar data structure
+    """
+    longest_prefix = ""
+    for key in doc_to_NTP_type_dict.keys():
+        if type_str.startswith(key) and len(key) > len(longest_prefix):
+            longest_prefix = key
+
+    if longest_prefix == "":
+        print(f"Couldn't find prefix of {type_str.strip()} in dictionary")
+
+    result = doc_to_NTP_type_dict[longest_prefix]
+    
+    is_readonly = "read" in type_str
+    if is_readonly and result not in READ_ONLY_TYPES:
+        return None
+    else:
+        return result

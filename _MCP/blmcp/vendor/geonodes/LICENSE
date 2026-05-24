@@ -1,0 +1,8 @@
+geonodes
+
+SPDX-License-Identifier: GPL-3.0-only
+
+This vendored snapshot is recorded as GPL-3.0 in the Massa MCP vendor policy.
+The upstream repository did not include a root LICENSE file at the pinned
+commit when this vendor script was authored, so this file preserves the SPDX
+license identifier expected by the package manifest.

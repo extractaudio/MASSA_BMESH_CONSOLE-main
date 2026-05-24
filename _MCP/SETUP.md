@@ -2,7 +2,7 @@
 
 A fork of the official [Blender Lab MCP server](https://projects.blender.org/lab/blender_mcp)
 extended with Massa-specific tools for materials, cartridges, Geometry Nodes, slot tagging,
-and scene management.
+mesh operations, and scene management.
 
 ---
 
@@ -286,6 +286,19 @@ uv run --project _MCP python _Scripts/vendor_geonodes.py
 For node creation work, start with `geonodes_search` to find a matching pattern,
 read the most relevant demo with `geonodes_get_demo`, check type specifics with
 `geonodes_get_type_doc`, adapt the script, then call `geonodes_execute_script`.
+
+#### Mesh Ops (`massa_mesh_ops.py`)
+| Tool | Description |
+|---|---|
+| `mesh_boolean` | Add DIFFERENCE, UNION, INTERSECT, SLASH, INSET, or KNIFE boolean-style operations; prefers live HardOps operators and falls back to native Boolean modifiers where Blender supports them |
+| `mesh_clean` | Clean mesh topology with per-call merge, dissolve, degenerate, and interior-face settings; prefers HardOps `view3d.clean_mesh` and restores HardOps preferences after the call |
+| `apply_modifiers` | Deterministically apply native Blender modifiers, with an option to keep the last Bevel and Weighted Normal modifiers |
+| `apply_transform` | Apply object location, rotation, and scale transforms |
+
+HardOps is detected from the **running Blender instance**, not from the vendored
+source tree. If `bpy.ops.hops.slash` or `bpy.ops.view3d.clean_mesh` is unavailable,
+the tools automatically use the native fallback and report `used_hardops=False`.
+The vendored `_MCP/vendor/HOps/` copy is source reference only.
 
 #### Slots (`massa_slots.py`)
 | Tool | Description |

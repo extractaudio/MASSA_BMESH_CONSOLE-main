@@ -13,10 +13,10 @@ _HELPER_PATH = Path(__file__).resolve()
 _PACKAGE_ROOT = _HELPER_PATH.parents[1]
 _MCP_ROOT = _HELPER_PATH.parents[2]
 
-_REPO_VENDOR_ROOT = _MCP_ROOT / "vendor" / "geonodes"
 _PACKAGE_VENDOR_ROOT = _PACKAGE_ROOT / "vendor" / "geonodes"
+_REPO_VENDOR_ROOT = _MCP_ROOT / "vendor" / "geonodes"
 
-VENDOR_ROOT: Path = _REPO_VENDOR_ROOT if _REPO_VENDOR_ROOT.exists() else _PACKAGE_VENDOR_ROOT
+VENDOR_ROOT: Path = _PACKAGE_VENDOR_ROOT if _PACKAGE_VENDOR_ROOT.exists() else _REPO_VENDOR_ROOT
 DEMOS_DIR: Path = VENDOR_ROOT / "demos"
 DOC_DIR: Path = VENDOR_ROOT / "doc"
 CORE_DIR: Path = VENDOR_ROOT / "core"

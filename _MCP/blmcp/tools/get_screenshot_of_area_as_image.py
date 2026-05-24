@@ -47,7 +47,12 @@ def register(mcp: FastMCP) -> None:
         if response.get("status") != "ok":
             raise RuntimeError(str(response.get("message", "Unknown error")))
         result = response["result"]
-        assert isinstance(result, dict)
+        if not isinstance(result, dict):
+            raise TypeError(
+                "get_screenshot_of_area_as_image expected dict result, got {:s}".format(
+                    type(result).__name__
+                )
+            )
         if result.get("status") != "ok":
             raise RuntimeError(str(result.get("message", "Unknown error")))
         return Image(data=base64.b64decode(str(result["image_base64"])), format="png")

@@ -12,13 +12,13 @@ _GRAPH_TYPES = ("MATERIAL", "GEOMETRY", "SHADER", "COMPOSITOR", "WORLD", "LIGHT"
 
 
 def _vendor_paths() -> tuple[str, str]:
-    """Return repo-layout and package-layout vendor roots."""
+    """Return package-layout and legacy repo-layout vendor roots."""
     tool_path = Path(__file__).resolve()
     mcp_root = tool_path.parents[2]
     package_root = tool_path.parents[1]
     return (
-        str(mcp_root / "vendor" / "NodeToPython"),
         str(package_root / "vendor" / "NodeToPython"),
+        str(mcp_root / "vendor" / "NodeToPython"),
     )
 
 
@@ -262,7 +262,7 @@ else:
         """
         Export one node graph as NodeToPython Python code without changing the graph.
         """
-        repo_vendor_path, package_vendor_path = _vendor_paths()
+        package_vendor_path, repo_vendor_path = _vendor_paths()
         code = _common_code() + """
 import importlib
 import sys
@@ -271,7 +271,7 @@ graph_type = __GRAPH_TYPE__.upper()
 graph_name = __GRAPH_NAME__
 include_imports = __INCLUDE_IMPORTS__
 set_defaults = __SET_DEFAULTS__
-vendor_candidates = [__REPO_VENDOR_PATH__, __PACKAGE_VENDOR_PATH__]
+vendor_candidates = [__PACKAGE_VENDOR_PATH__, __REPO_VENDOR_PATH__]
 
 owner, node_tree, message = _resolve_graph(graph_type, graph_name)
 if message:

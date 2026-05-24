@@ -61,8 +61,10 @@ def main(params: Params) -> Result | Callable[[], dict[str, object] | None]:
 
     use_deferred = not bpy.app.background
 
-    # Resolve the output path inside the MCP scratch directory.
-    output_path = os.path.join(bpy.app.tempdir, "blender_mcp", os.path.basename(params.output_path))
+    output_path = bpy.path.abspath(params.output_path)
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     scene = bpy.context.scene
     rd = scene.render
@@ -100,12 +102,15 @@ def main(params: Params) -> Result | Callable[[], dict[str, object] | None]:
 
     render_args = ('INVOKE_DEFAULT',) if use_deferred else ()
 
-    with _backup_attrs_and_assign_multi(*obj_attrs):
-        try:
+    try:
+        with _backup_attrs_and_assign_multi(*obj_attrs):
             bpy.ops.render.render(*render_args, write_still=True)
-        except RuntimeError as ex:
-            rd.filepath = orig_filepath
-            return Result(status="error", message=str(ex))
+    except RuntimeError as ex:
+        rd.filepath = orig_filepath
+        return Result(status="error", message=str(ex))
+    except Exception:
+        rd.filepath = orig_filepath
+        raise
 
     if use_deferred:
         return _deferred_tool_check_for_file_output(

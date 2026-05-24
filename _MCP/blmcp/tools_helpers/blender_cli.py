@@ -133,7 +133,10 @@ def synced_blend_for_cli(blend_file: str) -> Generator[str, None, None]:
         if response.get("status") != "ok":
             raise RuntimeError(str(response.get("message", "Unknown error")))
         result = response["result"]
-        assert isinstance(result, dict)
+        if not isinstance(result, dict):
+            raise TypeError(
+                "Dirty-state query returned {:s}, expected dict".format(type(result).__name__)
+            )
         is_dirty = result.get("is_dirty", False)
         blender_filepath = str(result.get("filepath", ""))
 

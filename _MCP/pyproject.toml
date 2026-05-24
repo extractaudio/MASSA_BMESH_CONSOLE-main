@@ -21,6 +21,7 @@ blender-mcp       = "blmcp:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+exclude = ["blmcp.vendor.HOps*", "tests*", "dist*", "build*"]
 
 [tool.setuptools.package-data]
 "blmcp" = [
