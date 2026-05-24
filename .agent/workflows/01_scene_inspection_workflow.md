@@ -1,84 +1,87 @@
 # Scene Inspection Workflow
 
-Use this workflow when the user asks what is in a Blender scene, why something is missing, whether a file is ready, or what data a `.blend` contains.
+Use when answering: what is in the scene, what is missing, is the file ready, what does a `.blend` contain.
 
-## Goal
+---
 
-Build a reliable picture of the scene without dumping excessive data. Start broad, then inspect only the objects, datablocks, or UI areas that matter.
+## Live Scene Path
 
-## Live Scene Sequence
+1. `get_mcp_server_health` → confirm tools available.
+2. `get_objects_summary` → broad picture: collections, types, hierarchy.
+3. For any object of interest: `get_object_detail_summary`.
+4. For file-level concerns (missing links, library state, save status):
+   - `get_blendfile_summary_datablocks` — data-block counts, workspaces, render engine.
+   - `get_blendfile_summary_missing_files` — broken external file references.
+   - `get_blendfile_summary_of_linked_libraries` — linked library state.
+   - `get_blendfile_summary_path_info` — path, save, backup, unsaved state.
+   - `get_blendfile_summary_usage_guess` — likely file purpose (animation / modeling / compositing / GeoNodes…).
+5. If visual state matters: `get_screenshot_of_window_as_image` or `get_screenshot_of_area_as_image`.
+6. To help the user navigate: `jump_to_view3d_object_by_name` · `jump_to_tab_by_name` · `jump_to_tab_by_space_type`.
 
-1. Call `get_mcp_server_health`.
-2. Call `get_objects_summary`.
-3. If the scene seems file-oriented, call:
-   - `get_blendfile_summary_datablocks`
-   - `get_blendfile_summary_missing_files`
-   - `get_blendfile_summary_of_linked_libraries`
-   - `get_blendfile_summary_path_info`
-   - `get_blendfile_summary_usage_guess`
-4. For any object of interest, call `get_object_detail_summary`.
-5. If visual state matters, call one of:
-   - `get_screenshot_of_window_as_image`
-   - `get_screenshot_of_area_as_image`
-   - `get_screenshot_of_window_as_json`
-6. If the user needs to see or focus an object, use:
-   - `jump_to_view3d_object_by_name`
-   - `jump_to_view3d_object_data_by_name`
-   - `jump_to_tab_by_name`
-   - `jump_to_tab_by_space_type`
+Only call what the question actually requires. A question about a single object does not require all five `get_blendfile_summary_*` calls.
 
-## Background File Sequence
+---
 
-Use this path when the user gives a `.blend` file and the task can be done headlessly.
+## Background File Path (`.blend` given, no GUI)
 
-1. Use `get_blendfile_summary_datablocks_for_cli`.
-2. Use `get_blendfile_summary_missing_files_for_cli`.
-3. Use `get_blendfile_summary_of_linked_libraries_for_cli`.
-4. Use `get_blendfile_summary_path_info_for_cli`.
-5. Use `get_blendfile_summary_usage_guess_for_cli`.
-6. Use `execute_blender_code_for_cli` only for a narrow query not covered by the summary tools.
+Use `_for_cli` variants. Set `BLENDER_PATH` if Blender is not on the system PATH.
 
-## What To Look For
+1. `get_blendfile_summary_datablocks_for_cli`
+2. `get_blendfile_summary_missing_files_for_cli`
+3. `get_blendfile_summary_of_linked_libraries_for_cli`
+4. `get_blendfile_summary_path_info_for_cli`
+5. `get_blendfile_summary_usage_guess_for_cli`
+6. `execute_blender_code_for_cli` — only for a narrow query none of the summary tools cover.
 
-- Scene name, render engine, active workspace, and workspace list.
-- Collection hierarchy and hidden or disabled collections.
-- Object types, modifiers, parenting, materials, and shared datablocks.
-- Missing external files, linked libraries, backups, and unsaved state.
-- Whether the file appears oriented toward modeling, animation, rendering, compositing, geometry nodes, UV work, or video editing.
+> If the file is currently open and dirty in the live Blender session, `synced_blend_for_cli` will save a numbered temporary copy and run against it automatically.
+
+---
+
+## Key Things to Surface
+
+- Hidden or disabled collections that explain "missing" objects.
+- Missing external files or broken library links.
+- Modifier stacks, shared datablocks, or unusual parenting that affect what a user sees.
+- Unsaved changes or backup state relevant to the task.
+
+---
 
 ## Avoid
 
-- Do not start with arbitrary `execute_blender_code`.
-- Do not dump every object detail in a large scene.
-- Do not assume viewport invisibility means an object is absent.
-- Do not assume object names remain stable after creation; inspect returned names.
+- Do not open with `execute_blender_code` to dump scene state.
+- Do not call `get_object_detail_summary` on every object in a large scene.
+- Do not assume viewport-hidden means absent — check collection visibility.
+- Do not assume object names are stable after generation; use the names returned by inspection tools.
 
-## Prompt Frame
-
-```text
-Inspect this Blender scene using the Massa Blender MCP.
-
-Start with MCP health and a broad object summary. Then inspect only the relevant objects, missing files, libraries, path info, screenshots, or usage guesses needed to answer.
-Do not modify the scene.
-Return a concise scene brief with important objects, likely issues, and recommended next actions.
-
-Question:
-<question>
-```
+---
 
 ## Report Shape
 
-```text
-Scene:
-- <scene name / render engine / workspace>
+```
+Scene: <name> / <render engine> / <active workspace>
 
-Important objects:
-- <object>: <type, role, notable state>
+Objects of interest:
+- <name>: <type, role, notable state>
 
-Risks or missing data:
-- <issue>
+Issues found:
+- <issue and evidence>
 
 Recommended next steps:
 - <step>
 ```
 
+---
+
+## Prompt Frame
+
+```
+Inspect this Blender scene using the Massa Blender MCP.
+
+Start with health check and a broad object summary.
+Call detail or file-summary tools only for what the question requires.
+Do not modify the scene.
+Return: scene brief, important objects, risks or missing data, recommended next steps.
+
+Question:
+<question>
+```

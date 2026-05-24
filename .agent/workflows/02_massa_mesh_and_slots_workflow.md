@@ -1,95 +1,94 @@
 # Massa Mesh And Slots Workflow
 
-Use this workflow when the task involves mesh cleanup, booleans, modifier application, transforms, selected geometry, Massa edge slots, face material slots, or socket empties.
+Use for: mesh cleanup, booleans, modifier application, transforms, Massa edge slots, face material slots, socket empties.
 
-## Goal
+---
 
-Make mesh edits deliberately. Confirm the exact selected geometry before writing to it, and prefer the Massa-specific tools over custom Python.
+## Read Before Any Write
 
-## Read Before Write
+1. `get_mcp_server_health` → confirm tools loaded.
+2. `get_objects_summary` if the target object is not certain.
+3. `get_object_detail_summary` for the target object.
+4. For selection-driven tasks: the user **must be in Edit Mode** with geometry selected in Blender first, then call `get_selected_geometry`.
 
-1. Call `get_mcp_server_health`.
-2. Call `get_objects_summary` if the target object is not already certain.
-3. Call `get_object_detail_summary` for the target object.
-4. If the task is selection-driven, call `get_selected_geometry`.
-5. Confirm:
-   - target object name
-   - object type is `MESH`
-   - current mode is correct
-   - selected vertex, edge, and face counts
-   - active element if the task says "this one"
-   - current material indices or edge slot values when relevant
+Confirm before proceeding:
+- Target object name and type is `MESH`.
+- Blender mode matches what the tool requires (Edit Mode for selection tools; Object Mode for modifier/transform tools).
+- Selected element counts (from `get_selected_geometry`) match intent.
+
+---
 
 ## Edge Slot Workflow
 
-Use for seam tracing, sharp edges, bevel/crease marking, or Massa edge slot assignment.
+Requires: user in **Edit Mode**, edges selected.
 
-1. User selects edges in Edit Mode.
-2. Call `get_selected_geometry`.
-3. Confirm selected edge indices, current edge marks, and current `MASSA_EDGE_SLOTS` values.
-4. Call `assign_edge_slot_to_selection`.
-5. Use one of these actions:
-   - `SEAM`
-   - `SHARP`
-   - `BOTH`
-   - `CREASE`
-   - `BEVEL`
-   - `IGNORE`
-6. Call `get_selected_geometry` again to verify changed slot values and edge marks.
+1. `get_selected_geometry` — confirm edge indices, current `MASSA_EDGE_SLOTS` values, `is_seam`, `is_sharp`, `bevel_weight`.
+2. `assign_edge_slot_to_selection` with the target slot (0–5) and action:
+   - `SEAM` · `SHARP` · `BOTH` · `CREASE` · `BEVEL` · `IGNORE`
+3. `get_selected_geometry` — verify the new slot values and edge marks.
+
+---
 
 ## Face Material Slot Workflow
 
-Use when assigning selected faces to Massa material/UV/physics slots.
+Requires: user in **Edit Mode**, faces selected.
 
-1. User selects faces in Edit Mode.
-2. Call `get_selected_geometry`.
-3. Confirm selected face indices and current `material_index` values.
-4. Call `assign_face_material_slot_to_selection`.
-5. Call `get_selected_geometry` again to verify changed material indices.
+1. `get_selected_geometry` — confirm face indices and current `material_index` values.
+2. `assign_face_material_slot_to_selection` with the target slot index (0–9).
+3. `get_selected_geometry` — verify changed material indices.
+
+---
 
 ## Socket Workflow
 
-Use when creating mount points from selected faces.
+Requires: user in **Edit Mode**, one or more faces selected.
 
-1. User selects one or more faces in Edit Mode.
-2. Call `get_selected_geometry`.
-3. Confirm face centers and normals.
-4. Call `create_socket_at_selected_face`.
-5. Call `get_objects_summary` or `get_object_detail_summary` to confirm the new Empty names and parenting.
+1. `get_selected_geometry` — confirm face centres and normals are as intended.
+2. `create_socket_at_selected_face` — specify parenting and alignment as needed.
+3. `get_objects_summary` or `get_object_detail_summary` — confirm new Empty names, parenting, and position.
+
+---
 
 ## Mesh Operation Workflow
 
-For object-level mesh operations:
+Requires: **Object Mode** (target object selected).
 
-- Use `mesh_boolean` for `DIFFERENCE`, `UNION`, `INTERSECT`, `SLASH`, `INSET`, or `KNIFE`.
-- Use `mesh_clean` for topology cleanup.
-- Use `apply_modifiers` for deterministic modifier application.
-- Use `apply_transform` before geometry-dependent work when scale or rotation could affect results.
+| Goal | Tool |
+|---|---|
+| Boolean cut / union / intersect / slash | `mesh_boolean` |
+| Topology cleanup (merge, dissolve, degenerate) | `mesh_clean` |
+| Apply modifiers | `apply_modifiers` |
+| Apply location / rotation / scale | `apply_transform` |
 
 After each write:
+- Call `get_object_detail_summary` on the target.
+- Report: HardOps used or native fallback (`used_hardops` field), warnings, new/removed modifiers, vertex/face count change.
+- For `apply_modifiers`: flag any shape-key risk before running.
 
-1. Read back target object details.
-2. Report whether HardOps was used or native fallback was used.
-3. List warnings, skipped modifiers, new modifiers, new boolshape objects, or changed counts.
+---
+
+## Common Mistakes
+
+- **Skipping `get_selected_geometry`** before assignment — slots write to whatever Blender has selected, not to what the agent assumed.
+- **Wrong object** — acting on the active object when the user named a different one. Always name-check.
+- **Wrong mode** — selection tools silently fail or corrupt state if Blender is in Object Mode.
+- **HardOps is not guaranteed** — always check `used_hardops` in the response; native fallback may not support `SLASH` or `INSET`.
+- **Apply with shape keys** — `apply_modifiers` will warn; report the warning to the user before committing.
+- **Heavy operations + 300 s timeout** — very large meshes or complex booleans may hit the socket timeout. Warn the user on large inputs.
+
+---
 
 ## Prompt Frame
 
-```text
-Use the Massa Blender MCP mesh workflow for this task.
+```
+Use the Massa Blender MCP mesh workflow.
 
-Inspect MCP health and the target object first. If the task depends on selected geometry, call get_selected_geometry before changing anything.
-Use the Massa mesh or seam/slot tools rather than arbitrary Python.
-After writing, verify with a read-back tool and report exact object names, affected indices/counts, warnings, and fallbacks.
+Inspect health and the target object first.
+For selection-driven tasks, call get_selected_geometry before any write.
+Use Massa mesh/slot tools — not arbitrary Python.
+After writing: verify with a read-back tool and report object names,
+affected indices/counts, HardOps fallback status, warnings, and errors.
 
 Task:
 <task>
 ```
-
-## Common Mistakes
-
-- Assigning slots without confirming selection.
-- Acting on the active object when the user named a different object.
-- Forgetting Edit Mode is required for selection-driven tools.
-- Treating HardOps as guaranteed. It is detected from the running Blender instance.
-- Applying modifiers on objects with shape keys without reporting risk.
-

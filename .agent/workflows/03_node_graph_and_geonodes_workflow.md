@@ -1,88 +1,65 @@
 # Node Graph And geonodes Workflow
 
-Use this workflow for material nodes, Geometry Nodes, compositor graphs, shader groups, world/light graphs, NodeToPython snapshots, and vendored geonodes script generation.
+Use for: material nodes, Geometry Nodes, compositor, shader groups, world/light graphs, NodeToPython snapshots, vendored geonodes script generation.
 
-## Goal
+---
 
-Understand the graph before editing or generating code. Use NTP inspection for existing node trees and geonodes reference tools for authoring new procedural node setups.
+## Path A — Inspect An Existing Node Graph
 
-## Existing Node Graph Inspection
+Use when the graph already exists in Blender.
 
-1. Call `get_mcp_server_health`.
-2. Call `ntp_list_graphs`.
-3. Pick the graph by `graph_type` and `graph_name`.
-4. Call `ntp_analyze_graph`.
-5. Inspect important nodes with `ntp_inspect_node`.
-6. If the user wants code, call `ntp_snapshot_graph`.
+1. `get_mcp_server_health`.
+2. `ntp_list_graphs` → pick the graph by `graph_type` and `graph_name`.
+   - Types: `MATERIAL` · `GEOMETRY` · `SHADER` · `COMPOSITOR` · `WORLD` · `LIGHT` · `LINESTYLE`
+3. `ntp_analyze_graph` → check for: output node present, orphan/dead-end nodes, broken links, linked group dependencies, complexity score.
+4. `ntp_inspect_node` for any node that looks suspicious or is central to the task.
+5. `ntp_snapshot_graph` only if the user explicitly wants reproducible Python code.
+   - Report: line count, byte size, whether NodeToPython had to be registered.
 
-Supported graph types:
+**Do not snapshot before analyzing.** Analysis often reveals the problem before code export is needed.
 
-```text
-MATERIAL
-GEOMETRY
-SHADER
-COMPOSITOR
-WORLD
-LIGHT
-LINESTYLE
-```
+---
 
-## What To Look For
+## Path B — Author A New geonodes Script
 
-- Total node and link counts.
-- Whether an output node exists.
-- Orphan nodes and dead-end nodes.
-- Broken links.
-- Linked node groups and dependency chains.
-- Node socket defaults and linked endpoints.
-- RNA properties that clarify node behavior.
+Use when creating a new Geometry Nodes setup with the vendored `geonodes` package.
 
-## geonodes Authoring Workflow
-
-Use this path when creating or adapting procedural Geometry Nodes scripts with the vendored `geonodes` package.
-
-1. Call `geonodes_search` with the main concept.
-2. Call `geonodes_list_demos` if you need examples by tag.
-3. Call `geonodes_get_demo` for the closest matching demo.
-4. Call `geonodes_list_types` when unsure which public class to use.
-5. Call `geonodes_get_type_doc` for specific types such as `Float`, `Mesh`, `Vector`, or `GeoNodes`.
-6. Draft a small script.
-7. Call `geonodes_execute_script`.
+1. `geonodes_search` — search the main concept to find relevant demos and docs.
+2. `geonodes_list_demos` — browse by tag when `geonodes_search` returns too broad a result.
+3. `geonodes_get_demo` — read the closest matching demo in full.
+4. `geonodes_list_types` — check available public classes if the right type is unclear.
+5. `geonodes_get_type_doc` — read the reference for specific types (`Float`, `Mesh`, `Vector`, etc.). Do not assume API without reading the doc.
+6. Draft the smallest script that proves the core idea.
+7. `geonodes_execute_script`.
 8. Read the response:
-   - `created_node_groups`
-   - `created_materials`
-   - `stdout`
-   - `traceback`
-9. If a node graph was created, call `ntp_list_graphs` and `ntp_analyze_graph` to verify it exists and has outputs.
+   - `created_node_groups` / `created_materials` — confirm something was created.
+   - `stdout` — check for warnings from the script.
+   - `traceback` — if present: **read the full traceback before modifying the script**. The error type and line number are always there; do not guess.
+9. If a node group was created: `ntp_list_graphs` + `ntp_analyze_graph` to confirm it exists and has an output node.
 
-## NodeToPython Snapshot Workflow
+---
 
-Use `ntp_snapshot_graph` when the user wants a reproducible Python representation of an existing node graph.
+## Common Mistakes
 
-1. Identify the graph with `ntp_list_graphs`.
-2. Confirm structure with `ntp_analyze_graph`.
-3. Inspect suspicious or central nodes with `ntp_inspect_node`.
-4. Call `ntp_snapshot_graph`.
-5. Report line count, byte size, whether NodeToPython had to be registered, and whether imports/defaults were included.
+- Snapshotting a graph before analyzing it — analysis is faster and usually sufficient.
+- Editing a graph without checking whether an output node exists first.
+- Ignoring orphan or dead-end nodes that explain a visual failure.
+- Assuming a `geonodes` type API without reading its bundled markdown doc.
+- Running a large or complex script on first attempt — start minimal, expand only after the core works.
+- Treating a `traceback` in `geonodes_execute_script` output as a partial success — any traceback means the script failed.
+
+---
 
 ## Prompt Frame
 
-```text
+```
 Use the Massa Blender MCP node graph workflow.
 
-For existing graphs, list graphs, analyze the chosen graph, inspect important nodes, and snapshot only when useful.
-For new geonodes work, search examples/docs first, read a matching demo/type doc, execute a small script, then verify the created graph.
-Avoid arbitrary bpy code unless the NTP/geonodes tools cannot answer the question.
+For existing graphs: list → analyze → inspect suspicious nodes → snapshot only if requested.
+For new geonodes work: search → read demo → read type doc → execute minimal script → verify created graph.
+Read traceback fully before modifying a failing script.
+Avoid arbitrary bpy code unless NTP and geonodes tools cannot answer.
 
 Task:
 <task>
 ```
-
-## Common Mistakes
-
-- Snapshotting before analyzing the graph.
-- Editing a graph without checking whether it has an output.
-- Ignoring orphan/dead-end nodes that explain a visual failure.
-- Assuming a geonodes type API without reading its bundled doc.
-- Running a large generated script before testing the smallest useful version.
-

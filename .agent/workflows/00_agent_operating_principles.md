@@ -1,93 +1,82 @@
-# Agent Operating Principles For Massa Blender MCP
+# Agent Operating Principles — Massa Blender MCP
 
-Use this workflow before any task that touches Blender through the Massa MCP server. The goal is to keep agents precise, scene-aware, and biased toward reversible operations.
+Use before any task that touches Blender through the Massa MCP server.
 
-## Core Rule
+---
 
-Inspect before acting. Prefer specific MCP tools over arbitrary Python. Use `execute_blender_code` only when no existing tool covers the task or when you need a narrow custom read.
-
-## First Moves
+## Opening Protocol (every session)
 
 1. Call `get_mcp_server_health`.
-2. If health is `degraded`, read `tool_registration_errors` before choosing tools.
-3. Confirm the work mode:
-   - live Blender scene
-   - background `.blend` file
-   - local documentation/reference lookup
-4. If the task touches scene objects, call `get_objects_summary`.
-5. If the task targets a named object, call `get_object_detail_summary`.
-6. If the task depends on viewport state, call a screenshot or focus/navigation tool.
+   - If `degraded`: read `tool_registration_errors` and avoid any failing module's tools.
+2. Establish work mode — this determines which tool set to use:
+   - **Live scene**: user has Blender open; use live socket tools.
+   - **File path**: user gave a `.blend` path; use `_for_cli` variants, no GUI needed.
+   - **Reference only**: no Blender needed; use bundled doc and geonodes reference tools.
+3. If live scene + object task: call `get_objects_summary` before touching anything.
 
-## Tool Preference Order
+---
 
-1. Purpose-built read tools:
-   - `get_objects_summary`
-   - `get_object_detail_summary`
-   - `get_blendfile_summary_*`
-   - `get_selected_geometry`
-   - `ntp_list_graphs`
-   - `ntp_analyze_graph`
-   - `ntp_inspect_node`
-2. Purpose-built write tools:
-   - `mesh_boolean`
-   - `mesh_clean`
-   - `apply_modifiers`
-   - `apply_transform`
-   - `assign_edge_slot_to_selection`
-   - `assign_face_material_slot_to_selection`
-   - `create_socket_at_selected_face`
-   - `geonodes_execute_script`
-3. Bundled documentation tools:
-   - `search_api_docs`
-   - `search_manual_docs`
-   - `get_python_api_docs`
-   - `geonodes_search`
-   - `geonodes_get_demo`
-   - `geonodes_get_type_doc`
-4. Arbitrary code:
-   - `execute_blender_code`
-   - `execute_blender_code_for_cli`
+## Tool Decision Tree
 
-## Safety Checklist
+```
+Task involves a .blend file path?
+  └─ YES → use _for_cli tools only
+Task modifies geometry / materials / nodes?
+  └─ YES → confirm target object + mode first, then use purpose-built write tool
+Task inspects something?
+  └─ use purpose-built read tool
+No existing tool covers it?
+  └─ execute_blender_code (last resort; justify the choice)
+Need API or node graph reference?
+  └─ search_api_docs / search_manual_docs / geonodes_search (no Blender required)
+```
 
-Before modifying Blender state:
+**Purpose-built read tools (prefer first):**
+`get_objects_summary` · `get_object_detail_summary` · `get_blendfile_summary_*`
+`get_selected_geometry` · `ntp_list_graphs` · `ntp_analyze_graph` · `ntp_inspect_node`
 
-- Confirm the active object and selected objects are the intended targets.
-- Confirm Blender mode if using edit-mode data.
-- Prefer non-destructive modifiers where practical.
-- If applying destructive changes, state what will change.
-- Preserve user selection and mode when writing custom Python, unless changing them is the task.
-- Return structured results with names, counts, warnings, and errors.
+**Purpose-built write tools (prefer over arbitrary code):**
+`mesh_boolean` · `mesh_clean` · `apply_modifiers` · `apply_transform`
+`assign_edge_slot_to_selection` · `assign_face_material_slot_to_selection` · `create_socket_at_selected_face`
+`geonodes_execute_script` · `ntp_snapshot_graph`
 
-## Live Blender Versus CLI
+**Arbitrary code (escape hatches):**
+`execute_blender_code` · `execute_blender_code_for_cli`
 
-Use live Blender socket tools when the user is looking at or editing an open scene.
+---
 
-Use CLI variants when the user gives a `.blend` path and wants file inspection without relying on the open Blender session.
+## Before Any Write
 
-For CLI work, remember that `synced_blend_for_cli` can create a temporary copy when the same file is open and dirty in Blender.
+- Name the exact target object. If uncertain, call `get_objects_summary`.
+- Confirm object type is `MESH` when edit-mode tools are involved.
+- State what will change and what side effects to expect.
+- Prefer non-destructive modifiers. Flag destructive changes explicitly.
+- Preserve user selection and mode unless changing them is the task.
+
+---
+
+## Response Contract
+
+Every completed task must include:
+
+- Tools used (names, not descriptions).
+- Objects changed (by name).
+- Any warnings, fallbacks, or skipped steps.
+- At least one read-back verification after any write.
+
+---
 
 ## Prompt Frame
 
-```text
-Use the Massa Blender MCP tools to work on this Blender task.
+```
+Use the Massa Blender MCP tools.
 
-First inspect MCP health and the relevant scene/object state.
-Prefer specific MCP tools over arbitrary Python.
-Do not modify objects until you have identified the exact targets and likely side effects.
-After any write, report the tool used, objects changed, warnings, and the verification read you performed.
+1. Check server health. Establish work mode (live / file path / reference).
+2. Inspect before acting. Use purpose-built tools over arbitrary Python.
+3. Name targets before writing. State what changes.
+4. After any write, verify with a read-back tool and report tools used,
+   objects changed, warnings, and fallbacks.
 
 Task:
 <task>
 ```
-
-## Completion Criteria
-
-A task is ready to report when:
-
-- The requested action or analysis was performed.
-- The final answer names the tools used.
-- Any modified object names are listed.
-- Any warnings, fallbacks, or skipped work are explicit.
-- At least one read-back verification confirms the final state when a write was performed.
-
