@@ -13,6 +13,7 @@ Read the task. Pick **one** row. Follow that workflow only.
 | Add parameters or UI to an existing cartridge | `WF_FLASH_MODIFY.md` |
 | Run an audit and interpret results | `WF_FLASH_AUDIT.md` |
 | Change the engine, base operator, or global properties | `WF_FLASH_CONSOLE.md` |
+| Inspect, create, or modify Node Graphs (Geometry Nodes, Shader, etc) | `WF_FLASH_04_NodeGraph.md` |
 
 ---
 
@@ -35,6 +36,7 @@ These apply everywhere. No exceptions.
 | What | Path |
 | :--- | :--- |
 | Cartridge folder | `massa/modules/cartridges/` |
+| Geonodes script library | `massa/modules/geonodes_library/` |
 | Audit runner | `modules/debugging_system/runner.py` |
 | Debug agent | `modules/debugging_system/debug_agent.py` |
 | Config (Blender path) | `modules/debugging_system/config.py` |

@@ -121,3 +121,13 @@ initial_instructions: |
     * Use the world matrix for world-space reads, not manual composition of
       location/rotation/scale.
     * The 3D cursor is a persistent world-space reference used by many operations.
+
+  # Node Graphs & Geometry Nodes
+
+  When asked to inspect, modify, or create complex node structures (Geometry Nodes, Shader, Compositor, etc.), DO NOT use `execute_blender_code` to manually author `bpy.data.node_groups` via low-level API.
+
+  Instead, use the preferred NodeToPython (NTP) and Geonodes pipeline:
+    1. **Inspection**: Use `ntp_snapshot_graph` to convert an existing node tree into a readable Python script.
+    2. **Authoring**: Use the `geonodes_*` tools (e.g., `geonodes_search`, `geonodes_get_demo`) to reference the Al1brn Python node-building syntax. All geonodes Python scripts MUST be saved permanently to `massa/modules/geonodes_library/` for future reference, do not treat them as ephemeral.
+    3. **Execution**: Use `geonodes_execute_script` to run the node-building Python script. This cleanly generates the NodeGroup or Material in Blender and can attach it to an object.
+    4. **Integration**: Remember to link your node structures back into the main workflow, such as attaching them to objects or leveraging them in Massa cartridges.

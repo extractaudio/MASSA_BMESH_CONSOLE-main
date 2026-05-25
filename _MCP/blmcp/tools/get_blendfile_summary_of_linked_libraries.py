@@ -28,7 +28,7 @@ def register(mcp: FastMCP) -> None:
             readOnlyHint=True,
         )
     )
-    def get_blendfile_summary_of_linked_libraries() -> dict[str, object]:
+    def get_blendfile_linked_libraries() -> dict[str, object]:
         """
         Return a tree of directly and indirectly linked library files.
         """
@@ -40,7 +40,7 @@ def register(mcp: FastMCP) -> None:
             readOnlyHint=True,
         )
     )
-    def get_blendfile_summary_of_linked_libraries_for_cli(blend_file: str) -> dict[str, object]:
+    def get_blendfile_linked_libraries_cli(blend_file: str) -> dict[str, object]:
         """
         Return linked-library info by opening *blend_file* in background Blender.
         """
