@@ -61,8 +61,8 @@ def register(mcp: FastMCP) -> None:
             return f"Error executing in Blender: {result.get('message', 'Unknown error')}"
 
         # 3. Format standard output
-        faces_affected = result.get("faces_affected", [])
-        count = result.get("count", len(faces_affected))
+        faces_affected = result.get("faces_affected") or []
+        count = result.get("count") if result.get("count") is not None else len(faces_affected)
         material_name = result.get("material_name")
         mat_info = f" (Material: '{material_name}')" if material_name else ""
         

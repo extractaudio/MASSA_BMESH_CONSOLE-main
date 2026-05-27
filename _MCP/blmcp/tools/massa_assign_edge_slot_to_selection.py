@@ -81,8 +81,8 @@ def register(mcp: FastMCP) -> None:
             return f"Error executing in Blender: {result.get('message', 'Unknown error')}"
 
         # 3. Format standard output
-        edges_affected = result.get("edges_affected", [])
-        count = result.get("count", len(edges_affected))
+        edges_affected = result.get("edges_affected") or []
+        count = result.get("count") if result.get("count") is not None else len(edges_affected)
         
         response_text = (
             f"Successfully assigned {count} edges "
