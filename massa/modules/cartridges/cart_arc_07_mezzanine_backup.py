@@ -33,21 +33,6 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
         ],
         default="STEEL_BEAM"
     )
-    
-    support_shape: EnumProperty(
-        name="Support Shape",
-        items=[
-            ("VERTICAL", "Vertical", "Vertical supports"),
-            ("ANGLED", "Angled", "Angled supports"),
-        ],
-        default="VERTICAL"
-    )
-    
-    structural_supports: BoolProperty(
-        name="Structural Supports",
-        default=False,
-        description="Add diagonal support beams around the outside"
-    )
 
     # Dimensions
     length: FloatProperty(name="Length", default=6.0, min=1.0)
@@ -82,8 +67,6 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
 
     def draw_shape_ui(self, layout):
         layout.prop(self, "style")
-        layout.row().prop(self, "support_shape", expand=True)
-        layout.prop(self, "structural_supports")
 
         box = layout.box()
         box.label(text="Dimensions", icon='MESH_CUBE')
@@ -112,10 +95,6 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
             col.prop(self, "cutout_l")
 
     def build_shape(self, bm):
-        # Ensure MASSA_SOCKETS layer exists up front to prevent face pointer invalidation on reallocation
-        if not bm.faces.layers.int.get("MASSA_SOCKETS"):
-            bm.faces.layers.int.new("MASSA_SOCKETS")
-            
         builder = MassaBuilder(bm)
 
         l, w, h = self.length, self.width, self.height
@@ -130,8 +109,8 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
         # Or Overhang adds to L/W?
         # Usually params define total deck size, overhang defines how far columns are inset.
 
-        struct_w = max(w - 2*oh + cw, cw)
-        struct_l = max(l - 2*oh + cw, cw)
+        struct_w = max(w - 2*oh, cw)
+        struct_l = max(l - 2*oh, cw)
 
         # Determine number of bays
         nx = max(1, int(struct_w / cs))
@@ -166,72 +145,21 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
                 # Check cutout interference?
                 # Usually columns exist even if cutout is nearby, unless inside cutout?
                 # Simple check: point inside cutout box?
-                
-                # Base position calculation for Angled Supports
-                px_bot, py_bot = px, py
-                if self.support_shape == "ANGLED":
-                    # Splay outwards from center
-                    splay_dist = h * 0.2
-                    vec_center2d = Vector((px, py, 0))
-                    if vec_center2d.length > 0.01:
-                        dir_out = vec_center2d.normalized()
-                        px_bot += dir_out.x * splay_dist
-                        py_bot += dir_out.y * splay_dist
-
-                p1 = Vector((px_bot, py_bot, 0))
-                p2 = Vector((px, py, h))
-                dist = (p2 - p1).length
-                vec = p2 - p1
 
                 # Create Column
-                if self.support_shape == "ANGLED" and vec.length > 0.01:
-                    builder.create_grid(x_segments=1, y_segments=1, size=cw, center=p1)
-                    builder.tag_slot(1)
-                    builder.align_normal_to_vector(vec)
-                    builder.extrude(dist)
-                    builder.grow_selection(1)
+                if self.style == "CONCRETE":
+                    builder.create_box(cw, cw, h, center=Vector((px, py, h/2)))
                 else:
-                    if self.style == "CONCRETE":
-                        builder.create_box(cw, cw, h, center=Vector((px, py, h/2)))
-                    else:
-                        builder.create_box(cw, cw, h, center=Vector((px, py, h/2)))
+                    # Steel I-Beam Column
+                    # Simplified as Box for now, or H profile?
+                    # Box is robust.
+                    builder.create_box(cw, cw, h, center=Vector((px, py, h/2)))
 
                 builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
                 # Base Plate?
                 if self.style == "STEEL_BEAM":
-                    if self.support_shape == "ANGLED":
-                        builder.create_box(cw*1.5, cw*1.5, 0.02, center=Vector((px_bot, py_bot, 0.01)))
-                    else:
-                        builder.create_box(cw*1.5, cw*1.5, 0.02, center=Vector((px, py, 0.01)))
+                    builder.create_box(cw*1.5, cw*1.5, 0.02, center=Vector((px, py, 0.01)))
                     builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
-                    
-                # Diagonal Structural Supports (Corbels/Braces)
-                if self.structural_supports:
-                    is_edge_x = (ix == 0 or ix == nx)
-                    is_edge_y = (iy == 0 or iy == ny)
-                    # We spawn braces pointing outwards to the platform edge
-                    braces_to_build = []
-                    
-                    if is_edge_x:
-                        sign_x = -1 if ix == 0 else 1
-                        edge_x = sign_x * w / 2
-                        braces_to_build.append(Vector((edge_x, py, h)))
-                    if is_edge_y:
-                        sign_y = -1 if iy == 0 else 1
-                        edge_y = sign_y * l / 2
-                        braces_to_build.append(Vector((px, edge_y, h)))
-                        
-                    for target_p in braces_to_build:
-                        start_p = p1.lerp(p2, 0.5) # start halfway up the column
-                        brace_vec = target_p - start_p
-                        brace_dist = brace_vec.length
-                        if brace_dist > 0.1:
-                            builder.create_grid(x_segments=1, y_segments=1, size=cw*0.5, center=start_p)
-                            builder.tag_slot(1)
-                            builder.align_normal_to_vector(brace_vec)
-                            builder.extrude(brace_dist)
-                            builder.grow_selection(1)
-                            builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
 
         # 2. Structure (Beams)
         # Main Beams (X Axis?)
@@ -326,9 +254,7 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
 
         if deck_faces:
             builder.active_faces = deck_faces
-            builder.tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
             builder.extrude(dt)
-            builder.grow_selection(1)
             builder.tag_slot(0).tag_uvs(scale=self.uv_scale, projection='BOX')
 
         # 4. Railings
@@ -361,29 +287,29 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
                 mid = (p1 + p2) / 2
                 mid.z += rh
 
+                # Align box to vector
+                # Or just create cylinder/box and rotate
                 vec = p2 - p1
+                # Angle?
                 angle = math.atan2(vec.y, vec.x)
 
-                builder.create_box(dist, 0.05, 0.05, center=Vector((0,0,0)))
+                builder.create_box(dist, 0.05, 0.05, center=mid)
                 builder.rotate(math.degrees(angle), axis='Z')
-                builder.translate(mid.x, mid.y, mid.z)
                 builder.tag_slot(2).tag_uvs(scale=self.uv_scale, projection='BOX')
 
                 # Mid Rail
                 mid.z -= rh/2
-                builder.create_box(dist, 0.03, 0.03, center=Vector((0,0,0)))
+                builder.create_box(dist, 0.03, 0.03, center=mid)
                 builder.rotate(math.degrees(angle), axis='Z')
-                builder.translate(mid.x, mid.y, mid.z)
                 builder.tag_slot(2).tag_uvs(scale=self.uv_scale, projection='BOX')
 
             z_rail = h + bd + dt
 
-            # Corners (outside the edge, half width is 0.025)
-            r_i = -0.025
-            c1 = Vector((-w/2 + r_i, -l/2 + r_i, z_rail))
-            c2 = Vector((w/2 - r_i, -l/2 + r_i, z_rail))
-            c3 = Vector((w/2 - r_i, l/2 - r_i, z_rail))
-            c4 = Vector((-w/2 + r_i, l/2 - r_i, z_rail))
+            # Corners
+            c1 = Vector((-w/2, -l/2, z_rail))
+            c2 = Vector((w/2, -l/2, z_rail))
+            c3 = Vector((w/2, l/2, z_rail))
+            c4 = Vector((-w/2, l/2, z_rail))
 
             build_rail(c1, c2)
             build_rail(c2, c3)
@@ -401,12 +327,9 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
         # Column bases are at Z=0.
         # But maybe we want a central anchor.
         # Tagging column bottoms is good.
-        
-        # Ensure lookup table is valid after boolean deletions
-        builder.bm.faces.ensure_lookup_table()
         builder.select_faces_by_normal(Vector((0,0,-1)), tolerance=0.1)
-        # Filter Z ~ 0 and ensure faces are still valid
-        bases = [f for f in builder.active_faces if f.is_valid and abs(f.calc_center_median().z) < 0.1]
+        # Filter Z ~ 0
+        bases = [f for f in builder.active_faces if abs(f.calc_center_median().z) < 0.1]
         builder.active_faces = bases
         builder.tag_socket(9)
 

@@ -84,10 +84,6 @@ class MASSA_OT_UrbDumpster(Massa_OT_Base):
 
         # 2. Style Logic
         if self.style == 'FRONT_LOAD':
-            # Plane defined by:
-            # Point at (0, -d/2, h*0.8) (Lower Front)
-            # Point at (0, d/2, h) (Full Height Back)
-
             p1 = Vector((0, -d/2, h*0.8))
             p2 = Vector((0, d/2, h))
             vec = p2 - p1
@@ -100,7 +96,7 @@ class MASSA_OT_UrbDumpster(Massa_OT_Base):
                 dist=0.001,
                 plane_co=p1,
                 plane_no=normal,
-                clear_outer=True # Remove the part above
+                clear_outer=True
             )
 
             # Hollow out
@@ -108,18 +104,24 @@ class MASSA_OT_UrbDumpster(Massa_OT_Base):
                    .inset(0.05) \
                    .extrude(-h*0.8) \
                    .tag_slot(0) \
-                   .tag_edge_role(1) # Interior
+                   .tag_edge_role(1)
 
-            # Rim/Lid area
-            # Re-select the top rim (which was created by inset)
-            # It faces 'normal'
-            # Filter by area or something?
-            # Or just use the fact it's on the plane
-            builder.select_faces_by_normal(normal, tolerance=0.1).tag_slot(1)
+            # Front Load Corrugated Lid
+            lid_len = vec.length
+            builder.create_box(w*0.98, lid_len, 0.04, center=Vector((0,0,0)))
+            builder.tag_slot(1).tag_edge_role(1)
+            
+            builder.select_faces_by_normal(Vector((0,0,1))).inset(0.05).extrude(0.02).inset(0.05).extrude(-0.01)
+            builder.tag_slot(1)
+            
+            builder.translate(0, -lid_len/2, 0)
+            builder.rotate(-self.lid_open * 110, axis='X')
+            angle_deg = math.degrees(math.atan2(h*0.2, d))
+            builder.rotate(angle_deg, axis='X')
+            builder.translate(0, d/2, h)
 
         elif self.style == 'ROLL_OFF':
-            # Large open skip
-            # Just hollow it out
+            # Large open skip hollow out
             builder.select_faces_by_normal(Vector((0,0,1))) \
                    .inset(0.1) \
                    .extrude(-h*0.9) \
@@ -132,6 +134,27 @@ class MASSA_OT_UrbDumpster(Massa_OT_Base):
                    .extrude(0.05) \
                    .tag_slot(2) \
                    .tag_edge_role(1)
+            
+            builder.select_faces_by_normal(Vector((-1,0,0))) \
+                   .inset(0.05, relative=False) \
+                   .extrude(0.05) \
+                   .tag_slot(2) \
+                   .tag_edge_role(1)
+                   
+            # Back door details
+            builder.select_faces_by_normal(Vector((0,1,0))) \
+                   .inset(0.08).extrude(0.02).tag_slot(2)
+
+            # Roll Off Corrugated Lid
+            builder.create_box(w*1.02, d*1.02, 0.04, center=Vector((0,0,0)))
+            builder.tag_slot(1).tag_edge_role(1)
+            
+            builder.select_faces_by_normal(Vector((0,0,1))).inset(0.1).extrude(0.03).inset(0.05).extrude(-0.02)
+            builder.tag_slot(1)
+            
+            builder.translate(0, -d/2, 0)
+            builder.rotate(-self.lid_open * 90, axis='X')
+            builder.translate(0, d/2, h + 0.02)
 
         elif self.style == 'RECYCLE':
             # Dome top
@@ -139,14 +162,33 @@ class MASSA_OT_UrbDumpster(Massa_OT_Base):
                    .extrude(0.2) \
                    .scale(0.8) \
                    .tag_slot(1) \
-                   .tag_edge_role(1) # Plastic Top
+                   .tag_edge_role(1)
 
             # Holes
             builder.select_faces_by_height(min_z=h) \
                    .inset(0.1) \
                    .extrude(-0.1) \
                    .tag_slot(2) \
-                   .tag_edge_role(1) # Hole
+                   .tag_edge_role(1)
+
+            # Recycle Corrugated Lid Flap
+            builder.create_box(w*0.8, d*0.8, 0.02, center=Vector((0,0,0)))
+            builder.tag_slot(1).tag_edge_role(1)
+            
+            builder.select_faces_by_normal(Vector((0,0,1))).inset(0.05).extrude(0.01)
+            builder.tag_slot(1)
+            
+            builder.translate(0, -d*0.4, 0)
+            builder.rotate(-self.lid_open * 80, axis='X')
+            builder.translate(0, d*0.4, h + 0.2)
+
+        # 3. Handles (All Styles)
+        handle_h = h * 0.6
+        builder.create_box(0.15, d*0.2, 0.05, center=Vector((-w/2 - 0.075, 0, handle_h)))
+        builder.tag_slot(2).tag_edge_role(2)
+        
+        builder.create_box(0.15, d*0.2, 0.05, center=Vector((w/2 + 0.075, 0, handle_h)))
+        builder.tag_slot(2).tag_edge_role(2)
 
         # 4. Anchor Socket
         builder.select_faces_by_normal(Vector((0,0,-1))) \
