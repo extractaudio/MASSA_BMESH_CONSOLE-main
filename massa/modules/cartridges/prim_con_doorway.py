@@ -135,12 +135,12 @@ class MASSA_OT_prim_con_doorway(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Frame", "uv": "BOX", "phys": "WOOD_PAINTED"},
-            1: {"name": "Door", "uv": "BOX", "phys": "WOOD_PAINTED"},
-            2: {"name": "Trim", "uv": "BOX", "phys": "WOOD_PAINTED"},
-            3: {"name": "Handle", "uv": "BOX", "phys": "METAL_ROUGH"},
-            4: {"name": "Hinges", "uv": "BOX", "phys": "METAL_ROUGH"},
-            5: {"name": "FloorStop", "uv": "BOX", "phys": "METAL_ROUGH"},
+            0: {"name": "Frame", "uv": "UNWRAP", "phys": "WOOD_PAINTED"},
+            1: {"name": "Door", "uv": "UNWRAP", "phys": "WOOD_PAINTED"},
+            2: {"name": "Trim", "uv": "UNWRAP", "phys": "WOOD_PAINTED"},
+            3: {"name": "Handle", "uv": "UNWRAP", "phys": "METAL_ROUGH"},
+            4: {"name": "Hinges", "uv": "UNWRAP", "phys": "METAL_ROUGH"},
+            5: {"name": "FloorStop", "uv": "UNWRAP", "phys": "METAL_ROUGH"},
             6: {"name": "Socket_A", "uv": "SKIP", "sock": True},
             7: {"name": "Socket_B", "uv": "SKIP", "sock": True},
             8: {"name": "Socket_C", "uv": "SKIP", "sock": True},
@@ -150,37 +150,95 @@ class MASSA_OT_prim_con_doorway(Massa_OT_Base):
     def build_shape(self, bm):
         # 0. DEFAULTS & LAYERS
         tag_layer = bm.faces.layers.int.new("MAT_TAG")
+        
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+            
+        force_seam = bm.edges.layers.int.get("massa_force_seam")
+        if not force_seam:
+            force_seam = bm.edges.layers.int.new("massa_force_seam")
+
+        def mark_edge(e, slot=None, seam=False, sharp=False, protect=False):
+            if slot is not None:
+                e[edge_slots] = slot
+            if seam:
+                e.seam = True
+            if sharp:
+                e.smooth = False
+            if protect:
+                e[force_seam] = 1
+
+        def unwrap_plank(new_verts, long_axis, hidden_point):
+            faces = list({f for v in new_verts for f in v.link_faces})
+            edges = list({e for v in new_verts for e in v.link_edges})
+            
+            cap_faces = sorted(faces, key=lambda f: abs(f.normal.dot(long_axis)), reverse=True)[:2]
+            cap_edges = set()
+            for f in cap_faces:
+                for e in f.edges:
+                    cap_edges.add(e)
+                    mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
+                    
+            long_edges = [e for e in edges if e not in cap_edges]
+            for e in long_edges:
+                mark_edge(e, slot=2, sharp=True)
+                
+            if long_edges:
+                zipper = min(long_edges, key=lambda e: ((e.verts[0].co + e.verts[1].co)/2 - hidden_point).length_squared)
+                mark_edge(zipper, slot=3, seam=True, protect=True)
+
+        def unwrap_sheet(new_verts, thickness_axis, hidden_point):
+            faces = list({f for v in new_verts for f in v.link_faces})
+            edges = list({e for v in new_verts for e in v.link_edges})
+            
+            cap_faces = sorted(faces, key=lambda f: abs(f.normal.dot(thickness_axis)), reverse=True)[:2]
+            cap_edges = set()
+            for f in cap_faces:
+                for e in f.edges:
+                    cap_edges.add(e)
+                    mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
+                    
+            short_edges = [e for e in edges if e not in cap_edges]
+            for e in short_edges:
+                mark_edge(e, slot=2, sharp=True)
+                
+            if short_edges:
+                zipper = min(short_edges, key=lambda e: ((e.verts[0].co + e.verts[1].co)/2 - hidden_point).length_squared)
+                mark_edge(zipper, slot=3, seam=True, protect=True)
+
+        def create_and_unwrap_plank(size, pos, tag, long_axis, hidden_offset):
+            ret = bmesh.ops.create_cube(bm, size=1.0)
+            verts = ret["verts"]
+            bmesh.ops.scale(bm, vec=size, verts=verts)
+            bmesh.ops.translate(bm, verts=verts, vec=pos)
+            for v in verts:
+                for f in v.link_faces:
+                    f[tag_layer] = tag
+            unwrap_plank(verts, long_axis, Vector(pos) + Vector(hidden_offset))
+            return verts
+
+        def create_and_unwrap_sheet(size, pos, tag, thickness_axis, hidden_offset):
+            ret = bmesh.ops.create_cube(bm, size=1.0)
+            verts = ret["verts"]
+            bmesh.ops.scale(bm, vec=size, verts=verts)
+            bmesh.ops.translate(bm, verts=verts, vec=pos)
+            for v in verts:
+                for f in v.link_faces:
+                    f[tag_layer] = tag
+            unwrap_sheet(verts, thickness_axis, Vector(pos) + Vector(hidden_offset))
+            return verts
 
         w, h = self.width, self.height
         fd, fw = self.depth, self.frame_width
 
         # 1. FRAME GENERATION (Tag 0)
-        # 3 parts: Left Jamb, Right Jamb, Header
-
-        frames = []
-
         # Left
-        ret_l = bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(bm, vec=(fw, fd, h), verts=ret_l["verts"])
-        bmesh.ops.translate(bm, verts=ret_l["verts"], vec=(-w/2 + fw/2, 0, h/2))
-        frames.extend(ret_l["verts"])
-
+        create_and_unwrap_plank((fw, fd, h), (-w/2 + fw/2, 0, h/2), 0, Vector((0,0,1)), Vector((-1,0,0)))
         # Right
-        ret_r = bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(bm, vec=(fw, fd, h), verts=ret_r["verts"])
-        bmesh.ops.translate(bm, verts=ret_r["verts"], vec=(w/2 - fw/2, 0, h/2))
-        frames.extend(ret_r["verts"])
-
+        create_and_unwrap_plank((fw, fd, h), (w/2 - fw/2, 0, h/2), 0, Vector((0,0,1)), Vector((1,0,0)))
         # Header
-        ret_t = bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(bm, vec=(w - 2*fw, fd, fw), verts=ret_t["verts"])
-        bmesh.ops.translate(bm, verts=ret_t["verts"], vec=(0, 0, h - fw/2))
-        frames.extend(ret_t["verts"])
-
-        # Tag Frame
-        for v in frames:
-            for f in v.link_faces:
-                f[tag_layer] = 0
+        create_and_unwrap_plank((w - 2*fw, fd, fw), (0, 0, h - fw/2), 0, Vector((1,0,0)), Vector((0,0,1)))
 
         # 2. DOOR PANEL (Tag 1)
         dw = w - 2*fw
@@ -188,120 +246,58 @@ class MASSA_OT_prim_con_doorway(Massa_OT_Base):
         dt = self.panel_thick
         inset_z = self.door_inset
 
-        # Check valid size
         if dw > 0.01 and dh > 0.01:
-            ret_d = bmesh.ops.create_cube(bm, size=1.0)
-            bmesh.ops.scale(bm, vec=(dw - 0.004, dt, dh - 0.004), verts=ret_d["verts"]) # Slight gap
-            # Center of door is at 0,0,0 initially. Need to move up by dh/2 and back by inset
-            bmesh.ops.translate(bm, verts=ret_d["verts"], vec=(0, -fd/2 + dt/2 + inset_z, dh/2))
-
-            for v in ret_d["verts"]:
-                for f in v.link_faces:
-                    f[tag_layer] = 1
+            pos_door = (0, -fd/2 + dt/2 + inset_z, dh/2)
+            create_and_unwrap_sheet((dw - 0.004, dt, dh - 0.004), pos_door, 1, Vector((0,1,0)), Vector((0,0,-1)))
 
         # 3. TRIM (Tag 2)
         if self.use_trim:
             tw = self.trim_width
             td = self.trim_depth
 
-            # Helper for trim pieces
-            def create_trim_piece(size, pos):
-                r = bmesh.ops.create_cube(bm, size=1.0)
-                bmesh.ops.scale(bm, vec=size, verts=r["verts"])
-                bmesh.ops.translate(bm, verts=r["verts"], vec=pos)
-                for v in r["verts"]:
-                    for f in v.link_faces:
-                        f[tag_layer] = 2
+            # Front Trims (Hidden on -Y)
+            create_and_unwrap_plank((tw, td, h + tw), (-w/2 - tw/2 + fw, fd/2 + td/2, h/2 + tw/2), 2, Vector((0,0,1)), Vector((0,-1,0)))
+            create_and_unwrap_plank((tw, td, h + tw), (w/2 + tw/2 - fw, fd/2 + td/2, h/2 + tw/2), 2, Vector((0,0,1)), Vector((0,-1,0)))
+            create_and_unwrap_plank((w + 2*tw, td, tw), (0, fd/2 + td/2, h + tw/2), 2, Vector((1,0,0)), Vector((0,-1,0)))
 
-            # Left Trim (Front)
-            create_trim_piece((tw, td, h + tw), (-w/2 - tw/2 + fw, fd/2 + td/2, h/2 + tw/2))
-            # Right Trim (Front)
-            create_trim_piece((tw, td, h + tw), (w/2 + tw/2 - fw, fd/2 + td/2, h/2 + tw/2))
-            # Top Trim (Front)
-            create_trim_piece((w + 2*tw, td, tw), (0, fd/2 + td/2, h + tw/2))
-
-            # Left Trim (Back)
-            create_trim_piece((tw, td, h + tw), (-w/2 - tw/2 + fw, -fd/2 - td/2, h/2 + tw/2))
-            # Right Trim (Back)
-            create_trim_piece((tw, td, h + tw), (w/2 + tw/2 - fw, -fd/2 - td/2, h/2 + tw/2))
-            # Top Trim (Back)
-            create_trim_piece((w + 2*tw, td, tw), (0, -fd/2 - td/2, h + tw/2))
+            # Back Trims (Hidden on +Y)
+            create_and_unwrap_plank((tw, td, h + tw), (-w/2 - tw/2 + fw, -fd/2 - td/2, h/2 + tw/2), 2, Vector((0,0,1)), Vector((0,1,0)))
+            create_and_unwrap_plank((tw, td, h + tw), (w/2 + tw/2 - fw, -fd/2 - td/2, h/2 + tw/2), 2, Vector((0,0,1)), Vector((0,1,0)))
+            create_and_unwrap_plank((w + 2*tw, td, tw), (0, -fd/2 - td/2, h + tw/2), 2, Vector((1,0,0)), Vector((0,1,0)))
 
         # 4. FLOOR STOP (Tag 5)
         if self.use_stop:
             sw = w - 2*fw
             sh = self.stop_height
-            sd = dt + 0.02 # Slightly wider than door
-
-            ret_s = bmesh.ops.create_cube(bm, size=1.0)
-            bmesh.ops.scale(bm, vec=(sw, sd, sh), verts=ret_s["verts"])
-            bmesh.ops.translate(bm, verts=ret_s["verts"], vec=(0, 0, sh/2))
-
-            for v in ret_s["verts"]:
-                for f in v.link_faces:
-                    f[tag_layer] = 5
+            sd = dt + 0.02
+            create_and_unwrap_plank((sw, sd, sh), (0, 0, sh/2), 5, Vector((1,0,0)), Vector((0,0,-1)))
 
         # 5. HARDWARE - HINGES (Tag 4)
         if self.use_hinges and self.hinge_count > 0:
             h_rad = 0.01
             h_len = 0.08
-
             spacing = (h - 0.4) / (self.hinge_count - 1) if self.hinge_count > 1 else 0
             start_z = 0.2
 
             for i in range(self.hinge_count):
                 z_pos = start_z + (i * spacing)
-                # Left side hinge
-                ret_h = bmesh.ops.create_cube(bm, size=1.0) # Simple block hinge
-                bmesh.ops.scale(bm, vec=(h_rad*2, h_rad*2, h_len), verts=ret_h["verts"])
-                # Position at seam between frame and door
-                bmesh.ops.translate(bm, verts=ret_h["verts"], vec=(-w/2 + fw, -fd/2 + dt + inset_z, z_pos))
-
-                for v in ret_h["verts"]:
-                    for f in v.link_faces:
-                        f[tag_layer] = 4
+                create_and_unwrap_plank((h_rad*2, h_rad*2, h_len), (-w/2 + fw, -fd/2 + dt + inset_z, z_pos), 4, Vector((0,0,1)), Vector((0,-1,0)))
 
         # 6. HARDWARE - HANDLE (Tag 3)
         if self.handle_type != 'NONE':
-            # Position logic
-            hx = w/2 - fw - 0.06 # Inset from right edge
+            hx = w/2 - fw - 0.06
             hz = self.handle_height
-            hy = -fd/2 + dt + inset_z # Door surface
+            hy = -fd/2 + dt + inset_z
 
             if self.handle_type == 'KNOB':
-                ret_k = bmesh.ops.create_cube(bm, size=1.0) # Placeholder for sphere/knob
-                bmesh.ops.scale(bm, vec=(0.05, 0.06, 0.05), verts=ret_k["verts"])
-                bmesh.ops.translate(bm, verts=ret_k["verts"], vec=(hx, hy + 0.03, hz))
-
+                create_and_unwrap_plank((0.05, 0.06, 0.05), (hx, hy + 0.03, hz), 3, Vector((0,0,1)), Vector((0,-1,0)))
             elif self.handle_type == 'LEVER':
-                ret_k = bmesh.ops.create_cube(bm, size=1.0)
-                bmesh.ops.scale(bm, vec=(0.12, 0.02, 0.02), verts=ret_k["verts"])
-                bmesh.ops.translate(bm, verts=ret_k["verts"], vec=(hx - 0.03, hy + 0.04, hz))
-
+                create_and_unwrap_plank((0.12, 0.02, 0.02), (hx - 0.03, hy + 0.04, hz), 3, Vector((1,0,0)), Vector((0,-1,0)))
             elif self.handle_type == 'PULL':
-                 ret_k = bmesh.ops.create_cube(bm, size=1.0)
-                 bmesh.ops.scale(bm, vec=(0.02, 0.04, 0.2), verts=ret_k["verts"])
-                 bmesh.ops.translate(bm, verts=ret_k["verts"], vec=(hx, hy + 0.02, hz))
-            else:
-                 ret_k = {'verts': []} # Safety
-
-            if 'verts' in ret_k:
-                for v in ret_k["verts"]:
-                    for f in v.link_faces:
-                        f[tag_layer] = 3
+                create_and_unwrap_plank((0.02, 0.04, 0.2), (hx, hy + 0.02, hz), 3, Vector((0,0,1)), Vector((0,-1,0)))
 
         # 7. ASSIGN MATERIALS
+        slot_meta = getattr(self, 'get_slot_meta', lambda: {})()
         for f in bm.faces:
-            if f[tag_layer] in self.get_slot_meta():
+            if f[tag_layer] in slot_meta:
                 f.material_index = f[tag_layer]
-
-        # 8. MARK EDGES
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-
-        for e in bm.edges:
-            if e.is_boundary:
-                e[edge_slots] = 1 # Perimeter
-            elif e.calc_face_angle(0) > 0.5:
-                e[edge_slots] = 2 # Hard Edge

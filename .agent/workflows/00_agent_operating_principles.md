@@ -1,3 +1,7 @@
+---
+description: main MCP
+---
+
 # Agent Operating Principles — Massa Blender MCP
 
 Use before any task that touches Blender through the Massa MCP server.

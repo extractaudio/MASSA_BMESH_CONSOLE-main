@@ -1,3 +1,7 @@
+---
+description: MCP node graph
+---
+
 # Node Graph And geonodes Workflow
 
 Use for: material nodes, Geometry Nodes, compositor, shader groups, world/light graphs, NodeToPython snapshots, vendored geonodes script generation.

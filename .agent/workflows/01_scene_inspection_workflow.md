@@ -1,3 +1,7 @@
+---
+description: MCP Inspection
+---
+
 # Scene Inspection Workflow
 
 Use when answering: what is in the scene, what is missing, is the file ready, what does a `.blend` contain.

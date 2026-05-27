@@ -219,12 +219,15 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
             e[edge_slots] = 0
 
         # A. CAP IDENTIFICATION (Normal Y)
-        cap_faces = [f for f in bm.faces if abs(f.normal.y) > 0.8]
+        cap_faces = set([f for f in bm.faces if abs(f.normal.y) > 0.8])
         cap_edges = set()
         for f in cap_faces:
             for e in f.edges:
-                cap_edges.add(e)
-                mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
+                # Only mark perimeter edges of the cap (where the edge connects a cap face to a non-cap face)
+                link_caps = sum(1 for lf in e.link_faces if lf in cap_faces)
+                if link_caps == 1:
+                    cap_edges.add(e)
+                    mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
 
         # B. MARK SHARP CONTOURS (90 degree angles)
         for e in bm.edges:
@@ -268,9 +271,21 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
             if not island_y_edges:
                 continue
                 
+            # Prefer edges that are sharp corners for the zipper to hide the seam
+            def is_sharp_enough(e):
+                if not e.is_manifold or len(e.link_faces) != 2:
+                    return False
+                try:
+                    return e.calc_face_angle(0.0) > math.radians(45)
+                except ValueError:
+                    return False
+
+            sharp_y_edges = [e for e in island_y_edges if is_sharp_enough(e)]
+            candidate_edges = sharp_y_edges if sharp_y_edges else island_y_edges
+                
             # Group into pillars
             pillars = {}
-            for e in island_y_edges:
+            for e in candidate_edges:
                 mid = (e.verts[0].co + e.verts[1].co) / 2
                 key = (round(mid.x, 3), round(mid.z, 3))
                 if key not in pillars:

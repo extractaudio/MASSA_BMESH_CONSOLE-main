@@ -1,3 +1,7 @@
+---
+description: MCP Mesh and edges
+---
+
 # Massa Mesh And Slots Workflow
 
 Use for: mesh cleanup, booleans, modifier application, transforms, Massa edge slots, face material slots, socket empties.

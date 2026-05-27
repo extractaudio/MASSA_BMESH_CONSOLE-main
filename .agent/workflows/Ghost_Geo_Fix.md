@@ -1,82 +1,22 @@
 ---
-description: Workflow for finding and repairing loose, broken, duplicate, and hidden ghost geometry in Massa cartridges.
+description: Consolidated workflow for finding and repairing ghost geometry in Massa cartridges.
 ---
 
 # Ghost Geo Fix Workflow
 
-Use this workflow when a Massa cartridge generates geometry that looks correct in the viewport but damages UV unwrap, produces doubles, creates invisible faces, leaves orphan topology, or fails the audit suite with loose, non-manifold, zero-area, thin-face, self-intersection, UV spike, or collapsed-UV flags.
+Use when a cartridge generates visually correct geometry that damages UVs, produces doubles, or fails `AUDIT` (loose, non-manifold, zero-area, thin-face, self-intersection, UV spikes).
 
-The cartridge is responsible for clean BMesh output. The engine cleanup passes are safety nets, not permission to ship messy topology.
+## Core Rules & Agent Stance
 
-## Core Mission
-
-Ghost geometry is any generated topology that is not part of the visible, intended asset contract.
-
-It usually appears as:
-
-1. Loose vertices with no edges.
-2. Wire edges with no faces.
-3. Duplicate faces occupying the same space.
-4. Internal faces hidden inside closed volumes.
-5. Zero-area or near-zero-area faces.
-6. Sliver faces with extreme aspect ratios.
-7. Doubled vertices that look welded but are separate.
-8. Non-manifold edges from bad bridging, duplicate caps, or partial shells.
-9. Self-intersecting faces from boolean-like construction or overlapping components.
-10. Socket/helper faces accidentally left as visible geometry.
-11. UV-only damage caused by tiny, hidden, or collapsed geometry.
-
-The goal is not to delete blindly. The goal is to prove what each piece of geometry is, classify whether it is intentional, then remove, rebuild, or quarantine it before UVs and slots are assigned.
-
-## Required Agent Stance
-
-You are the Massa Ghost Geometry Mechanic.
-
-Never fix by adding a broad cleanup pass first. First identify where the unwanted topology is born in `build_shape()`. The best repair changes the construction step so the bad geometry never exists.
-
-Always answer:
-
-1. What geometry family is this cartridge building?
-2. Which faces, edges, or verts are supposed to survive?
-3. Which geometry is only scaffolding or temporary construction?
-4. Which operation first creates the ghost topology?
-5. Is this a source-construction bug or only a missing final cleanup?
-6. Would the proposed fix preserve slots, edge slots, seams, sockets, normals, UVs, and resurrection properties?
-
-## Hard Rules
+You are the Massa Ghost Geometry Mechanic. Identify where unwanted topology is born in `build_shape()` and fix the construction step. **Do not** just add a broad cleanup pass.
 
 - Do not use `bpy.ops` inside `build_shape`.
 - Do not inspect or select geometry by raw final index as the repair strategy.
 - Do not hide broken topology with material slots, transparent materials, or socket slots.
-- Do not rely on `FIX_DEGENERATE` or `REMOVE_LOOSE` as the primary fix.
-- Do not remove socket faces unless they are helper duplicates instead of the intended socket anchors.
-- Do not call `bmesh.ops.recalc_face_normals` as a cure for non-manifold geometry.
-- Do not delete every internal face blindly; cavities, vents, sockets, and open-shell cartridges can be intentional.
-- Do not ship a cartridge that only passes visual render but fails `AUDIT`.
-- Do not claim UVs are fixed until topology flags are clean first.
+- Do not rely solely on `FIX_DEGENERATE` or `bmesh.ops.remove_doubles` as the primary fix.
+- Always preserve `MASSA_EDGE_SLOTS`, protected seams, sockets, normals, and manual UVs.
 
-## Phase 0: Read The Contract
-
-Before editing a cartridge, refresh the relevant local instructions:
-
-1. `CARTRIDGE_MANDATE.md`
-2. `README.md`
-3. `.agent/workflows/UV_unwrap.md`
-4. `CLAUDE.md` or `AGENTS.md`
-
-Confirm the cartridge still obeys:
-
-- `CARTRIDGE_META` exists and `id` matches `bl_idname`.
-- The class inherits `Massa_OT_Base`.
-- `build_shape(self, bm)` is pure BMesh and mathutils.
-- `get_slot_meta()` defines every material slot used by generated faces.
-- Edge slots use `MASSA_EDGE_SLOTS`.
-- Intentional manual seams use spatial logic and protection where needed.
-- Sockets are derived from existing intended faces, not extra loose helper geometry.
-
-## Phase 1: Establish The Baseline
-
-Run the smallest audit that proves the current failure.
+## 1. Audit & Classify
 
 ```powershell
 python _Scripts/test_run_cartridge.py massa/modules/cartridges/<cartridge>.py --mode AUDIT
@@ -471,4 +411,3 @@ Use this prompt when handing off a cartridge ghost-geometry repair:
 ```text
 Act as the Massa Ghost Geometry Mechanic. Read the full cartridge and map every geometry birth site in build_shape. Classify failures as loose verts, wire edges, duplicate faces, internal faces, zero-area faces, slivers, non-manifold shells, self-intersections, or socket/helper ghosts. Do not repair by broad cleanup first. Find where the bad topology is created, fix that source construction, then apply a narrow final cleanup for proven orphans only. Preserve material slots, MASSA_EDGE_SLOTS, protected seams, socket anchors, normals, and UV assignment. Run AUDIT first, then UV_INSPECT or UV_HEATMAP only if geometry or UV logic changed. Report baseline flags, ghost classes, source birth sites, repairs, and final audit status.
 ```
-

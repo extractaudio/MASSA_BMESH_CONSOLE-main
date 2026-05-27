@@ -1,3 +1,7 @@
+---
+description: MCP tool changing
+---
+
 # MCP Tool Authoring Workflow
 
 Use when adding, debugging, or reviewing tools under `_MCP/blmcp/tools`.
