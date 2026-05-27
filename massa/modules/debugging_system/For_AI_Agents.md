@@ -15,7 +15,7 @@ BLENDER_PATH = r"C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
 
 Platform examples:
 
-- **Windows**: `r"C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"`
+- **Windows**: `r"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"`
 - **macOS**: `"/Applications/Blender.app/Contents/MacOS/Blender"`
 - **Linux**: `"/usr/bin/blender"`
 

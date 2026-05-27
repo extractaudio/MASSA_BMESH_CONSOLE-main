@@ -424,6 +424,25 @@ def skill_get_vision(params):
         "path": path
     }
 
+def skill_execute_code(params):
+    code = params.get("code", "")
+    try:
+        import sys, io
+        old_stdout = sys.stdout
+        new_stdout = io.StringIO()
+        sys.stdout = new_stdout
+        
+        exec(code, globals())
+        
+        sys.stdout = old_stdout
+        return {"status": "SUCCESS", "output": new_stdout.getvalue()}
+    except Exception as e:
+        import traceback
+        import sys
+        if 'old_stdout' in locals():
+            sys.stdout = old_stdout
+        return {"status": "FAIL", "msg": str(e), "errors": traceback.format_exc()}
+
 def handle_skill_execution(payload):
     skill = payload.get("skill")
     params = payload.get("params", {})
@@ -436,6 +455,8 @@ def handle_skill_execution(payload):
         return skill_transform_object(params)
     elif skill == "get_vision":
         return skill_get_vision(params)
+    elif skill == "execute_code":
+        return skill_execute_code(params)
     else:
         return {"status": "FAIL", "msg": f"Unknown skill: {skill}"}
 
