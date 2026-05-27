@@ -58,217 +58,186 @@ class MASSA_OT_PrimYJoint(Massa_OT_Base):
 
     def build_shape(self, bm: bmesh.types.BMesh):
         seg = self.segments
+        if seg % 2 != 0:
+            seg += 1  # Ensure even segments for perfect planar symmetry
+            
         rad = self.radius
-        half_rad = math.radians(self.angle)
+        alpha = math.radians(self.angle)
         
         # ----------------------------------------------------------------------
-        # 1. PREPARE GEOMETRY CONTAINERS
+        # 1. PREPARE PLANES & NORMALS
         # ----------------------------------------------------------------------
-        # We will build parts in separate BMeshes and combine them to ensure
-        # clean booleans.
+        # Plane normals for perfect CSG-free intersection
+        n_R = Vector((math.tan(alpha / 2.0), 0, 1)).normalized()
+        n_L = Vector((-math.tan(alpha / 2.0), 0, 1)).normalized()
+        n_X = Vector((1, 0, 0))
         
-        # ----------------------------------------------------------------------
-        # 2. CREATE V-JOINT (Branches)
-        # ----------------------------------------------------------------------
-        bm_branches = bmesh.new()
-        
-        # Parameters for branches
-        # Make them long enough to be trimmed
-        b_len_gen = self.branch_len + rad * 2.0 
-        
-        # --- Right Branch ---
-        mat_rot_r = Matrix.Rotation(half_rad, 4, "Y")
-        # Shift so the 'start' of the cylinder (bottom) is near origin after rotation
-        # create_cone makes cylinder centered at (0,0,0) with length 'depth'
-        # We want the connection point at 0.
-        # Shift Z up by half length
-        mat_trans_gen = Matrix.Translation((0, 0, b_len_gen / 2))
-        
-        # We need to offset the pivot so the inner edge meets at X=0
-        # Simple trig: offset_x = rad / cos(theta)? 
-        # Actually, let's just make them centered at origin and miter them.
-        
-        # Right Branch Mesh
-        bmesh.ops.create_cone(
-            bm_branches,
-            cap_ends=True,
-            segments=seg,
-            radius1=rad,
-            radius2=rad,
-            depth=b_len_gen,
-            matrix=mat_rot_r @ mat_trans_gen,
-        )
-        
-        # Bisect Right (Keep X > 0)
-        bmesh.ops.bisect_plane(
-            bm_branches,
-            geom=bm_branches.verts[:] + bm_branches.edges[:] + bm_branches.faces[:],
-            dist=0.0001,
-            plane_co=(0, 0, 0),
-            plane_no=(-1, 0, 0),
-            clear_outer=True,
-            clear_inner=False,
-        )
-        # Cap the bisect
-        edges_r = [e for e in bm_branches.edges if e.is_boundary]
-        bmesh.ops.contextual_create(bm_branches, geom=edges_r)
+        def tag_caps(bm_part, axis_vec):
+            for f in bm_part.faces:
+                if abs(f.normal.dot(axis_vec)) > 0.9:
+                    f.material_index = 1
+                    f.smooth = False
+                else:
+                    f.material_index = 0
+                    f.smooth = True
 
-        # --- Left Branch ---
+        # ----------------------------------------------------------------------
+        # 2. CREATE RIGHT BRANCH
+        # ----------------------------------------------------------------------
+        bm_right = bmesh.new()
+        b_len_gen = self.branch_len + rad
+        b_center_z = (-rad + self.branch_len) / 2.0
+        
+        mat_rot_r = Matrix.Rotation(alpha, 4, "Y")
+        mat_trans_gen = Matrix.Translation((0, 0, b_center_z))
+        
+        bmesh.ops.create_cone(
+            bm_right, cap_ends=True, segments=seg, radius1=rad, radius2=rad,
+            depth=b_len_gen, matrix=mat_rot_r @ mat_trans_gen
+        )
+        tag_caps(bm_right, mat_rot_r @ Vector((0, 0, 1)))
+        
+        # Cut with Trunk intersection (Keep Z > -X tan(a/2))
+        bmesh.ops.bisect_plane(
+            bm_right, geom=bm_right.verts[:] + bm_right.edges[:] + bm_right.faces[:],
+            plane_co=(0, 0, 0), plane_no=n_R, clear_inner=True
+        )
+        # Cut with Symmetry plane X=0 (Keep X > 0)
+        bmesh.ops.bisect_plane(
+            bm_right, geom=bm_right.verts[:] + bm_right.edges[:] + bm_right.faces[:],
+            plane_co=(0, 0, 0), plane_no=n_X, clear_inner=True
+        )
+
+        # ----------------------------------------------------------------------
+        # 3. CREATE LEFT BRANCH
+        # ----------------------------------------------------------------------
         bm_left = bmesh.new()
-        mat_rot_l = Matrix.Rotation(-half_rad, 4, "Y")
+        mat_rot_l = Matrix.Rotation(-alpha, 4, "Y")
         
         bmesh.ops.create_cone(
-            bm_left,
-            cap_ends=True,
-            segments=seg,
-            radius1=rad,
-            radius2=rad,
-            depth=b_len_gen,
-            matrix=mat_rot_l @ mat_trans_gen,
+            bm_left, cap_ends=True, segments=seg, radius1=rad, radius2=rad,
+            depth=b_len_gen, matrix=mat_rot_l @ mat_trans_gen
         )
+        tag_caps(bm_left, mat_rot_l @ Vector((0, 0, 1)))
         
-        # Bisect Left (Keep X < 0)
+        # Cut with Trunk intersection (Keep Z > X tan(a/2))
         bmesh.ops.bisect_plane(
-            bm_left,
-            geom=bm_left.verts[:] + bm_left.edges[:] + bm_left.faces[:],
-            dist=0.0001,
-            plane_co=(0, 0, 0),
-            plane_no=(1, 0, 0),
-            clear_outer=True,
-            clear_inner=False,
+            bm_left, geom=bm_left.verts[:] + bm_left.edges[:] + bm_left.faces[:],
+            plane_co=(0, 0, 0), plane_no=n_L, clear_inner=True
         )
-        # Cap the bisect
-        edges_l = [e for e in bm_left.edges if e.is_boundary]
-        bmesh.ops.contextual_create(bm_left, geom=edges_l)
-        
-        # Merge Left into branches BM
-        bm_left.verts.ensure_lookup_table()
-        me_temp = bpy.data.meshes.new("temp_left")
-        bm_left.to_mesh(me_temp)
-        bm_branches.from_mesh(me_temp)
-        bm_left.free()
-        bpy.data.meshes.remove(me_temp)
-        
-        # Weld the seam at X=0
-        bmesh.ops.remove_doubles(bm_branches, verts=bm_branches.verts, dist=0.001)
-        bmesh.ops.recalc_face_normals(bm_branches, faces=bm_branches.faces)
-
-        # Transfer V-Joint to Main BM
-        me_v = bpy.data.meshes.new("temp_v")
-        bm_branches.to_mesh(me_v)
-        bm_branches.free()
-        bm.from_mesh(me_v)
-        bpy.data.meshes.remove(me_v)
-        
-        geom_branches = bm.verts[:] + bm.edges[:] + bm.faces[:]
+        # Cut with Symmetry plane X=0 (Keep X < 0)
+        bmesh.ops.bisect_plane(
+            bm_left, geom=bm_left.verts[:] + bm_left.edges[:] + bm_left.faces[:],
+            plane_co=(0, 0, 0), plane_no=n_X, clear_outer=True
+        )
 
         # ----------------------------------------------------------------------
-        # 3. CREATE TRUNK
+        # 4. CREATE TRUNK
         # ----------------------------------------------------------------------
-        # Trunk goes from -trunk_len to roughly +rad (overlap)
-        # Total height = trunk_len + overlap
-        overlap = rad * 1.5 
-        t_height = self.trunk_len + overlap
-        
-        # Center Z: Bottom is at -trunk_len. Top is at +overlap.
-        # Midpoint = (-trunk_len + overlap) / 2
-        center_z = (-self.trunk_len + overlap) / 2
-        
         bm_trunk = bmesh.new()
+        t_len_gen = self.trunk_len + rad
+        t_center_z = (-self.trunk_len + rad) / 2.0
+        
         bmesh.ops.create_cone(
-            bm_trunk,
-            cap_ends=True,
-            segments=seg,
-            radius1=rad,
-            radius2=rad,
-            depth=t_height,
-            matrix=Matrix.Translation((0, 0, center_z)),
+            bm_trunk, cap_ends=True, segments=seg, radius1=rad, radius2=rad,
+            depth=t_len_gen, matrix=Matrix.Translation((0, 0, t_center_z))
         )
+        tag_caps(bm_trunk, Vector((0, 0, 1)))
         
-        # Transfer Trunk to Main BM
-        me_t = bpy.data.meshes.new("temp_t")
-        bm_trunk.to_mesh(me_t)
-        bm_trunk.free()
-        bm.from_mesh(me_t)
-        bpy.data.meshes.remove(me_t)
-        
-        # Identify Trunk Geometry
-        set_b = set(geom_branches)
-        geom_trunk = [g for g in (bm.verts[:] + bm.edges[:] + bm.faces[:]) if g not in set_b]
+        # Cut with Right Branch intersection (Keep Z < -X tan(a/2))
+        bmesh.ops.bisect_plane(
+            bm_trunk, geom=bm_trunk.verts[:] + bm_trunk.edges[:] + bm_trunk.faces[:],
+            plane_co=(0, 0, 0), plane_no=n_R, clear_outer=True
+        )
+        # Cut with Left Branch intersection (Keep Z < X tan(a/2))
+        bmesh.ops.bisect_plane(
+            bm_trunk, geom=bm_trunk.verts[:] + bm_trunk.edges[:] + bm_trunk.faces[:],
+            plane_co=(0, 0, 0), plane_no=n_L, clear_outer=True
+        )
 
         # ----------------------------------------------------------------------
-        # 4. BOOLEAN UNION
+        # 5. MERGE PARTS
         # ----------------------------------------------------------------------
-        # Combine Trunk + Branches
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        
-        try:
-            bmesh.ops.boolean(
-                bm,
-                geom=geom_branches,
-                intersector=geom_trunk,
-                operation="UNION",
-                use_swap=True,
-                # solver='EXACT' # Not exposed in BMesh ops, uses default
-            )
-        except Exception as e:
-            print(f"Boolean Union Failed: {e}")
-            # Fallback: Just leave them intersecting (better than crash)
+        def merge_bm(target_bm, source_bm):
+            source_bm.verts.ensure_lookup_table()
+            me_temp = bpy.data.meshes.new("temp_merge")
+            source_bm.to_mesh(me_temp)
+            source_bm.free()
+            target_bm.from_mesh(me_temp)
+            bpy.data.meshes.remove(me_temp)
 
-        # ----------------------------------------------------------------------
-        # 5. CLEANUP & SLOTS
-        # ----------------------------------------------------------------------
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        merge_bm(bm, bm_right)
+        merge_bm(bm, bm_left)
+        merge_bm(bm, bm_trunk)
+
+        # Stitch seams
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
-        
-        # Slot Assignment
-        for f in bm.faces:
-            c = f.calc_center_median()
-            
-            # Simple heuristic based on normals and position
-            is_cap = False
-            
-            # Ends of branches
-            # Projects onto branch vectors?
-            
-            # Trunk Bottom Cap
-            if c.z < (-self.trunk_len + 0.01) and f.normal.z < -0.9:
-                is_cap = True
-                
-            # Branch Caps
-            # Check deviation from branch axis
-            # This is tricky after boolean.
-            # Use distance from origin?
-            dist = c.length
-            if dist > (max(self.branch_len, self.trunk_len) - rad):
-                # Potential cap
-                # Check normal alignment with branch vectors
-                v_r = Vector((math.sin(half_rad), 0, math.cos(half_rad)))
-                v_l = Vector((-math.sin(half_rad), 0, math.cos(half_rad)))
-                
-                if f.normal.dot(v_r) > 0.9 or f.normal.dot(v_l) > 0.9:
-                    is_cap = True
-
-            if is_cap:
-                f.material_index = 1
-                f.smooth = False
-            else:
-                f.material_index = 0
-                f.smooth = True
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         # ----------------------------------------------------------------------
-        # 6. SEAMS
+        # 6. EDGES & SEAMS
         # ----------------------------------------------------------------------
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+
+        n_R = Vector((math.tan(alpha / 2.0), 0, 1)).normalized()
+        n_L = Vector((-math.tan(alpha / 2.0), 0, 1)).normalized()
+
+        # Pass 1: Boundaries, Intersections (Yellow lines), and Contours
         for e in bm.edges:
-            if len(e.link_faces) >= 2:
-                mats = {f.material_index for f in e.link_faces}
-                if len(mats) > 1:
+            if e.is_boundary:
+                e[edge_slots] = 1 # PERIMETER
+                e.seam = True
+            else:
+                v1, v2 = e.verts[0].co, e.verts[1].co
+                is_intersect = False
+                if abs(v1.x) < 0.001 and abs(v2.x) < 0.001:
+                    is_intersect = True
+                elif abs(v1.dot(n_R)) < 0.001 and abs(v2.dot(n_R)) < 0.001:
+                    is_intersect = True
+                elif abs(v1.dot(n_L)) < 0.001 and abs(v2.dot(n_L)) < 0.001:
+                    is_intersect = True
+                
+                if is_intersect:
+                    e[edge_slots] = 2 # CONTOUR
                     e.seam = True
                     continue
-                # Sharp edges
-                f1, f2 = e.link_faces[0], e.link_faces[1]
-                if f1.smooth and f2.smooth:
-                    if f1.normal.dot(f2.normal) < 0.5:
+                
+                if len(e.link_faces) >= 2:
+                    mats = {f.material_index for f in e.link_faces}
+                    if len(mats) > 1:
+                        e[edge_slots] = 2 # CONTOUR
+                        e.seam = True
+                        continue
+                    # Sharp edges
+                    f1, f2 = e.link_faces[0], e.link_faces[1]
+                    if f1.smooth and f2.smooth:
+                        if f1.normal.dot(f2.normal) < 0.5:
+                            e[edge_slots] = 2 # CONTOUR
+                            e.seam = True
+
+        # Pass 2: Guide Zippers (Slot 3) along the back (min Y)
+        axes = [
+            Vector((0, 0, 1)), # Trunk
+            Vector((math.sin(alpha), 0, math.cos(alpha))), # Right Branch
+            Vector((-math.sin(alpha), 0, math.cos(alpha))) # Left Branch
+        ]
+        
+        for axis in axes:
+            long_edges = []
+            for e in bm.edges:
+                if e[edge_slots] in (1, 2): continue # Skip boundaries/contours
+                if len(e.verts) == 2:
+                    dir_vec = (e.verts[1].co - e.verts[0].co).normalized()
+                    if abs(dir_vec.dot(axis)) > 0.8:
+                        long_edges.append(e)
+            
+            if long_edges:
+                min_y = min(((e.verts[0].co + e.verts[1].co) * 0.5).y for e in long_edges)
+                for e in long_edges:
+                    if abs(((e.verts[0].co + e.verts[1].co) * 0.5).y - min_y) < 0.001:
+                        e[edge_slots] = 3 # GUIDE
                         e.seam = True
 
         # ----------------------------------------------------------------------
@@ -277,7 +246,6 @@ class MASSA_OT_PrimYJoint(Massa_OT_Base):
         uv_layer = bm.loops.layers.uv.verify()
         s = self.uv_scale
         
-        # Box Map Logic
         min_v = Vector((float("inf"),) * 3)
         max_v = Vector((float("-inf"),) * 3)
         if self.fit_uvs:

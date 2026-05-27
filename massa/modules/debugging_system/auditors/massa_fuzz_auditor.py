@@ -190,7 +190,8 @@ def audit_mesh(obj, op_class=None):
                  
         except Exception as e:
             # Capture the parameters that caused the crash
-            crash_report = f"FUZZ_CRASH: {str(e)} | PARAMS: {param_snapshot}"
+            tb = traceback.format_exc()
+            crash_report = f"FUZZ_CRASH: {str(e)}\nTRACEBACK:\n{tb}\n | PARAMS: {param_snapshot}"
             errors.append(crash_report)
             
         finally:

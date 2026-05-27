@@ -72,12 +72,13 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
 
     def build_shape(self, bm):
         # 1. SETUP PARAMETERS
-        l = getattr(self, "length", 0.4)
-        w = getattr(self, "width", 0.2)  # Extrusion Depth (Y)
-        h = getattr(self, "height", 0.2)  # Grid Height (Z)
-        th = getattr(self, "wall_th", 0.035)
+        l = max(0.01, getattr(self, "length", 0.4))
+        w = max(0.01, getattr(self, "width", 0.2))  # Extrusion Depth (Y)
+        h = max(0.01, getattr(self, "height", 0.2))  # Grid Height (Z)
 
-        cores = getattr(self, "cores", 2)
+        cores = max(1, getattr(self, "cores", 2))
+        th = max(0.001, min(l / (cores + 1.1), h / 2.1, getattr(self, "wall_th", 0.035)))
+
         seg_x = getattr(self, "seg_x", 4)
         seg_y = getattr(self, "seg_y", 2)
         seg_z = getattr(self, "seg_z", 2)
@@ -185,202 +186,99 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
         # 7. CLEANUP & NORMALS
         bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
         bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+        
+        faces_small = [f for f in bm.faces if f.calc_area() < 0.000001]
+        if faces_small:
+            bmesh.ops.delete(bm, geom=faces_small, context='FACES')
+            
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         # 8. SEAMING STRATEGY
-        # Clear all seams first
-        for e in bm.edges:
-            e.seam = False
-
-        # A. CAP IDENTIFICATION (Normal Y)
-        # Caps are the Front (-Y) and Back (+Y) Faces.
-        # We mark the perimeter of these faces as seams.
-        # Note: Bisect might have split caps, so we look for any face with dominant Y normal.
-        caps = [f for f in bm.faces if abs(f.normal.y) > 0.9]
-        for f in caps:
-            f.material_index = 1  # Standard specific slot? 1 is usually perimeter/secondary.
-            for e in f.edges:
-                e.seam = True
-
-        # B. SMART LONGITUDINAL SPLIT
-        # We bisect the entire geometry vertically (Plane X=0).
-        # We ONLY mark the resulting edges as Seams if they are on "Downward" facing surfaces.
-        # Effect:
-        # - Outer Bottom Seal: Split (Hidden).
-        # - Inner Void Ceilings: Split (Hidden inside top).
-        # - Top Faces: Preserved (Clean).
-        # - Void Floors: Preserved (Clean).
-        
-        ret = bmesh.ops.bisect_plane(
-            bm,
-            geom=bm.faces[:] + bm.edges[:] + bm.verts[:],
-            plane_co=(0, 0, 0),
-            plane_no=(1, 0, 0),
-            clear_inner=False,
-            clear_outer=False
-        )
-        
-        cut_edges = [e for e in ret["geom_cut"] if isinstance(e, bmesh.types.BMEdge)]
-        
-        for e in cut_edges:
-            # Check adjacent faces. If ANY linked face is pointing DOWN (Z < -0.1), seam it.
-            # Usually bisect edge links 2 faces.
-            is_downward = False
-            for f in e.link_faces:
-                if f.normal.z < -0.1:
-                    is_downward = True
-                    break
-            
-            if is_downward:
-                e.seam = True
-        
-        # 8C. FINAL CLEANUP
-        # Remove doubles and zero-area faces before seaming
-        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
-        faces_small = [f for f in bm.faces if f.calc_area() < 0.000001]
-        if faces_small:
-             bmesh.ops.delete(bm, geom=faces_small, context='FACES')
-        
-        # 9. SEAMING STRATEGY (User Defined "Zipper & Rim")
-        
-        # A. CLEAR ALL
-        for e in bm.edges:
-            e.seam = False
-            
-        # B. RIMS (Top/Bottom Separation) - Full Island Separation
-        # Mark ALL edges of Top Faces (Z-Up) and Bottom Faces (Z-Down)
-        top_faces = [f for f in bm.faces if f.normal.z > 0.9]
-        bot_faces = [f for f in bm.faces if f.normal.z < -0.9]
-        
-        for f in top_faces + bot_faces:
-            for e in f.edges:
-                e.seam = True
-                
-        # C. ZIPPER (Vertical Cut)
-        # Find Vertical Edges (Z-aligned)
-        # We need to cut at least one vertical line to unroll the "Wall Belt".
-        # Heuristic: Find the Vertical Edge column with the LOWEST X (and Y).
-        
-        # 1. Collect all valid vertical edges
-        vert_edges = []
-        for e in bm.edges:
-            # Check for Z-alignment (dx=0, dy=0, dz>0)
-            dx = abs(e.verts[0].co.x - e.verts[1].co.x)
-            dy = abs(e.verts[0].co.y - e.verts[1].co.y)
-            dz = abs(e.verts[0].co.z - e.verts[1].co.z)
-            
-            if dx < 0.001 and dy < 0.001 and dz > 0.001:
-                vert_edges.append(e)
-                
-        # 2. Group by location (XY) to identify "Pillars"
-        # We want to seam the whole pillar (if segmented).
-        # We use a simple Key: (round(x,4), round(y,4))
-        pillars = {}
-        for e in vert_edges:
-            mid = (e.verts[0].co + e.verts[1].co) / 2
-            key = (round(mid.x, 4), round(mid.y, 4))
-            if key not in pillars:
-                pillars[key] = []
-            pillars[key].append(e)
-            
-        # 3. Select the "Zipper" Pillar (Lowest X, then Lowest Y)
-        # We actually need one per loop (Outer + Inner Voids).
-        # Current Heuristic: Select pillars that seem to be "Start" points.
-        # Ideally, we cut 1 pillar for every connected component of the "Wall Projection"?
-        # For now, adhering to user prompt: "Find the vertical edge with lowest X/Y... mark it Red".
-        # We will sort all pillar keys and pick the absolute first one. 
-        # CAUTION: This might leave inner voids closed. 
-        # IMPROVEMENT: We pick the lowest X/Y pillar *for each unique X*? No.
-        # Let's try to pick the "Bottom-Left" corner of EVERY rectangular structure.
-        # This roughly maps to: For every unique X, pick the min Y? Or for every unique Y pick min X?
-        # A generic Cinder block (2 cores) has:
-        # Outer Box: 4 corners.
-        # Inner Box 1: 4 corners.
-        # Inner Box 2: 4 corners.
-        # If we sort pillars, we can try to pick specific ones.
-        # But for robustness, let's just pick the GLOBAL lowest X/Y for the outer, 
-        # and maybe heuristic for inner?
-        # Actually, let's just do the GLOBAL one as explicitly requested first. 
-        
-        if pillars:
-            # Sort by X, then Y
-            sorted_keys = sorted(pillars.keys(), key=lambda k: (k[0], k[1]))
-            
-            # Mark the "Winner" (Lowest X, then Y)
-            zipper_key = sorted_keys[0]
-            for e in pillars[zipper_key]:
-                e.seam = True
-                
-            # AUTO-FIX: If we have Cores, we likely need to seam them too.
-            # Cores usually start at slightly higher X than global min.
-            # We can try to identify "Inner Loops" by checking for pillars that are corners > 90 deg?
-            # Or just rely on the user's "Vertical Edge 1" instruction applying to the main form.
-            # We will additionally seam any legacy bisect seams if they help? 
-            # No, 'CLEAR ALL' removed them.
-            
-            # Let's add a heuristic for Inner Voids: Seam the "First Pillar" of any defined hole structure?
-            # Logic: If we encounter a pillar that hasn't been seamed, and it belongs to a new "Zone"?
-            # Complexity risk. Sticking to single zipper for now. 
-            pass
-
-        # 10. ASSIGN SLOTS (Colors)
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+            
+        force_seam = bm.edges.layers.int.get("massa_force_seam")
+        if not force_seam:
+            force_seam = bm.edges.layers.int.new("massa_force_seam")
+            
+        def mark_edge(e, slot=None, seam=False, sharp=False, protect=False):
+            if slot is not None:
+                e[edge_slots] = slot
+            if seam:
+                e.seam = True
+            if sharp:
+                e.smooth = False
+            if protect:
+                e[force_seam] = 1
 
+        # Clear existing
         for e in bm.edges:
-            # SLOT 1 (RED): Seams
-            if e.seam:
-                e[edge_slots] = 1
-            # SLOT 2 (CYAN): Sharp Edges (90 deg) that are NOT seams
-            elif e.calc_face_angle() > math.radians(80):
-                e[edge_slots] = 2
-            # SLOT 3: Other
-            else:
-                 e[edge_slots] = 3
+            e.seam = False
+            e.smooth = True
+            e[edge_slots] = 0
 
-                
-        # 10. UV UNWRAP
-        headless_classic_unwrap(bm)
+        # A. CAP IDENTIFICATION (Normal Y)
+        cap_faces = [f for f in bm.faces if abs(f.normal.y) > 0.8]
+        cap_edges = set()
+        for f in cap_faces:
+            for e in f.edges:
+                cap_edges.add(e)
+                mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
 
+        # B. MARK SHARP CONTOURS (90 degree angles)
+        for e in bm.edges:
+            if e not in cap_edges and e.is_manifold and len(e.link_faces) == 2:
+                try:
+                    if e.calc_face_angle(0.0) > math.radians(80):
+                        mark_edge(e, slot=2, sharp=True)
+                except ValueError:
+                    pass
 
-def headless_classic_unwrap(bm):
-    """
-    Flushes the BMesh to a temporary object / mesh, performs
-    a standard bpy.ops.uv.unwrap (using the Context Override),
-    and loads the result back into the BMesh.
-    """
-    # 1. Create Temp Mesh & Object
-    me = bpy.data.meshes.new("_temp_unwrap_mesh_block")
-    bm.to_mesh(me)
-    
-    obj = bpy.data.objects.new("_temp_unwrap_obj_block", me)
-    col = bpy.data.collections.get("Collection")
-    if not col:
-        col = bpy.data.collections.new("Collection")
-        bpy.context.scene.collection.children.link(col)
-    col.objects.link(obj)
-    
-    # 2. Set Context
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
-    
-    # 3. Enter Edit Mode
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    
-    # 4. Unwrap
-    # 'ANGLE_BASED' or 'CONFORMAL'. Margin 0.001 is standard.
-    try:
-        bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
-    except Exception as e:
-        print(f"UNWRAP ERROR: {e}")
+        # C. SMART ZIPPERS (Vertical Cuts)
+        wall_faces = set(bm.faces) - set(cap_faces)
         
-    # 5. Read Back
-    bpy.ops.object.mode_set(mode='OBJECT')
-    bm.clear()
-    bm.from_mesh(me)
-    
-    # 6. Cleanup
-    bpy.data.objects.remove(obj, do_unlink=True)
-    bpy.data.meshes.remove(me, do_unlink=True)
+        # Group wall faces into islands
+        islands = []
+        visited = set()
+        for f in wall_faces:
+            if f not in visited:
+                island = set()
+                stack = [f]
+                while stack:
+                    curr = stack.pop()
+                    if curr not in visited:
+                        visited.add(curr)
+                        island.add(curr)
+                        for e in curr.edges:
+                            if e not in cap_edges:
+                                for lf in e.link_faces:
+                                    if lf in wall_faces and lf not in visited:
+                                        stack.append(lf)
+                islands.append(island)
+                
+        # For each island, pick a zipper path from front cap to back cap.
+        for island in islands:
+            island_edges = {e for f in island for e in f.edges if e not in cap_edges}
+            island_y_edges = [
+                e for e in island_edges
+                if abs((e.verts[1].co - e.verts[0].co).normalized().y) > 0.9
+            ]
+            
+            if not island_y_edges:
+                continue
+                
+            # Group into pillars
+            pillars = {}
+            for e in island_y_edges:
+                mid = (e.verts[0].co + e.verts[1].co) / 2
+                key = (round(mid.x, 3), round(mid.z, 3))
+                if key not in pillars:
+                    pillars[key] = []
+                pillars[key].append(e)
+                
+            if pillars:
+                # Pick the pillar with the lowest Z, then lowest X
+                zipper_key = min(pillars.keys(), key=lambda k: (k[1], k[0]))
+                for e in pillars[zipper_key]:
+                    mark_edge(e, slot=3, seam=True, protect=True)

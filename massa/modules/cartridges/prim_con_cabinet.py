@@ -132,6 +132,45 @@ class MASSA_OT_prim_con_cabinet(Massa_OT_Base):
         # 0. INIT
         tag_layer = bm.faces.layers.int.new("MAT_TAG")
 
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if not edge_slots:
+            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        
+        force_seam = bm.edges.layers.int.get("massa_force_seam")
+        if not force_seam:
+            force_seam = bm.edges.layers.int.new("massa_force_seam")
+
+        def mark_edge(e, slot=None, seam=False, sharp=False, protect=False):
+            if slot is not None:
+                e[edge_slots] = slot
+            if seam:
+                e.seam = True
+            if sharp:
+                e.smooth = False
+            if protect:
+                e[force_seam] = 1
+
+        def mark_box_edges(verts):
+            faces = {f for v in verts for f in v.link_faces}
+            # Find top and bottom faces (Z axis)
+            sorted_faces = sorted(list(faces), key=lambda f: abs(f.normal.z), reverse=True)
+            cap_faces = sorted_faces[:2]
+            cap_edges = {e for f in cap_faces for e in f.edges}
+            
+            for e in cap_edges:
+                mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
+                
+            side_edges = {e for v in verts for e in v.link_edges if e not in cap_edges and e.is_manifold}
+            
+            # Find the most occluded side edge for zipper (back side: max Y)
+            if side_edges:
+                zipper = max(side_edges, key=lambda e: (e.verts[0].co.y + e.verts[1].co.y))
+                for e in side_edges:
+                    if e == zipper:
+                        mark_edge(e, slot=3, seam=True, protect=True)
+                    else:
+                        mark_edge(e, slot=2, sharp=True)
+
         w = self.width
         h = self.height
         d = self.depth
@@ -144,6 +183,8 @@ class MASSA_OT_prim_con_cabinet(Massa_OT_Base):
             for v in r["verts"]:
                 for f in v.link_faces:
                     f[tag_layer] = tag
+            
+            mark_box_edges(r["verts"])
             return r["verts"]
 
         # 1. CARCASS (Tag 0)
@@ -202,9 +243,12 @@ class MASSA_OT_prim_con_cabinet(Massa_OT_Base):
                 make_box((sw, f_thick, sh), (cx, f_y, cz), 1)
 
                 # Handle (Tag 3)
-                if self.handle_type != 'NONE':
+                if self.handle_type == 'BAR':
                     hx, hy, hz = cx, f_y - 0.03, cz + sh/3
                     make_box((0.1, 0.02, 0.02), (hx, hy, hz), 3)
+                elif self.handle_type == 'KNOB':
+                    hx, hy, hz = cx, f_y - 0.03, cz + sh/3
+                    make_box((0.03, 0.03, 0.03), (hx, hy, hz), 3)
 
                 # Rails (Tag 4) - Internal Runners visual
                 if self.show_rails:
@@ -220,16 +264,10 @@ class MASSA_OT_prim_con_cabinet(Massa_OT_Base):
                     make_box((0.01, d - 0.05, 0.04), (lx, ry, rz), 4)
 
         # 4. ASSIGN
+        slot_meta = self.get_slot_meta() if hasattr(self, 'get_slot_meta') else {0:1, 1:1, 2:1, 3:1, 4:1, 5:1}
         for f in bm.faces:
-             if f[tag_layer] in self.get_slot_meta():
+             if f[tag_layer] in slot_meta:
                 f.material_index = f[tag_layer]
 
         # 5. EDGES
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
-        for e in bm.edges:
-            if e.is_boundary:
-                e[edge_slots] = 1
-            elif e.calc_face_angle(0) > 0.5:
-                e[edge_slots] = 2
+        # (Edges are now marked immediately on creation in make_box)

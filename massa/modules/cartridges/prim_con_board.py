@@ -206,46 +206,50 @@ class MASSA_OT_prim_con_board(Massa_OT_Base):
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
+        force_seam = bm.edges.layers.int.get("massa_force_seam")
+        if not force_seam:
+            force_seam = bm.edges.layers.int.new("massa_force_seam")
+
+        def mark_edge(e, slot=None, seam=False, sharp=False, protect=False):
+            if slot is not None:
+                e[edge_slots] = slot
+            if seam:
+                e.seam = True
+            if sharp:
+                e.smooth = False
+            if protect:
+                e[force_seam] = 1
+
         for e in bm.edges:
-            # A. PERIMETER/SEAM CHECK
-            is_seam = False
+            # Default: All edges are slot 2 (Sharp)
+            mark_edge(e, slot=2, sharp=True)
+
+            # A. PERIMETER/SEAM CHECK FOR END CAPS
+            is_cap_perimeter = False
             if e.is_boundary:
-                is_seam = True
+                is_cap_perimeter = True
             elif len(e.link_faces) == 2:
                 m1 = e.link_faces[0].material_index
                 m2 = e.link_faces[1].material_index
-                # Seam if material boundary (Caps are already material 1)
-                if m1 != m2:
-                    is_seam = True
+                if m1 != m2 and (m1 == 1 or m2 == 1):
+                    is_cap_perimeter = True
             
-            # B. LONGITUDINAL EDGES (1 Seam, 3 Sharp)
+            if is_cap_perimeter:
+                mark_edge(e, slot=1, seam=True, protect=True)
+                continue
+            
+            # B. SINGLE SEAM RUNNING DOWN THE Y AXIS
             vec = e.verts[1].co - e.verts[0].co
-            vec.normalize()
-            if abs(vec.y) > 0.9: # Y-Aligned
-                mid_x = (e.verts[0].co.x + e.verts[1].co.x) * 0.5
-                mid_z = (e.verts[0].co.z + e.verts[1].co.z) * 0.5
-                
-                # Check for Outer Corners
-                # If we are near the bounding box extent
-                is_corner = False
-                if abs(mid_x) > (self.width/2 * 0.9) and abs(mid_z) > (self.thickness/2 * 0.9):
-                     is_corner = True
-                     
-                if is_corner:
-                    # TOP-RIGHT (+X, +Z) -> SEAM
-                    if mid_x > 0 and mid_z > 0:
-                        is_seam = True
-                    # OTHERS -> SHARP
-                    else:
-                        e[edge_slots] = 2 # Sharp
-
-            if is_seam:
-                e.seam = True
-                e[edge_slots] = 1  # Slot 1: Perimeter
-
-            # C. CONTOUR/SHARP CHECK
-            elif e.calc_face_angle() > math.radians(40):
-                e[edge_slots] = 2  # Slot 2: Sharp
+            if vec.length > 0.0001:
+                vec.normalize()
+                if abs(vec.y) > 0.9: # Y-Aligned
+                    mid_x = (e.verts[0].co.x + e.verts[1].co.x) * 0.5
+                    mid_z = (e.verts[0].co.z + e.verts[1].co.z) * 0.5
+                    
+                    # Target the top-right corner (+X, +Z)
+                    if abs(mid_x) > (self.width/2 * 0.9) and abs(mid_z) > (self.thickness/2 * 0.9):
+                        if mid_x > 0 and mid_z > 0:
+                            mark_edge(e, seam=True, protect=True) # Remains slot 2, but gets seam
 
         # 9. REALTIME UNWRAP (Roundtrip)
         headless_classic_unwrap(bm)

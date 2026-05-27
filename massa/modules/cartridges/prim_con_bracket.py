@@ -90,6 +90,22 @@ class MASSA_OT_prim_con_bracket(Massa_OT_Base):
         if not edge_slots:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
+        force_seam = bm.edges.layers.int.get("massa_force_seam")
+        if not force_seam:
+            force_seam = bm.edges.layers.int.new("massa_force_seam")
+
+        def mark_edge(e, slot=None, seam=False, sharp=False, protect=False):
+            if slot is not None:
+                e[edge_slots] = slot
+            if seam:
+                e.seam = True
+            if sharp:
+                e.smooth = False
+            if protect:
+                e[force_seam] = 1
+                
+        center_planes = []
+
         # Resolution Safety
         seg = max(4, self.segments)
         if seg % 4 != 0:
@@ -185,7 +201,7 @@ class MASSA_OT_prim_con_bracket(Massa_OT_Base):
                         if abs(
                             (Vector((vm.x, vm.y, 0)) - Vector((cx, cy, 0))).length - r
                         ) < (r * 0.1):
-                            e[edge_slots] = 1
+                            mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
 
             # Spawn Socket PAIR
             create_socket_pair(bm, cx, cy, th, matrix)
@@ -214,8 +230,9 @@ class MASSA_OT_prim_con_bracket(Massa_OT_Base):
                 )
 
             for i in range(idx_bl, idx_br + 1):
-                box_bot.append(b_vecs[i])
-                bot_proj.append(proj_y(b_vecs[i], bot_y))
+                idx = i % segs
+                box_bot.append(b_vecs[idx])
+                bot_proj.append(proj_y(b_vecs[idx], bot_y))
             for k in range(len(box_bot) - 1):
                 create_quad_face(
                     bm, box_bot[k], bot_proj[k], bot_proj[k + 1], box_bot[k + 1]
@@ -286,6 +303,21 @@ class MASSA_OT_prim_con_bracket(Massa_OT_Base):
         def build_leg_segment(
             bm, matrix, length, width, h_rad, count, stacks, start_port=None
         ):
+            local_y_axis = (matrix @ Vector((0, 1, 0)) - matrix @ Vector((0, 0, 0))).normalized()
+            local_x_axis = (matrix @ Vector((1, 0, 0)) - matrix @ Vector((0, 0, 0))).normalized()
+            local_z_axis = (matrix @ Vector((0, 0, 1)) - matrix @ Vector((0, 0, 0))).normalized()
+            
+            for (cy, top, bot) in get_stack_centers_and_bounds(width, stacks):
+                pt = matrix @ Vector((0, cy, 0))
+                center_planes.append({
+                    "normal": local_y_axis,
+                    "pt": pt,
+                    "dir": local_x_axis,
+                    "extrude_dir": local_z_axis,
+                    "start": pt,
+                    "end": matrix @ Vector((length, cy, 0))
+                })
+
             current_port = start_port
             if current_port is None:
                 y_coords = get_port_y_coords(width, stacks, h_rad, seg)
@@ -398,6 +430,14 @@ class MASSA_OT_prim_con_bracket(Massa_OT_Base):
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
         # B. EXTRUDE (Exclude Sockets)
+        cap_layer = bm.faces.layers.int.get("cap_face")
+        if not cap_layer:
+            cap_layer = bm.faces.layers.int.new("cap_face")
+            
+        for f in bm.faces:
+            if f.material_index != 9:
+                f[cap_layer] = 1
+                
         faces_to_extrude = [f for f in bm.faces if f.material_index != 9]
         if faces_to_extrude:
             ret = bmesh.ops.extrude_face_region(bm, geom=faces_to_extrude)
@@ -422,15 +462,55 @@ class MASSA_OT_prim_con_bracket(Massa_OT_Base):
         # 7. EDGE DISCIPLINE
         # ----------------------------------------------------------------------
         for e in bm.edges:
-            if e[edge_slots] == 1:
-                continue
+            # A. Sockets
             if any(f.material_index == 9 for f in e.link_faces):
-                continue
-            if len(e.link_faces) != 2:
+                if e.is_boundary or len(e.link_faces) < 2:
+                    mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
                 continue
 
-            ang = e.calc_face_angle()
-            if ang > math.radians(60):
-                e[edge_slots] = 2
-            if ang > math.radians(89):
-                e[edge_slots] = 1
+            # B. Centerlines
+            is_center = False
+            mid = (e.verts[0].co + e.verts[1].co) / 2
+            edge_dir = (e.verts[1].co - e.verts[0].co).normalized()
+            
+            for plane in center_planes:
+                dist = abs((mid - plane["pt"]).dot(plane["normal"]))
+                if dist < 0.0001:
+                    proj_x = (mid - plane["start"]).dot(plane["dir"])
+                    if -0.001 <= proj_x <= (plane["end"] - plane["start"]).length + 0.001:
+                        dot_x = abs(edge_dir.dot(plane["dir"]))
+                        dot_extrude = abs(edge_dir.dot(plane["extrude_dir"]))
+                        if dot_x > 0.99 or dot_extrude > 0.99:
+                            is_center = True
+                            break
+
+            # C. Apply Roles
+            if e[edge_slots] == 1:
+                # Hole caps (marked during generation)
+                mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
+            elif is_center:
+                # Centerline seams
+                mark_edge(e, slot=3, seam=True, protect=True)
+
+            # D. Hard Edges & Seams
+            if len(e.link_faces) == 2:
+                try:
+                    ang = e.calc_face_angle(0.0)
+                except ValueError:
+                    ang = 0.0
+                
+                if ang > math.radians(60):
+                    e.smooth = False
+                    
+                    # The user requested slot #2 for convex outer edges
+                    if e[edge_slots] not in (1, 3):
+                        e[edge_slots] = 2
+                        
+                    # To unwrap correctly without 3D corners, the top/bottom 
+                    # perimeter must be seams.
+                    c1 = e.link_faces[0][cap_layer]
+                    c2 = e.link_faces[1][cap_layer]
+                    
+                    if c1 != c2: # One is a cap, one is a side
+                        e.seam = True
+                        e[force_seam] = 1
