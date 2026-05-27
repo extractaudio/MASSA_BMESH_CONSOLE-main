@@ -21,5 +21,5 @@ def register(mcp: FastMCP) -> None:
         wanted = filter_tag.strip().lower()
         demos = [demo_info(path) for path in sorted(DEMOS_DIR.glob("*.py")) if path.name != "__init__.py"]
         if wanted:
-            demos = [demo for demo in demos if wanted in demo["tags"]]
+            demos = [demo for demo in demos if isinstance(tags := demo.get("tags"), list) and wanted in tags]
         return {"status": "ok", "filter_tag": wanted or None, "count": len(demos), "demos": demos}

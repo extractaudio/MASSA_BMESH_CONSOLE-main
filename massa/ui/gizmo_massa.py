@@ -40,6 +40,19 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
         self.gizmo_resurrect = gz_res
         self._resurrect_op_id_cache = None
 
+        # 1.5 UV Preview Button (Middle)
+        gz_uv = self.gizmos.new("GIZMO_GT_button_2d")
+        gz_uv.icon = 'GROUP_UVS'
+        
+        # Blue
+        gz_uv.color = 0.1, 0.5, 0.8
+        gz_uv.color_highlight = 0.2, 0.7, 1.0
+        gz_uv.alpha = 0.8
+        gz_uv.scale_basis = 0.15
+        
+        gz_uv.target_set_operator("massa.uv_preview")
+        self.gizmo_uv_preview = gz_uv
+
         # 2. Condemnation Button (Bottom)
         gz_con = self.gizmos.new("GIZMO_GT_button_2d")
         gz_con.icon = 'MATFLUID'
@@ -62,7 +75,7 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
         """
         try:
             # Validate Gizmos exist
-            if not hasattr(self, "gizmo_condemn") or not hasattr(self, "gizmo_resurrect"):
+            if not hasattr(self, "gizmo_condemn") or not hasattr(self, "gizmo_resurrect") or not hasattr(self, "gizmo_uv_preview"):
                 return
     
             obj = context.active_object
@@ -106,6 +119,9 @@ class MASSA_GGT_GizmoGroup(GizmoGroup):
             # Set Positions
             # Condemn (Red) -> Lower
             self.gizmo_condemn.matrix_basis = Matrix.Translation((pos_x, pos_y, top_z + 0.5))
+            
+            # UV Preview (Blue) -> Middle
+            self.gizmo_uv_preview.matrix_basis = Matrix.Translation((pos_x, pos_y, top_z + 0.75))
             
             # Resurrect (Yellow) -> Upper
             self.gizmo_resurrect.matrix_basis = Matrix.Translation((pos_x, pos_y, top_z + 1.0))

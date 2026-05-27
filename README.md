@@ -905,6 +905,20 @@ Audit output is JSON with a `"flags"` list. `CRITICAL_*` flags **must** be fixed
    - Distorted? → Fix seam placement or switch UV strategy per slot
    - Scale off? → Adjust `uv_scale_i` in the SLOTS tab
 
+### UV Preview System
+
+Massa objects carry their UV maps on the base mesh, but GeoNodes modifiers (SDF Fuse, Viz Overlay) and the Bevel modifier can obscure them in Blender's UV Editor.
+
+**UV Preview** (`massa.uv_preview`): Temporarily disables interfering modifiers and enters Edit Mode so the UV Editor shows the pipeline-generated UVs. Use **Exit UV Preview** (`massa.uv_preview_exit`) to restore modifiers and return to Object Mode.
+
+**Finalize & Inspect** (`massa.finalize_and_inspect`): Permanently condemns the object (applies modifiers, strips metadata), re-unwraps if needed, and switches to the UV Editing workspace.
+
+| Symptom | Cause | Fix |
+|:---|:---|:---|
+| UV Editor blank for Massa object | Object is in Object Mode, or GeoNodes modifiers active | Use UV Preview button, or enter Edit Mode manually |
+| UVs visible after Condemn but not before | SDF Fuse modifier destroys UVs in evaluated mesh | UV Preview disables Fuse temporarily |
+| UV Preview shows only partial islands | Some slots use `SKIP` without manual UVs | Enable `Auto Smart UV` in UVs tab, or write manual UVs in `build_shape` |
+
 ### Common Issues Quick-Reference
 
 | Symptom | Likely Cause | Fix |

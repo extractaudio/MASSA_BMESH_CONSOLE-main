@@ -1,5 +1,6 @@
 import bpy
 import bmesh
+from .massa_uv_preview import _activate_uv_workspace
 
 class MASSA_OT_Condemn(bpy.types.Operator):
     """
@@ -93,27 +94,42 @@ class MASSA_OT_Finalize_And_Inspect(bpy.types.Operator):
         # Let's check for seams.
 
         bm = bmesh.from_edit_mesh(obj.data)
-        has_seams = False
-        for e in bm.edges:
-            if e.seam:
-                has_seams = True
-                break
-
-        # Trigger UV Logic
+        has_seams = any(e.seam for e in bm.edges)
+        has_uv_data = False
+        uv_layer = bm.loops.layers.uv.active
+        if uv_layer:
+            for f in bm.faces:
+                for l in f.loops:
+                    if l[uv_layer].uv.length > 0.001:
+                        has_uv_data = True
+                        break
+                if has_uv_data:
+                    break
+        
         try:
-            if has_seams:
-                bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
-            else:
+            if not has_uv_data:
+                # No UV data at all — force smart project
                 bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.01)
-
+            elif has_seams and not has_uv_data:
+                # Seams exist but no UV data — unwrap using seams
+                bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
+            
             # Pack Everything
             bpy.ops.uv.pack_islands(margin=0.01, rotate=True, scale=True)
-
+            
+            bmesh.update_edit_mesh(obj.data)
         except Exception as e:
-            self.report({'WARNING'}, f"Auto-Unwrap failed: {e}")
+            self.report({'WARNING'}, f"UV Error: {e}")
 
-        # 4. Switch Area to UV Editor (Optional but helpful)
-        # We can't easily change area type without context, but we can report success.
+        # 4. Try to switch to UV Editing workspace
+        _activate_uv_workspace(context)
+        
+        # 5. Enable UV Sync in any visible UV Editor
+        for area in context.screen.areas:
+            if area.type == 'IMAGE_EDITOR':
+                for space in area.spaces:
+                    if hasattr(space, 'uv_editor') and space.uv_editor:
+                        space.uv_editor.use_uv_select_sync = True
 
-        self.report({'INFO'}, "Object Finalized & Unwrapped. Ready for UV Audit.")
+        self.report({'INFO'}, "Object Finalized & Ready for UV Audit.")
         return {'FINISHED'}

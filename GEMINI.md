@@ -53,3 +53,8 @@ All new geometry cartridges must adhere strictly to the rules laid out in `CARTR
 ### Hardcoded Strings & Integration
 - Never alter hardcoded string inputs for "Massa_SDF_Fuse" without refactoring the Geometry Nodes tree.
 - Enforce exact string matching for vertex color layers (`Wear`, `Thick`, `Grav`) and "UVMap" renaming.
+
+### UV Preview System
+- `massa.uv_preview` / `massa.uv_preview_exit` operators provide non-destructive UV inspection by temporarily disabling GeoNodes modifiers.
+- The pipeline includes a UV safety net (`_apply_emergency_box_map`) ensuring no object has entirely empty UVs.
+- UV Preview stores modifier states in `obj["MASSA_UV_PREVIEW_MODS"]` — do NOT delete this key manually while in preview mode.

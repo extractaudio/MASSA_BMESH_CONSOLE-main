@@ -5,7 +5,7 @@ import importlib
 from .utils import mat_utils
 from .modules import massa_console  # 1. BRAIN
 from .modules import massa_engine  # 2. CORE
-from .operators import massa_base, massa_tools, massa_console_op, massa_point_tool, massa_shooter  # 3. LOGIC
+from .operators import massa_base, massa_tools, massa_console_op, massa_point_tool, massa_shooter, massa_uv_preview  # 3. LOGIC
 from .modules import cartridges  # 4. CONTENT
 from .modules import advanced_analytics # 4.5 ANALYTICS
 from .ui import ui_massa_panel, ui_massa_pie, gizmo_massa  # 5. INTERFACE
@@ -45,6 +45,7 @@ if "massa_console" in locals():
         importlib.reload(massa_console_op)
         importlib.reload(massa_point_tool)
         importlib.reload(massa_shooter)
+        importlib.reload(massa_uv_preview)
 
         # 4. CONTENT & UI
         # Reload individual cartridge modules before re-discovery
@@ -84,6 +85,8 @@ def register():
     bpy.utils.register_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.register_class(massa_shooter.MASSA_OT_ShootDispatcher)
     bpy.utils.register_class(massa_shooter.MASSA_OT_SpawnTarget)
+    bpy.utils.register_class(massa_uv_preview.MASSA_OT_UV_Preview)
+    bpy.utils.register_class(massa_uv_preview.MASSA_OT_UV_Preview_Exit)
 
     # 3. Register Cartridges
     cartridges.register()
@@ -133,6 +136,8 @@ def unregister():
     # 3. Unregister Operators
     bpy.utils.unregister_class(massa_shooter.MASSA_OT_SpawnTarget)
     bpy.utils.unregister_class(massa_shooter.MASSA_OT_ShootDispatcher)
+    bpy.utils.unregister_class(massa_uv_preview.MASSA_OT_UV_Preview_Exit)
+    bpy.utils.unregister_class(massa_uv_preview.MASSA_OT_UV_Preview)
     bpy.utils.unregister_class(massa_point_tool.MASSA_OT_PickCoordinate)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Finalize_And_Inspect)
     bpy.utils.unregister_class(massa_tools.MASSA_OT_Condemn)

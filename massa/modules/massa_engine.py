@@ -8,6 +8,20 @@ import traceback
 MASSA_PARAMS_VERSION = 1
 
 
+def _apply_emergency_box_map(faces, uv_layer):
+    """Emergency box-map for faces with zero UV data."""
+    for f in faces:
+        nx, ny, nz = abs(f.normal.x), abs(f.normal.y), abs(f.normal.z)
+        for l in f.loops:
+            co = l.vert.co
+            if nx > ny and nx > nz:
+                u, v = co.y, co.z
+            elif ny > nx and ny > nz:
+                u, v = co.x, co.z
+            else:
+                u, v = co.x, co.y
+            l[uv_layer].uv = (u, v)
+
 def _report_phase_error(op, phase, error, detail=None):
     msg = f"{phase} failed: {type(error).__name__}: {error}"
     if detail:
@@ -607,6 +621,34 @@ def _generate_output(op, context, bm, socket_data, manifest):
         except Exception as e:
             print(f"Auto Pack Error: {e}")
         bpy.ops.object.mode_set(mode="OBJECT")
+
+    # [ARCHITECT NEW] UV Safety Net — ensure no face has all-zero UVs
+    # This guarantees UV Preview always shows *something* meaningful
+    if allow_unwrap:
+        try:
+            bpy.ops.object.mode_set(mode='EDIT')
+            bm_check = bmesh.from_edit_mesh(obj.data)
+            uv_layer = bm_check.loops.layers.uv.active
+            if uv_layer:
+                zero_faces = []
+                for f in bm_check.faces:
+                    all_zero = all(l[uv_layer].uv.length < 0.0001 for l in f.loops)
+                    if all_zero:
+                        zero_faces.append(f)
+                
+                if zero_faces:
+                    # Apply emergency box map to faces with zero UVs
+                    _apply_emergency_box_map(zero_faces, uv_layer)
+                    bmesh.update_edit_mesh(obj.data)
+            
+            bpy.ops.object.mode_set(mode='OBJECT')
+        except Exception as e:
+            print(f"[MASSA] UV safety net: {e}")
+            try:
+                bpy.ops.object.mode_set(mode='OBJECT')
+            except Exception:
+                pass
+
 
     massa_sockets.spawn_socket_objects(
         obj, socket_data, manifest, op.global_scale, op.ui_use_rot, op.rotation

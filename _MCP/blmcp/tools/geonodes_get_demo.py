@@ -12,6 +12,8 @@ from mcp.types import ToolAnnotations
 __all__ = ("register",)
 
 
+from typing import cast
+
 def register(mcp: FastMCP) -> None:
     @mcp.tool(annotations=ToolAnnotations(title="Geonodes Get Demo", readOnlyHint=True))
     def geonodes_get_demo(demo_name: str) -> dict[str, object]:
@@ -21,10 +23,11 @@ def register(mcp: FastMCP) -> None:
             return error(f"Geonodes demo '{demo_name}' was not found.")
         source = read_text(path)
         info = demo_info(path)
+        tags = cast(list[str], info.get("tags", []))
         return {
             "status": "ok",
             "demo": info,
             "module_docstring": module_docstring(source),
             "source": source,
-            "related_demos": related_demos(info["tags"], path.stem),
+            "related_demos": related_demos(tags, path.stem),
         }

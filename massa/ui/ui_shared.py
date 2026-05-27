@@ -443,6 +443,10 @@ def draw_uvs_tab(layout, owner, slot_names, stats):
 
     # [ARCHITECT NEW] Finalize & Audit
     box.separator()
+    row = box.row(align=True)
+    row.operator("massa.uv_preview", text="UV Preview", icon="UV")
+    row.operator("massa.uv_preview_exit", text="", icon="PANEL_CLOSE")
+    box.separator(factor=0.5)
     box.operator("massa.finalize_and_inspect", text="Finalize & Audit UVs", icon="CHECKMARK")
 
     layout.separator()

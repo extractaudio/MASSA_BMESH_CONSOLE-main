@@ -240,3 +240,14 @@ Located in [`massa/modules/debugging_system/`](massa/modules/debugging_system/).
 - **`visual_inspector.py`** — renders cartridge output to image for VISUAL_DIFF / RENDER modes
 
 The debugging system is excluded from the packaged addon ZIP.
+
+---
+
+### UV Preview System
+
+**File:** `operators/massa_uv_preview.py`
+**Operators:** `MASSA_OT_UV_Preview` (`massa.uv_preview`), `MASSA_OT_UV_Preview_Exit` (`massa.uv_preview_exit`)
+
+Non-destructive UV inspection. Temporarily disables interfering modifiers (SDF Fuse, Viz Overlay, Bevel) and enters Edit Mode so the UV Editor shows pipeline-generated UVs. Modifier states are stored in `obj["MASSA_UV_PREVIEW_MODS"]` and restored on exit.
+
+The pipeline's `_generate_output()` includes a UV safety net that applies emergency box-mapping to any faces with all-zero UV coordinates, ensuring UV Preview always shows meaningful data.

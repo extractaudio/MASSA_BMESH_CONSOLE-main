@@ -36,6 +36,9 @@ class MASSA_OT_ArchStairsIndustrial(Massa_OT_Base):
     channel_width: FloatProperty(name="Channel Width", default=0.05, min=0.01)
     channel_height: FloatProperty(name="Channel Height", default=0.25, min=0.1)
     tread_thick: FloatProperty(name="Tread Thickness", default=0.05, min=0.01)
+    use_risers: BoolProperty(name="Solid Risers", default=True)
+    use_rails: BoolProperty(name="Handrails", default=True)
+    rail_height: FloatProperty(name="Rail Height", default=1.0, min=0.5)
 
     def get_slot_meta(self):
         return {
@@ -61,6 +64,10 @@ class MASSA_OT_ArchStairsIndustrial(Massa_OT_Base):
         col.prop(self, "channel_width")
         col.prop(self, "channel_height")
         col.prop(self, "tread_thick")
+        col.prop(self, "use_risers")
+        col.prop(self, "use_rails")
+        if self.use_rails:
+            col.prop(self, "rail_height")
 
         # Info
         rise = self.stair_height / max(1, self.step_count)
@@ -171,7 +178,56 @@ class MASSA_OT_ArchStairsIndustrial(Massa_OT_Base):
             builder.select_faces_by_normal(Vector((0, 1, 0)), tolerance=0.1) \
                    .tag_slot(3).select_boundary().tag_edge_role(1)
 
-        # 3. CLEANUP & SOCKETS
+            # Risers
+            if self.use_risers and i < count - 1:
+                builder.create_box(tread_w, tt, rise) \
+                       .translate(0, y_pos + run/2, z_pos + rise/2) \
+                       .tag_slot(0)
+            elif self.use_risers and i == count - 1:
+                # Top riser? If it connects to a landing, maybe. But usually landing handles it.
+                pass
+            if self.use_risers and i == 0:
+                # Bottom riser
+                builder.create_box(tread_w, tt, rise) \
+                       .translate(0, y_pos - run/2, z_pos - rise/2) \
+                       .tag_slot(0)
+
+        # 3. RAILS
+        if getattr(self, "use_rails", False):
+            rail_rad = 0.03
+            rail_h = self.rail_height
+            rot_mat = Matrix.Rotation(math.radians(90), 4, 'X')
+            pitch_mat = Matrix.Rotation(pitch, 4, 'X')
+            
+            for side in [-1, 1]:
+                cx = side * (w/2 - cw/2)
+                
+                # Handrail pipe
+                builder.create_cylinder(radius=rail_rad, depth=stair_len, segments=8) \
+                       .transform(rot_mat) \
+                       .transform(pitch_mat) \
+                       .translate(cx, l/2, h/2 + rail_h) \
+                       .tag_slot(0)
+                
+                # Mid pipe
+                builder.create_cylinder(radius=rail_rad*0.6, depth=stair_len, segments=8) \
+                       .transform(rot_mat) \
+                       .transform(pitch_mat) \
+                       .translate(cx, l/2, h/2 + rail_h/2) \
+                       .tag_slot(0)
+                
+                # Vertical Posts
+                num_posts = max(3, int(l / 0.8))
+                for p in range(num_posts):
+                    t = p / (num_posts - 1)
+                    py = t * l
+                    pz = t * h
+                    post_h = rail_h + ch/2
+                    builder.create_cylinder(radius=rail_rad*0.8, depth=post_h, segments=8) \
+                           .translate(cx, py, pz + post_h/2 - ch/2) \
+                           .tag_slot(0)
+
+        # 4. CLEANUP & SOCKETS
         builder.clean()
 
         # Anchors

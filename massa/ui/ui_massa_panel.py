@@ -78,6 +78,7 @@ class MASSA_PT_Main(bpy.types.Panel):
         # Condemn — unchanged (works via standard operator dispatch)
         col.separator(factor=0.5)
         col.operator("massa.condemn", text="Condemn (Finalize)", icon="CHECKMARK")
+        col.operator("massa.uv_preview", text="UV Preview", icon="UV")
         layout.separator()
 
         if console.massa_op_mode == 'ACTIVE':
