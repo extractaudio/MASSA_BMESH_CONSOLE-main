@@ -69,8 +69,14 @@ class MASSA_OT_UV_Preview(bpy.types.Operator):
                 for space in area.spaces:
                     if hasattr(space, 'uv_editor') and space.uv_editor:
                         space.uv_editor.use_uv_select_sync = True
+                        
+        # 6. Automatically unwrap the mesh
+        try:
+            bpy.ops.uv.unwrap()
+        except RuntimeError as e:
+            self.report({'WARNING'}, f"Auto-unwrap failed: {str(e)}")
         
-        self.report({'INFO'}, "UV Preview active. UVs visible in UV Editor.")
+        self.report({'INFO'}, "UV Preview active. UVs unwrapped and visible.")
         return {'FINISHED'}
 
 

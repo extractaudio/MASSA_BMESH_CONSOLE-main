@@ -24,7 +24,7 @@ def register(mcp: FastMCP) -> None:
     def massa_assign_face_material_slot_to_selection(
         slot_index: int,
         object_name: str = "",
-    ) -> dict[str, object]:
+    ) -> str:
         """
         Set material_index on every selected face. This is what drives
         Massa's slot manifest (UV strategy, physics material, socket flag)
@@ -39,15 +39,42 @@ def register(mcp: FastMCP) -> None:
         slot_index  — 0-based material slot index on the mesh
         object_name — target object; uses the active edit object when empty
 
-        Returns the list of affected face indices and the material name
-        currently assigned to that slot (if any).
+        Returns a formatted status string including the procedural cartridge snippet.
         """
         if int(slot_index) < 0:
-            return {"status": "error", "message": "slot_index must be >= 0"}
+            return "Error: slot_index must be >= 0"
 
         p = Params(
             slot_index=int(slot_index),
             object_name=str(object_name),
         )
+        
+        # 1. Execute the tool code in Blender
         code = toolcode_format_call(_TOOL_CALL, p)
-        return send_code(code, strict_json=True)
+        result = send_code(code, strict_json=True)
+        
+        # 2. Validate response
+        if not isinstance(result, dict):
+            return f"Error: Unexpected response format from Blender: {result}"
+            
+        if result.get("status") == "error":
+            return f"Error executing in Blender: {result.get('message', 'Unknown error')}"
+
+        # 3. Format standard output
+        faces_affected = result.get("faces_affected", [])
+        count = result.get("count", len(faces_affected))
+        material_name = result.get("material_name")
+        mat_info = f" (Material: '{material_name}')" if material_name else ""
+        
+        response_text = (
+            f"Successfully assigned {count} faces "
+            f"to Material Slot {result.get('slot_index')}{mat_info}."
+        )
+
+        # 4. Inject the Procedural Cartridge Snippet for the Agent
+        snippet = result.get("cartridge_snippet")
+        if snippet:
+            response_text += f"\n\n=== PROCEDURAL CARTRIDGE SNIPPET ===\n```python\n{snippet}\n```\n"
+            response_text += "\nAgent Instruction: You may now inject this snippet into the cartridge's build_shape(bm) function to proceduralize this action."
+
+        return response_text

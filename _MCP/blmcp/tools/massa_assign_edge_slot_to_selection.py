@@ -26,7 +26,7 @@ def register(mcp: FastMCP) -> None:
         slot: int,
         action: str = "SEAM",
         object_name: str = "",
-    ) -> dict[str, object]:
+    ) -> str:
         """
         Write a Massa edge-slot number to every currently selected edge,
         and optionally apply the geometric action immediately.
@@ -55,20 +55,44 @@ def register(mcp: FastMCP) -> None:
                             seam / sharp / crease / bevel attributes
         object_name — target object; uses the active edit object when empty
 
-        Returns the list of affected edge indices.
+        Returns a formatted status string including the procedural cartridge snippet.
         """
         if action not in _EDGE_SLOT_ACTIONS:
-            return {
-                "status": "error",
-                "message": "action must be one of {}".format(list(_EDGE_SLOT_ACTIONS)),
-            }
+            return f"Error: action must be one of {list(_EDGE_SLOT_ACTIONS)}"
+            
         if int(slot) < 0 or int(slot) > 5:
-            return {"status": "error", "message": "slot must be in 0-5 (0 clears)"}
+            return "Error: slot must be in 0-5 (0 clears)"
 
         p = Params(
             slot=int(slot),
             action=str(action),
             object_name=str(object_name),
         )
+        
+        # 1. Execute the tool code in Blender
         code = toolcode_format_call(_TOOL_CALL, p)
-        return send_code(code, strict_json=True)
+        result = send_code(code, strict_json=True)
+        
+        # 2. Validate response
+        if not isinstance(result, dict):
+            return f"Error: Unexpected response format from Blender: {result}"
+            
+        if result.get("status") == "error":
+            return f"Error executing in Blender: {result.get('message', 'Unknown error')}"
+
+        # 3. Format standard output
+        edges_affected = result.get("edges_affected", [])
+        count = result.get("count", len(edges_affected))
+        
+        response_text = (
+            f"Successfully assigned {count} edges "
+            f"to Slot {result.get('slot')} with action '{result.get('action')}'."
+        )
+
+        # 4. Inject the Procedural Cartridge Snippet for the Agent
+        snippet = result.get("cartridge_snippet")
+        if snippet:
+            response_text += f"\n\n=== PROCEDURAL CARTRIDGE SNIPPET ===\n```python\n{snippet}\n```\n"
+            response_text += "\nAgent Instruction: You may now inject this snippet into the cartridge's build_shape(bm) function to proceduralize this action."
+
+        return response_text

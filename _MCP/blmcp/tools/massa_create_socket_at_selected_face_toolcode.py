@@ -1,15 +1,5 @@
-# SPDX-FileCopyrightText: 2026 Blender Authors
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
-
-__all__ = (
-    "Params",
-    "Result",
-    "main",
-)
-
+__all__ = ("Params", "Result", "main",)
 from typing import NamedTuple
-
 
 class Params(NamedTuple):
     socket_name: str
@@ -18,91 +8,84 @@ class Params(NamedTuple):
     align_to_normal: bool
     display_size: float
 
-
 class Result(NamedTuple):
     status: str
     object: str | None = None
     sockets_created: list[dict[str, object]] | None = None
     count: int | None = None
+    cartridge_snippet: str | None = None
     message: str | None = None
-
 
 def main(params: Params) -> Result:
     import bpy
     import bmesh
     from mathutils import Vector, Matrix
+    import textwrap
 
     obj_name = params.object_name
-    socket_name = params.socket_name
-    parent_to_mesh = params.parent_to_mesh
-    align_to_normal = params.align_to_normal
-    display_size = params.display_size
-
-    if obj_name:
-        obj = bpy.data.objects.get(obj_name)
-    else:
-        obj = bpy.context.edit_object or bpy.context.active_object
-
-    if obj is None or obj.type != 'MESH':
-        return Result(status="error", message="No mesh object available.")
-    elif obj.mode != 'EDIT':
-        return Result(
-            status="error",
-            message="Object '" + obj.name + "' must be in Edit Mode with face(s) selected.",
-        )
+    obj = bpy.data.objects.get(obj_name) if obj_name else (bpy.context.edit_object or bpy.context.active_object)
+    
+    if not obj or obj.mode != 'EDIT':
+        return Result(status="error", message="Object must be in Edit mode.")
 
     bm = bmesh.from_edit_mesh(obj.data)
     bm.faces.ensure_lookup_table()
-
-    mw = obj.matrix_world
-    mw_rs = mw.to_3x3()
-
-    selected = [f for f in bm.faces if f.select]
-    if not selected:
-        return Result(status="error", message="No faces are selected. Switch to face-select mode.")
     
-    created = []
-    multi = (len(selected) > 1)
-    for i, f in enumerate(selected):
-        center_world = mw @ f.calc_center_median()
+    target_centers = []
+    created_sockets = []
 
-        if align_to_normal:
-            z = (mw_rs @ f.normal)
-            if z.length == 0:
-                z = Vector((0.0, 0.0, 1.0))
-            else:
-                z = z.normalized()
-            up = Vector((0.0, 0.0, 1.0)) if abs(z.z) < 0.95 else Vector((1.0, 0.0, 0.0))
-            x = up.cross(z).normalized()
-            y = z.cross(x).normalized()
-            rot_mat = Matrix((x, y, z)).transposed().to_4x4()
-        else:
-            rot_mat = Matrix.Identity(4)
+    bpy.ops.object.mode_set(mode='OBJECT')
 
-        name = (socket_name + ("_{:02d}".format(i + 1) if multi else ""))
-        empty = bpy.data.objects.new(name, None)
-        empty.empty_display_type = 'ARROWS'
-        empty.empty_display_size = display_size
-        bpy.context.collection.objects.link(empty)
+    for f in bm.faces:
+        if f.select:
+            c = f.calc_center_median()
+            n = f.normal
+            target_centers.append([round(c.x, 5), round(c.y, 5), round(c.z, 5)])
+            
+            empty = bpy.data.objects.new(f"SOCKET_{params.socket_name}", None)
+            empty.empty_display_size = params.display_size
+            empty.empty_display_type = 'ARROWS'
+            bpy.context.collection.objects.link(empty)
+            
+            world_loc = obj.matrix_world @ c
+            empty.location = world_loc
+            
+            if params.align_to_normal:
+                z_axis = (obj.matrix_world.to_3x3() @ n).normalized()
+                up = Vector((0, 0, 1)) if abs(z_axis.z) < 0.99 else Vector((0, 1, 0))
+                x_axis = up.cross(z_axis).normalized()
+                y_axis = z_axis.cross(x_axis).normalized()
+                rot_mat = Matrix((x_axis, y_axis, z_axis)).transposed()
+                empty.rotation_euler = rot_mat.to_euler()
 
-        world_mat = Matrix.Translation(center_world) @ rot_mat
-        if parent_to_mesh:
-            empty.parent = obj
-            empty.matrix_world = world_mat
-        else:
-            empty.matrix_world = world_mat
+            if params.parent_to_mesh:
+                empty.parent = obj
+                empty.matrix_parent_inverse = obj.matrix_world.inverted()
+                
+            created_sockets.append({"name": empty.name, "location": list(empty.location)})
 
-        created.append({
-            "name": empty.name,
-            "face_index": f.index,
-            "location_world": [round(c, 6) for c in empty.matrix_world.translation],
-            "rotation_euler": [round(c, 6) for c in empty.rotation_euler],
-            "parent": (obj.name if parent_to_mesh else None),
-        })
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    if not target_centers:
+        return Result(status="error", message="No faces selected for socket creation.")
+
+    snippet = textwrap.dedent(f"""\
+        # --- PROCEDURAL SOCKET TAGGING ({params.socket_name}) ---
+        # Note: Set socket_slot_index to the designated 'sock': True slot
+        import mathutils
+        socket_target_centers = {target_centers}
+        socket_slot_index = 3 
+        
+        for f in bm.faces:
+            c = f.calc_center_median()
+            for tc in socket_target_centers:
+                if (c - mathutils.Vector(tc)).length_squared < 0.000001:
+                    f.material_index = socket_slot_index
+                    break
+        # --------------------------------------------------------
+    """)
 
     return Result(
-        status="ok",
-        object=obj.name,
-        sockets_created=created,
-        count=len(created),
+        status="ok", object=obj.name, sockets_created=created_sockets,
+        count=len(target_centers), cartridge_snippet=snippet
     )

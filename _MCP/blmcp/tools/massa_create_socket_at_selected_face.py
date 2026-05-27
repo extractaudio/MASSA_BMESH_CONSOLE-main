@@ -27,7 +27,7 @@ def register(mcp: FastMCP) -> None:
         parent_to_mesh: bool = True,
         align_to_normal: bool = True,
         display_size: float = 0.2,
-    ) -> dict[str, object]:
+    ) -> str:
         """
         Create a Blender Empty at the centre of every selected face,
         oriented so its local +Z follows the face normal, and (by default)
@@ -47,8 +47,7 @@ def register(mcp: FastMCP) -> None:
                            the world-space face normal
         display_size     — Empty arrow display size in Blender units
 
-        Returns one entry per socket with its name, source face index,
-        world location, and rotation.
+        Returns a formatted status string including the procedural cartridge snippet.
         """
         p = Params(
             socket_name=str(socket_name),
@@ -57,5 +56,30 @@ def register(mcp: FastMCP) -> None:
             align_to_normal=bool(align_to_normal),
             display_size=float(display_size),
         )
+        
+        # 1. Execute the tool code in Blender
         code = toolcode_format_call(_TOOL_CALL, p)
-        return send_code(code, strict_json=True)
+        result = send_code(code, strict_json=True)
+        
+        # 2. Validate response
+        if not isinstance(result, dict):
+            return f"Error: Unexpected response format from Blender: {result}"
+            
+        if result.get("status") == "error":
+            return f"Error executing in Blender: {result.get('message', 'Unknown error')}"
+
+        # 3. Format standard output
+        count = result.get("count", 0)
+        
+        response_text = (
+            f"Successfully created {count} live visual sockets "
+            f"named '{socket_name}'."
+        )
+
+        # 4. Inject the Procedural Cartridge Snippet for the Agent
+        snippet = result.get("cartridge_snippet")
+        if snippet:
+            response_text += f"\n\n=== PROCEDURAL CARTRIDGE SNIPPET ===\n```python\n{snippet}\n```\n"
+            response_text += "\nAgent Instruction: Insert this snippet to ensure the engine dynamically spawns these sockets upon cartridge load. Remember to verify the target slot has 'sock': True in CARTRIDGE_META."
+
+        return response_text

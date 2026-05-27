@@ -68,6 +68,22 @@ class MASSA_OT_PrimTank(Massa_OT_Base):
         # Start with Cube sized 2.0 (Radius 1.0 approx)
         bmesh.ops.create_cube(bm, size=2.0)
 
+        # Mark cap seams (edge slot 3) to create square boundaries around the poles
+        edge_slots_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS") or bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        force_seam_layer = bm.edges.layers.int.get("massa_force_seam") or bm.edges.layers.int.new("massa_force_seam")
+        for e in bm.edges:
+            v1, v2 = e.verts
+            # Top and bottom edges (forming the square caps)
+            if abs(v1.co.y - v2.co.y) < 0.001 and abs(v1.co.y) > 0.999:
+                e[edge_slots_layer] = 3
+                e[force_seam_layer] = 1
+                e.seam = True
+            # Vertical edges (connecting the cap squares to the equator/capsule boundary)
+            elif abs(v1.co.x - v2.co.x) < 0.001 and abs(v1.co.z - v2.co.z) < 0.001:
+                e[edge_slots_layer] = 3
+                e[force_seam_layer] = 1
+                e.seam = True
+
         # Subdivide (Catmull-Clark) to create sphere topology
         bmesh.ops.subdivide_edges(
             bm,
