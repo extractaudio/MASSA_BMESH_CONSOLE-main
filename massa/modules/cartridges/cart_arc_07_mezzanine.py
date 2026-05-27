@@ -34,13 +34,10 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
         default="STEEL_BEAM"
     )
     
-    support_shape: EnumProperty(
-        name="Support Shape",
-        items=[
-            ("VERTICAL", "Vertical", "Vertical supports"),
-            ("ANGLED", "Angled", "Angled supports"),
-        ],
-        default="VERTICAL"
+    angled_supports: BoolProperty(
+        name="Angled Supports",
+        default=False,
+        description="Splay column bases outward for an angled/leaning support look"
     )
     
     structural_supports: BoolProperty(
@@ -82,7 +79,7 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
 
     def draw_shape_ui(self, layout):
         layout.prop(self, "style")
-        layout.row().prop(self, "support_shape", expand=True)
+        layout.prop(self, "angled_supports")
         layout.prop(self, "structural_supports")
 
         box = layout.box()
@@ -125,156 +122,99 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
         cs = self.col_spacing
         oh = self.overhang
 
-        # Calculate Grid
-        # Structure Area = (w - 2*oh) x (l - 2*oh) ?
-        # Or Overhang adds to L/W?
-        # Usually params define total deck size, overhang defines how far columns are inset.
-
-        struct_w = max(w - 2*oh + cw, cw)
-        struct_l = max(l - 2*oh + cw, cw)
-
-        # Determine number of bays
-        nx = max(1, int(struct_w / cs))
-        ny = max(1, int(struct_l / cs))
-
-        step_x = struct_w / nx
-        step_y = struct_l / ny
-
-        start_x = -struct_w/2
-        start_y = -struct_l/2
-
-        # Deck Z level = h + bd (Clear height is below beam usually)
-        # So Deck Top = h + bd + dt
-        # Or usually Height param is Deck Height?
-        # User prompt says "Clear Height (Headroom)".
-        # So Columns are H tall. Beams sit ON columns (or framed into).
-        # Let's say Clear Height = H.
-        # Bottom of Beam = H.
-        # Top of Beam = H + BD.
-        # Deck sits on top = H + BD + DT.
-
+        # ── Z levels ──────────────────────────────────────────────────────
         z_beam_bot = h
         z_beam_top = h + bd
         z_deck_top = h + bd + dt
 
-        # 1. Structure (Columns)
-        for ix in range(nx + 1):
-            for iy in range(ny + 1):
-                px = start_x + ix*step_x
-                py = start_y + iy*step_y
+        # ── Column positions: perimeter-only (corners + edge intermediates) ──
+        # Columns sit at the 4 deck corners and at col_spacing intervals along
+        # each of the 4 edges.  No interior columns.
+        def _edge_pos(start, end, spacing):
+            """Evenly-spaced positions from start to end at ≤spacing intervals."""
+            span = abs(end - start)
+            n = max(1, round(span / spacing))
+            return [start + i * span / n for i in range(n + 1)]
 
-                # Check cutout interference?
-                # Usually columns exist even if cutout is nearby, unless inside cutout?
-                # Simple check: point inside cutout box?
-                
-                # Base position calculation for Angled Supports
-                px_bot, py_bot = px, py
-                if self.support_shape == "ANGLED":
-                    # Splay outwards from center
-                    splay_dist = h * 0.2
-                    vec_center2d = Vector((px, py, 0))
-                    if vec_center2d.length > 0.01:
-                        dir_out = vec_center2d.normalized()
-                        px_bot += dir_out.x * splay_dist
-                        py_bot += dir_out.y * splay_dist
+        x_cols = _edge_pos(-w/2, w/2, cs)   # positions along bottom/top edges
+        y_cols = _edge_pos(-l/2, l/2, cs)   # positions along left/right edges
 
-                p1 = Vector((px_bot, py_bot, 0))
-                p2 = Vector((px, py, h))
-                dist = (p2 - p1).length
-                vec = p2 - p1
+        # Deduplicated perimeter list: bottom, top, left side, right side.
+        _seen = set()
+        col_positions = []
+        for px in x_cols:
+            for py in (-l/2, l/2):
+                key = (round(px, 4), round(py, 4))
+                if key not in _seen:
+                    _seen.add(key)
+                    col_positions.append((px, py))
+        for py in y_cols:
+            for px in (-w/2, w/2):
+                key = (round(px, 4), round(py, 4))
+                if key not in _seen:
+                    _seen.add(key)
+                    col_positions.append((px, py))
 
-                # Create Column
-                if self.support_shape == "ANGLED" and vec.length > 0.01:
-                    builder.create_grid(x_segments=1, y_segments=1, size=cw, center=p1)
-                    builder.tag_slot(1)
-                    builder.align_normal_to_vector(vec)
-                    builder.extrude(dist)
-                    builder.grow_selection(1)
-                else:
-                    if self.style == "CONCRETE":
-                        builder.create_box(cw, cw, h, center=Vector((px, py, h/2)))
-                    else:
-                        builder.create_box(cw, cw, h, center=Vector((px, py, h/2)))
+        # ── 1. Columns ────────────────────────────────────────────────────
+        for (px, py) in col_positions:
+            # Angled splay: base slides outward from centre.
+            px_bot, py_bot = px, py
+            if self.angled_supports:
+                splay_dist = h * 0.2
+                vec2d = Vector((px, py))
+                if vec2d.length > 0.01:
+                    dir_out = vec2d.normalized()
+                    px_bot += dir_out.x * splay_dist
+                    py_bot += dir_out.y * splay_dist
 
-                builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
-                # Base Plate?
-                if self.style == "STEEL_BEAM":
-                    if self.support_shape == "ANGLED":
-                        builder.create_box(cw*1.5, cw*1.5, 0.02, center=Vector((px_bot, py_bot, 0.01)))
-                    else:
-                        builder.create_box(cw*1.5, cw*1.5, 0.02, center=Vector((px, py, 0.01)))
-                    builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
-                    
-                # Diagonal Structural Supports (Corbels/Braces)
-                if self.structural_supports:
-                    is_edge_x = (ix == 0 or ix == nx)
-                    is_edge_y = (iy == 0 or iy == ny)
-                    # We spawn braces pointing outwards to the platform edge
-                    braces_to_build = []
-                    
-                    if is_edge_x:
-                        sign_x = -1 if ix == 0 else 1
-                        edge_x = sign_x * w / 2
-                        braces_to_build.append(Vector((edge_x, py, h)))
-                    if is_edge_y:
-                        sign_y = -1 if iy == 0 else 1
-                        edge_y = sign_y * l / 2
-                        braces_to_build.append(Vector((px, edge_y, h)))
-                        
-                    for target_p in braces_to_build:
-                        start_p = p1.lerp(p2, 0.5) # start halfway up the column
-                        brace_vec = target_p - start_p
-                        brace_dist = brace_vec.length
-                        if brace_dist > 0.1:
-                            builder.create_grid(x_segments=1, y_segments=1, size=cw*0.5, center=start_p)
-                            builder.tag_slot(1)
-                            builder.align_normal_to_vector(brace_vec)
-                            builder.extrude(brace_dist)
-                            builder.grow_selection(1)
-                            builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
-
-        # 2. Structure (Beams)
-        # Main Beams (X Axis?)
-        # Secondary Beams (Y Axis?)
-
-        # Frame perimeter of structure
-        # And internal grid lines
-
-        # X Beams (along Width)
-        # At each Y grid line
-        for iy in range(ny + 1):
-            py = start_y + iy*step_y
-
-            # Beam from start_x to end_x
-            # Center = 0, Length = struct_w
-            # Height = bd
-            # Z center = h + bd/2
-
-            if self.style == "TRUSS":
-                # Truss Logic (Simplified block with cutout texture or geometry?)
-                # Geometry is better.
-                # Top Chord, Bottom Chord, Web.
-
-                # Create Block for now to be safe on topology
-                builder.create_box(struct_w + cw, cw*0.8, bd, center=Vector((0, py, h + bd/2)))
-            else:
-                # Steel / Concrete
-                builder.create_box(struct_w + cw, cw*0.8, bd, center=Vector((0, py, h + bd/2)))
+            # Vertical box, then shear bottom verts outward if angled.
+            builder.create_box(cw, cw, h, center=Vector((px, py, h/2)))
+            if self.angled_supports:
+                splay_dx = px_bot - px
+                splay_dy = py_bot - py
+                if abs(splay_dx) > 0.001 or abs(splay_dy) > 0.001:
+                    bot_verts = [v for v in builder.active_verts if v.co.z < 0.01]
+                    if bot_verts:
+                        bmesh.ops.translate(bm, verts=bot_verts,
+                                            vec=(splay_dx, splay_dy, 0.0))
 
             builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
 
-        # Y Beams (Joists / Girders)
-        # Between X beams? Or overlapping?
-        # Usually Frame: Girders (Y) carry Beams (X).
-        # Let's just frame the grid.
+            # Base plate (STEEL_BEAM only).
+            if self.style == "STEEL_BEAM":
+                builder.create_box(cw*1.5, cw*1.5, 0.02,
+                                   center=Vector((px_bot, py_bot, 0.01)))
+                builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
 
-        for ix in range(nx + 1):
-            px = start_x + ix*step_x
+            # Diagonal brace toward nearest platform edge.
+            if self.structural_supports:
+                vec2d = Vector((px, py))
+                if vec2d.length > 0.01:
+                    dir_out  = vec2d.normalized()
+                    brace_end = Vector((px + dir_out.x * cw * 3,
+                                        py + dir_out.y * cw * 3, h))
+                    start_p  = Vector((px, py, h * 0.5))
+                    brace_vec = brace_end - start_p
+                    if brace_vec.length > 0.1:
+                        builder.create_grid(x_segments=1, y_segments=1,
+                                            size=cw*0.5, center=start_p)
+                        builder.tag_slot(1)
+                        builder.align_normal_to_vector(brace_vec)
+                        builder.extrude(brace_vec.length)
+                        builder.grow_selection(1)
+                        builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
 
-            # Beam along Y
-            # Avoid intersecting X beams?
-            # Or just boolean/overlap? Overlap is fine for weld.
-            builder.create_box(cw*0.8, struct_l + cw, bd, center=Vector((px, 0, h + bd/2)))
+        # ── 2. Beams ──────────────────────────────────────────────────────
+        # X-direction beams (full width) at every column Y row.
+        for py in y_cols:
+            builder.create_box(w + cw, cw * 0.8, bd,
+                               center=Vector((0, py, h + bd / 2)))
+            builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
+
+        # Y-direction edge girders at the two column X edges only.
+        for px in (-w/2, w/2):
+            builder.create_box(cw * 0.8, l + cw, bd,
+                               center=Vector((px, 0, h + bd / 2)))
             builder.tag_slot(1).tag_uvs(scale=self.uv_scale, projection='BOX')
 
         # 3. Deck (with optional Cutout)
@@ -290,31 +230,25 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
 
         # Cutout Logic
         if self.stair_cutout:
-            cx = self.cutout_x
-            cw = self.cutout_w
-            cl = self.cutout_l
+            cx    = self.cutout_x
+            cut_w = self.cutout_w  # separate name — avoids shadowing col_width (cw)
+            cut_l = self.cutout_l
 
             # Bisect X bounds
-            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(cx - cw/2, 0, 0), plane_no=(1,0,0))
-            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(cx + cw/2, 0, 0), plane_no=(1,0,0))
+            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(cx - cut_w/2, 0, 0), plane_no=(1,0,0))
+            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(cx + cut_w/2, 0, 0), plane_no=(1,0,0))
 
-            # Bisect Y bounds
-            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(0, -cl/2, 0), plane_no=(0,1,0)) # Assume centered on Y=0 or parameter?
-            # Let's parameterize Y center? User only gave length. Assume centered at Y=0 or start?
-            # Usually stair is at edge. Let's assume centered on X, but Y relative to edge?
-            # For simplicity, let's assume cutout is centered at (cx, 0).
-            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(0, cl/2, 0), plane_no=(0,1,0))
+            # Bisect Y bounds — cutout centred at Y=0
+            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(0, -cut_l/2, 0), plane_no=(0,1,0))
+            bmesh.ops.bisect_plane(bm, geom=bm.faces[:]+bm.edges[:], plane_co=(0,  cut_l/2, 0), plane_no=(0,1,0))
 
-            # Select faces inside bounds
-            # X between cx +/- cw/2
-            # Y between +/- cl/2
+            # Select faces inside the cutout bounds and delete them
             to_delete = []
             bm.faces.ensure_lookup_table()
             for f in bm.faces:
-                # Check center
                 cen = f.calc_center_median()
                 if abs(cen.z - z_deck_base) < 0.01: # Only deck faces
-                    if (cx - cw/2) <= cen.x <= (cx + cw/2) and (-cl/2) <= cen.y <= (cl/2):
+                    if (cx - cut_w/2) <= cen.x <= (cx + cut_w/2) and (-cut_l/2) <= cen.y <= (cut_l/2):
                         to_delete.append(f)
 
             bmesh.ops.delete(bm, geom=to_delete, context='FACES')
@@ -378,12 +312,11 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
 
             z_rail = h + bd + dt
 
-            # Corners (outside the edge, half width is 0.025)
-            r_i = -0.025
-            c1 = Vector((-w/2 + r_i, -l/2 + r_i, z_rail))
-            c2 = Vector((w/2 - r_i, -l/2 + r_i, z_rail))
-            c3 = Vector((w/2 - r_i, l/2 - r_i, z_rail))
-            c4 = Vector((-w/2 + r_i, l/2 - r_i, z_rail))
+            # Corners sit exactly on the deck rim so posts straddle the outer edge.
+            c1 = Vector((-w/2, -l/2, z_rail))
+            c2 = Vector(( w/2, -l/2, z_rail))
+            c3 = Vector(( w/2,  l/2, z_rail))
+            c4 = Vector((-w/2,  l/2, z_rail))
 
             build_rail(c1, c2)
             build_rail(c2, c3)
