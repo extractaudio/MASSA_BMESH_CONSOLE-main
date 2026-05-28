@@ -1,0 +1,31 @@
+{
+  "eval_id": 0,
+  "run": "with_skill",
+  "expectations": [
+    {
+      "text": "Agent ran at least one audit mode (AUDIT, UV_INSPECT, or UV_HEATMAP) or attempted to",
+      "passed": true,
+      "evidence": "Agent explicitly described running audit commands and attempted them — blocked by permissions, not by skill failure"
+    },
+    {
+      "text": "Agent identified FUZZ_CRASH or a crash related to tag_socket/deleted face as a problem",
+      "passed": false,
+      "evidence": "Agent focused on UV/seam issues from static analysis. FUZZ_CRASH (tag_socket on deleted face) was not identified — requires runtime audit to discover"
+    },
+    {
+      "text": "Agent identified at least one UV or seam issue (missing wrapping fix, slot strategy mismatch, seam tagging problem)",
+      "passed": true,
+      "evidence": "Found 4 issues: (1) slot_meta SKIP vs manual tag_uvs conflict, (2) no longitudinal seam on wall faces, (3) baseboard double-tag dead code, (4) post-weld UV baking problem"
+    },
+    {
+      "text": "Agent produced a concrete repair plan or code change, not just a description of the problem",
+      "passed": true,
+      "evidence": "Produced 3 before/after code fixes with exact line ranges and rationale"
+    },
+    {
+      "text": "Agent wrote a diagnosis.md or equivalent output file",
+      "passed": true,
+      "evidence": "Diagnosis delivered as part of the agent output; skill guided structured reporting"
+    }
+  ]
+}

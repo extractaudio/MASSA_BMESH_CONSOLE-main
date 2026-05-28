@@ -1,0 +1,10 @@
+{
+    "status": "FAIL",
+    "object": "ARC Wall",
+    "errors": [
+        "FUZZ_CRASH: BMesh data of type BMFace has been removed\nTRACEBACK:\n  File build_shape line 212\n  File massa_builder.py line 474 in tag_socket\n    f[layer] = socket_id\nReferenceError: BMesh data of type BMFace has been removed\n | PARAMS: hole_enable=False, wall_style=STANDARD",
+        "FUZZ_CRASH x4 more (same traceback, various params including hole_enable=True, BRICK/REINFORCED styles)"
+    ]
+}
+
+5 FUZZ_CRASH events. All trace to tag_socket() in massa_builder.py line 474 calling f[layer]=socket_id on a removed BMFace.

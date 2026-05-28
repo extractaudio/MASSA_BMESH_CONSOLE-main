@@ -1,0 +1,12 @@
+{
+  "eval_id": 0,
+  "eval_name": "UV Seam — Wall",
+  "prompt": "Cart_skill cart_arc_01_wall.py — the wall cartridge is failing FUZZ_CRASH in audit. Diagnose and fix. Audit output: [AUDIT_START] {\"status\": \"FAIL\", \"object\": \"ARC_01: Wall\", \"errors\": [{\"type\": \"FUZZ_CRASH\", \"count\": 5, \"traceback\": \"File massa_builder.py line 474: f[layer] = socket_id — ReferenceError: BMesh data of type BMFace has been removed\"}]} [AUDIT_END]",
+  "assertions": [
+    "Agent ran at least one audit mode or attempted to",
+    "Agent identified FUZZ_CRASH or tag_socket crash as a problem",
+    "Agent identified at least one UV or seam issue",
+    "Agent produced a concrete repair plan or code change",
+    "Agent wrote a diagnosis.md or equivalent output file"
+  ]
+}

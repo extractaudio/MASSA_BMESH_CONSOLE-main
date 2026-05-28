@@ -1,0 +1,19 @@
+--- Running MASSA Test Runner ---
+Cartridge : cart_arc_01_wall.py
+Mode      : AUDIT
+---------------------------------
+[Launcher] Running AUDIT on cart_arc_01_wall.py...
+
+--- TEST RESULTS ---
+{
+    "status": "FAIL",
+    "object": "ARC Wall",
+    "errors": [
+        "FUZZ_CRASH: BMesh data of type BMFace has been removed\nTRACEBACK:\n...massa_builder.py line 474 tag_socket f[layer]=socket_id\nReferenceError: BMesh data of type BMFace has been removed\n | PARAMS: hole_enable=True, wall_thick=5.0, ...",
+        "FUZZ_CRASH (x4 more with hole_enable=True or extreme params)"
+    ]
+}
+
+5 FUZZ_CRASH events total. All traced to tag_socket() called on a BMFace that was
+deleted by the hole boolean / merge pass. Triggered by hole_enable=True or extreme
+dimension values that produce degenerate geometry.

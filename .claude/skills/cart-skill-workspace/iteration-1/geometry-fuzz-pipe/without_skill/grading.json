@@ -1,0 +1,26 @@
+{
+  "eval_id": 1,
+  "run": "without_skill",
+  "expectations": [
+    {
+      "text": "Agent attempted to run AUDIT or clearly explained what audit command to run",
+      "passed": false,
+      "evidence": "Same permission block — no audit run, no analysis produced"
+    },
+    {
+      "text": "Agent correctly concluded the pipe cartridge has no issues (PASS)",
+      "passed": false,
+      "evidence": "No conclusion produced"
+    },
+    {
+      "text": "Agent did not make unnecessary or incorrect changes to the cartridge",
+      "passed": true,
+      "evidence": "No changes made"
+    },
+    {
+      "text": "Agent reported zero CRITICAL flags found (or reported that the cartridge is clean)",
+      "passed": false,
+      "evidence": "No output produced"
+    }
+  ]
+}

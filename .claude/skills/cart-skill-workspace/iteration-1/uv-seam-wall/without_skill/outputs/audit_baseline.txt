@@ -1,0 +1,81 @@
+NOTE: Live headless audit was not executed — shell (Bash/PowerShell) permissions were denied in this session.
+Static code analysis was performed instead using jCodemunch source retrieval.
+
+=== STATIC ANALYSIS SUMMARY ===
+
+Cartridge: massa/modules/cartridges/cart_arc_01_wall.py
+Class: MASSA_OT_ArcWall
+Operator ID: massa.gen_arc_01_wall
+
+--- SLOT META (get_slot_meta) ---
+Slot 0: Wall Surface  | uv="SKIP" | phys=MASSA_DEBUG_1
+Slot 1: Detail        | uv="SKIP" | phys=MASSA_DEBUG_2
+Slot 2: Trim          | uv="SKIP" | phys=MASSA_DEBUG_3
+Slot 9: Socket Anchor | uv="SKIP" | sock=True | phys=MASSA_DEBUG_9
+
+--- FLAGS ---
+ALLOW_SOLIDIFY: False
+USE_WELD: True
+ALLOW_CHAMFER: True
+LOCK_PIVOT: True
+
+--- UV PASS (end of build_shape) ---
+Line 215: uv_sc   = 1.0 if self.fit_uvs else self.uv_scale
+Line 216: uv_proj = 'FIT' if self.fit_uvs else 'BOX'
+Line 217: builder.select_faces_by_slot(0).tag_uvs(scale=uv_sc, projection=uv_proj)
+Line 218: builder.select_faces_by_slot(1).tag_uvs(scale=uv_sc, projection=uv_proj)
+Line 219: builder.select_faces_by_slot(2).tag_uvs(scale=uv_sc, projection=uv_proj)
+
+--- EDGE SLOT TAGGING ---
+Line 151: builder.select_all_faces().select_boundary().tag_edge_role(1)
+  -> All perimeter/boundary edges tagged as role 1 (Perimeter = Seam + Sharp)
+
+Line 131: (REINFORCED style) .select_boundary().tag_edge_role(2)  -- Contour, Sharp only
+Line 144: (BRICK style) .select_boundary().tag_edge_role(2)        -- Contour, Sharp only
+
+Lines 193-201: Baseboard edges:
+  Front baseboard: first .tag_edge_role(2) then immediately .select_boundary().tag_edge_role(1)
+  Back baseboard: .tag_edge_role(1)
+
+--- CRITICAL ISSUES DETECTED (static) ---
+
+ISSUE 1 [CRITICAL]: All slot_meta entries have uv="SKIP" but build_shape calls tag_uvs manually.
+  The slot_meta uv field "SKIP" tells the ENGINE to skip UV unwrapping for these slots.
+  But build_shape does its own UV projection at lines 217-219. This is a conflict:
+  - If the engine's UV pass runs AFTER build_shape, it will NOT apply any UV because uv="SKIP"
+  - The cartridge's manual tag_uvs calls happen INSIDE build_shape, which runs at pipeline stage 1
+  - After stage 1, many pipeline stages modify/move geometry (seam solving, weld, etc.)
+  - Result: UVs generated in build_shape are applied to pre-weld/pre-merge world positions,
+    then geometry moves, causing UV stretching and misalignment.
+  => Fix: The manual UV calls in build_shape conflict with the pipeline order. Either:
+     (a) Change slot_meta uv values to "BOX" or "UNWRAP" and remove the manual tag_uvs calls, OR
+     (b) Keep uv="SKIP" and understand manual UVs are applied before weld/translate — this is a known
+         ordering hazard.
+
+ISSUE 2 [CRITICAL]: Front Baseboard has double edge-role tagging in sequence.
+  Line 193: .select_boundary().tag_edge_role(2)   -- assigns role 2 (Sharp/Contour)
+  Line 195: builder.select_boundary().tag_edge_role(1) -- IMMEDIATELY overwrites with role 1
+
+  This means the front baseboard's boundary edges end up as role 1 (Seam+Sharp), NOT role 2.
+  The intent appears to be: perimeter seam = role 1, interior sharp details = role 2.
+  But line 193 tags role 2, then line 195 re-selects the boundary and overwrites with role 1.
+  The net effect is correct (perimeter seam), but the role-2 assignment at line 193 is wasted/dead code.
+  However the chaining in the builder means `.select_boundary()` at line 195 re-selects the SAME boundary
+  of the SAME last-active builder selection — so the role-2 tag at line 193 is effectively overwritten.
+
+ISSUE 3 [MAJOR]: tag_uvs BOX projection uses raw vertex world coordinates (v.x, v.z etc.) WITHOUT
+  accounting for per-segment translation. Each wall panel is created via create_box() then .translate().
+  The translate happens on the BMesh in local coordinates. When tag_uvs is called at the END of
+  build_shape (lines 217-219), the vertex positions reflect the translated coordinates — so a wall
+  panel placed at x=2.0 will have its U coordinates starting at 2.0, not at 0.0.
+  For a multi-segment wall (hole enabled), adjacent panels will produce DISCONTINUOUS UV islands
+  because each panel starts its U range at its world X position. When the mesh is welded (USE_WELD=True),
+  vertices on touching edges are merged, but UV coords remain discontinuous — this causes the
+  "smeared band" artifact at panel seams, because the UV unwrap sees two shared vertices with
+  different U coordinates from adjacent panels.
+
+ISSUE 4 [MINOR]: Slot 1 (Detail faces from REINFORCED inset) and Slot 2 (Trim/Baseboard) share the same
+  UV projection call as Slot 0 (Wall Surface). The inset geometry from REINFORCED style has faces with
+  a Y-axis normal (0,1,0). The BOX projection maps these faces using v.x + v.z, but the actual face
+  plane is XY — this will produce stretched UVs on the inset ridge face (the "smeared band" on the
+  front/back face of the wall when REINFORCED style is used).

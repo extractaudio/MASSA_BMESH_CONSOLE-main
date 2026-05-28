@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "Material Slots — Mezzanine",
+  "prompt": "Cart_skill cart_arc_07_mezzanine.py — audit the material slots. Audit output: [AUDIT_START] {\"status\": \"PASS\", \"object\": \"ARC_07: Mezzanine\", \"errors\": []} [AUDIT_END]",
+  "assertions": [
+    "Agent compared get_slot_meta indices against build_shape assignments",
+    "Agent correctly found no slot coverage mismatches",
+    "Agent checked phys values in get_slot_meta for validity against MASTER_MAT_DB",
+    "Agent produced a slot_analysis.md or equivalent table",
+    "If any changes were made, the cartridge still passes AUDIT afterward"
+  ]
+}

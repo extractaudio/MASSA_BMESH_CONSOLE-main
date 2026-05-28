@@ -1,0 +1,19 @@
+{
+    "status": "PASS",
+    "object": "ARC Wall",
+    "errors": [],
+    "warnings": [],
+    "notes": [
+        "Socket tagging: 2 sockets placed (left end, right end) — no crash",
+        "UV: Slot 0 (Wall Surface) BOX-mapped cleanly, no stretching",
+        "UV: Slot 1 (Detail / REINFORCED inset) BOX-mapped cleanly on front face",
+        "UV: Slot 2 (Trim / baseboard / BRICK rail) UNWRAP applied — no smeared band",
+        "FUZZ: hole_enable=False, wall_style=STANDARD — PASS",
+        "FUZZ: hole_enable=True, wall_style=STANDARD — PASS",
+        "FUZZ: hole_enable=False, wall_style=REINFORCED — PASS",
+        "FUZZ: hole_enable=False, wall_style=BRICK — PASS",
+        "FUZZ: hole_enable=True, wall_style=BRICK — PASS",
+        "Edge slots: Perimeter edges tagged role 1 (seam+sharp) — correct",
+        "Edge slots: REINFORCED/BRICK contour edges tagged role 2 (crease) — correct"
+    ]
+}

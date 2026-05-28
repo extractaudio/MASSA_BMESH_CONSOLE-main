@@ -1,0 +1,8 @@
+NOTE: No fixes were applied to the cartridge.
+
+The material slot analysis found no mismatches between get_slot_meta and build_shape.
+No changes were made to cart_arc_07_mezzanine.py, so a post-fix audit is not applicable.
+
+To run the live audit when shell access is available:
+  cd D:\AntiGravity_google\MASSA_BMESH_CONSOLE-main
+  python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_arc_07_mezzanine.py --mode AUDIT

@@ -1,0 +1,178 @@
+{
+  "metadata": {
+    "skill_name": "cart-skill",
+    "skill_path": "D:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.claude/skills/cart-skill",
+    "executor_model": "claude-sonnet-4-6",
+    "timestamp": "2026-05-27T00:00:00Z",
+    "evals_run": ["uv-seam-wall", "geometry-fuzz-pipe", "material-slot-mezzanine"],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "UV Seam — Wall",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.00,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 127.1,
+        "tokens": 38321,
+        "tool_calls": 11,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent ran at least one audit mode or attempted to", "passed": true, "evidence": "Audit output pre-loaded; agent confirmed FAIL/5x FUZZ_CRASH and proceeded"},
+        {"text": "Agent identified FUZZ_CRASH or tag_socket crash as a problem", "passed": true, "evidence": "Correctly classified as Family B; traced to massa_builder.py:474 after clean() invalidates BMFace"},
+        {"text": "Agent identified at least one UV or seam issue", "passed": true, "evidence": "Found 3 UV/seam issues: SKIP vs tag_uvs conflict, seam fires before baseboards, duplicate tag_edge_role"},
+        {"text": "Agent produced a concrete repair plan or code change", "passed": true, "evidence": "fixes.md with exact before/after code for all 3 fixes, prioritised B first"},
+        {"text": "Agent wrote a diagnosis.md or equivalent output file", "passed": true, "evidence": "diagnosis.md with Family B + Family A classification and file:line references"}
+      ],
+      "notes": ["Skill correctly directed agent to classify FUZZ_CRASH as Family B and fix before UV work — gap from iteration 1 closed"]
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "UV Seam — Wall",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.00,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 165.4,
+        "tokens": 48121,
+        "tool_calls": 23,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent ran at least one audit mode or attempted to", "passed": true, "evidence": "Used pre-loaded audit output; confirmed FAIL/5x FUZZ_CRASH"},
+        {"text": "Agent identified FUZZ_CRASH or tag_socket crash as a problem", "passed": true, "evidence": "Found crash (remove_doubles frees BMFace, tag_socket hits freed pointer), applied is_valid fix"},
+        {"text": "Agent identified at least one UV or seam issue", "passed": true, "evidence": "Found UV stretching on Trim (BOX→UNWRAP fix applied)"},
+        {"text": "Agent produced a concrete repair plan or code change", "passed": true, "evidence": "Applied 2 actual code changes to massa_builder.py and cart_arc_01_wall.py"},
+        {"text": "Agent wrote a diagnosis.md or equivalent output file", "passed": true, "evidence": "diagnosis.md saved"}
+      ],
+      "notes": ["Without-skill agent also found and fixed the crash this iteration because audit output was pre-embedded; used 30% more tokens and took 30% longer than with-skill"]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "Geometry Audit — Pipe",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.00,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 65.4,
+        "tokens": 35081,
+        "tool_calls": 13,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent attempted to run AUDIT or explained what audit command to run", "passed": true, "evidence": "Confirmed PASS from pre-loaded audit, cited it explicitly"},
+        {"text": "Agent correctly concluded pipe cartridge has no issues (PASS)", "passed": true, "evidence": "Reported PASS; confirmed no CRITICAL flags or FUZZ_CRASH patterns in static review"},
+        {"text": "Agent did not make unnecessary changes to the cartridge", "passed": true, "evidence": "No changes made"},
+        {"text": "Agent reported zero CRITICAL flags (or cartridge is clean)", "passed": true, "evidence": "CRITICAL flags: none; FUZZ_CRASH: none"}
+      ],
+      "notes": ["Pipe is a clean PASS case — both configs now give correct result with audit pre-loaded"]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "Geometry Audit — Pipe",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.00,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 60.3,
+        "tokens": 34263,
+        "tool_calls": 14,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent attempted to run AUDIT or explained what audit command to run", "passed": true, "evidence": "Used pre-loaded audit output"},
+        {"text": "Agent correctly concluded pipe cartridge has no issues (PASS)", "passed": true, "evidence": "Correctly reported no issues"},
+        {"text": "Agent did not make unnecessary changes to the cartridge", "passed": true, "evidence": "No file changes"},
+        {"text": "Agent reported zero CRITICAL flags (or cartridge is clean)", "passed": true, "evidence": "No CRITICAL flags reported"}
+      ],
+      "notes": ["Non-discriminating eval when audit is pre-loaded — both configs pass identically; replace with a cartridge with a seeded CRITICAL flag for future iters"]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "Material Slots — Mezzanine",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.00,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 81.3,
+        "tokens": 37119,
+        "tool_calls": 15,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent compared get_slot_meta indices against build_shape assignments", "passed": true, "evidence": "Full cross-reference of all 4 slots (0,1,2,9) against tag_slot/tag_socket calls"},
+        {"text": "Agent correctly found no slot coverage mismatches", "passed": true, "evidence": "All defined slots used, all used slots defined"},
+        {"text": "Agent checked phys values in get_slot_meta for validity against MASTER_MAT_DB", "passed": true, "evidence": "Flagged stale jCodemunch cache, read actual file, confirmed phys values valid (METAL_IRON, METAL_STEEL, METAL_STEEL, GENERIC)"},
+        {"text": "Agent produced a slot_analysis.md or equivalent table", "passed": true, "evidence": "slot_analysis.md with defined-vs-used table and phys validity column"},
+        {"text": "If any changes were made, the cartridge still passes AUDIT afterward", "passed": true, "evidence": "No changes needed; PASS preserved"}
+      ],
+      "notes": ["Skill prompted cache verification — agent caught stale jCodemunch data and read actual file to confirm valid state"]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "Material Slots — Mezzanine",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.80,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 57.8,
+        "tokens": 34936,
+        "tool_calls": 11,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent compared get_slot_meta indices against build_shape assignments", "passed": true, "evidence": "Coverage table produced for slots 0,1,2,9"},
+        {"text": "Agent correctly found no slot coverage mismatches", "passed": true, "evidence": "No index mismatches found"},
+        {"text": "Agent checked phys values in get_slot_meta for validity against MASTER_MAT_DB", "passed": false, "evidence": "Read stale jCodemunch data showing METAL_CHECKERPLATE, METAL_PAINTED, DEBUG_9 as phys values; declared cartridge clean without validating — same failure mode as iteration 1"},
+        {"text": "Agent produced a slot_analysis.md or equivalent table", "passed": true, "evidence": "slot_analysis.md saved"},
+        {"text": "If any changes were made, the cartridge still passes AUDIT afterward", "passed": true, "evidence": "No changes; PASS preserved"}
+      ],
+      "notes": ["Persistent gap: without-skill agent skips phys validation in both iterations; checked only index coverage and stopped"]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 1.000, "stddev": 0.000, "min": 1.00, "max": 1.00},
+      "time_seconds": {"mean": 91.3, "stddev": 26.2, "min": 65.4, "max": 127.1},
+      "tokens": {"mean": 36840, "stddev": 1367, "min": 35081, "max": 38321}
+    },
+    "without_skill": {
+      "pass_rate": {"mean": 0.933, "stddev": 0.094, "min": 0.80, "max": 1.00},
+      "time_seconds": {"mean": 94.5, "stddev": 49.0, "min": 57.8, "max": 165.4},
+      "tokens": {"mean": 39107, "stddev": 6392, "min": 34263, "max": 48121}
+    },
+    "delta": {
+      "pass_rate": "+0.067",
+      "time_seconds": "-3.2",
+      "tokens": "-2267"
+    }
+  },
+  "notes": [
+    "Eval 0 (wall) both configs scored 5/5 this iteration because audit output was pre-embedded — the primary blocker from iter 1 (Bash permissions) was removed. With-skill still used 20% fewer tokens (38k vs 48k) and took 23% less time (127s vs 165s).",
+    "Eval 1 (pipe) remains non-discriminating — both configs pass 4/4 identically. Replace with a cartridge seeded with a CRITICAL flag so the PASS eval actually tests triage skill.",
+    "Eval 2 (mezzanine) shows the persistent advantage: without-skill repeated its iter-1 failure of skipping phys validation, even with stale jCodemunch data showing obviously wrong values. Skill explicitly lists valid MASTER_MAT_DB keys in Section C1.",
+    "Key change vs iter 1: FUZZ_CRASH gap is now addressed — the skill's Family B classification table and AUDIT-first mandate meant the with-skill agent correctly ordered B→A. Without-skill agent found the crash too (because audit was pre-loaded), but took 2x the tool calls (23 vs 11).",
+    "Next improvement opportunity: Eval 1 needs a better test case. Consider a cartridge with a single seeded CRITICAL_LOOSE_VERTS or FUZZ_CRASH so the pipe eval actually discriminates."
+  ]
+}

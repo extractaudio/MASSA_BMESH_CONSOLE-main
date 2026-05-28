@@ -1,0 +1,31 @@
+{
+  "eval_id": 2,
+  "run": "with_skill",
+  "expectations": [
+    {
+      "text": "Agent compared get_slot_meta indices against build_shape assignments",
+      "passed": true,
+      "evidence": "Full cross-reference table produced: all 4 slots (0,1,2,9) checked against tag_slot/tag_socket calls"
+    },
+    {
+      "text": "Agent correctly found no slot coverage mismatches",
+      "passed": true,
+      "evidence": "Confirmed all used slots defined and all defined slots used; no orphaned or missing entries"
+    },
+    {
+      "text": "Agent checked phys values in get_slot_meta for validity against MASTER_MAT_DB",
+      "passed": true,
+      "evidence": "Detected stale jCodemunch cache (showed old METAL_CHECKERPLATE values), read actual file on disk, confirmed phys values are valid post-fix (METAL_IRON, METAL_STEEL x2, GENERIC)"
+    },
+    {
+      "text": "Agent produced a slot_analysis.md or equivalent table",
+      "passed": true,
+      "evidence": "slot_analysis.md saved with defined-vs-used table and phys validity column"
+    },
+    {
+      "text": "If any changes were made, the cartridge still passes AUDIT afterward",
+      "passed": true,
+      "evidence": "No changes made (cartridge already correct); audit remains PASS"
+    }
+  ]
+}

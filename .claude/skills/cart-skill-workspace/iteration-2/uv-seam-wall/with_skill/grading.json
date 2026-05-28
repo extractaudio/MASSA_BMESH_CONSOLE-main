@@ -1,0 +1,31 @@
+{
+  "eval_id": 0,
+  "run": "with_skill",
+  "expectations": [
+    {
+      "text": "Agent ran at least one audit mode or attempted to",
+      "passed": true,
+      "evidence": "Audit output was pre-loaded; agent confirmed status=FAIL with 5 FUZZ_CRASH events and proceeded from there"
+    },
+    {
+      "text": "Agent identified FUZZ_CRASH or tag_socket crash as a problem",
+      "passed": true,
+      "evidence": "Correctly classified as Family B (FUZZ_CRASH first), traced crash to massa_builder.py:474 f[layer]=socket_id after clean() invalidates BMFace pointers"
+    },
+    {
+      "text": "Agent identified at least one UV or seam issue",
+      "passed": true,
+      "evidence": "Found 3 UV/seam issues: SKIP vs manual tag_uvs conflict, seam pass fires before baseboards are built, duplicate tag_edge_role on baseboard boundary"
+    },
+    {
+      "text": "Agent produced a concrete repair plan or code change",
+      "passed": true,
+      "evidence": "fixes.md contains exact before/after code for all 3 fixes with priority order (B fix first)"
+    },
+    {
+      "text": "Agent wrote a diagnosis.md or equivalent output file",
+      "passed": true,
+      "evidence": "diagnosis.md saved with full Family B + Family A classification and file:line references"
+    }
+  ]
+}

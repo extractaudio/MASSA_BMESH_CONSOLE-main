@@ -1,0 +1,31 @@
+{
+  "eval_id": 2,
+  "run": "without_skill",
+  "expectations": [
+    {
+      "text": "Agent compared get_slot_meta indices against build_shape assignments",
+      "passed": true,
+      "evidence": "Produced coverage table mapping slots 0,1,2,9 to their tag_slot/tag_socket calls"
+    },
+    {
+      "text": "Agent correctly found no slot coverage mismatches",
+      "passed": true,
+      "evidence": "No index mismatches found; all defined slots actively used"
+    },
+    {
+      "text": "Agent checked phys values in get_slot_meta for validity against MASTER_MAT_DB",
+      "passed": false,
+      "evidence": "Read stale jCodemunch cache showing METAL_CHECKERPLATE, METAL_PAINTED, DEBUG_9 as phys values, then declared the cartridge clean without validating these against MASTER_MAT_DB — same failure mode as iteration 1"
+    },
+    {
+      "text": "Agent produced a slot_analysis.md or equivalent table",
+      "passed": true,
+      "evidence": "slot_analysis.md saved with defined-vs-used coverage table"
+    },
+    {
+      "text": "If any changes were made, the cartridge still passes AUDIT afterward",
+      "passed": true,
+      "evidence": "No changes made; audit remains PASS"
+    }
+  ]
+}

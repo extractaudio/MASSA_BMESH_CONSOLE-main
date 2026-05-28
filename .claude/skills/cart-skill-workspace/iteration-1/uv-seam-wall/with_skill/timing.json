@@ -1,0 +1,6 @@
+{
+  "total_tokens": 34087,
+  "duration_ms": 84458,
+  "total_duration_seconds": 84.5,
+  "note": "Agent blocked on Bash but completed full static code analysis"
+}

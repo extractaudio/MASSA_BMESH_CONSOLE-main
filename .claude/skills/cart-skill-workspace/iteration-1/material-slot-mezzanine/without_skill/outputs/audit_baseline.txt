@@ -1,0 +1,6 @@
+NOTE: Shell execution was not permitted during this session.
+The audit command that would be run is:
+  python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_arc_07_mezzanine.py --mode AUDIT
+
+Audit output could not be captured via headless Blender.
+Static code analysis was performed instead — see slot_analysis.md for full findings.

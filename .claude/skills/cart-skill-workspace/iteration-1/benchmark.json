@@ -1,0 +1,178 @@
+{
+  "metadata": {
+    "skill_name": "cart-skill",
+    "skill_path": "D:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.claude/skills/cart-skill",
+    "executor_model": "claude-sonnet-4-6",
+    "timestamp": "2026-05-27T00:00:00Z",
+    "evals_run": ["uv-seam-wall", "geometry-fuzz-pipe", "material-slot-mezzanine"],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "UV Seam — Wall",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.80,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 84.5,
+        "tokens": 34087,
+        "tool_calls": 13,
+        "errors": 1
+      },
+      "expectations": [
+        {"text": "Agent ran at least one audit mode or attempted to", "passed": true, "evidence": "Attempted audit commands; blocked by Bash permissions"},
+        {"text": "Agent identified FUZZ_CRASH or tag_socket crash as a problem", "passed": false, "evidence": "Focused on UV analysis only; FUZZ_CRASH requires runtime audit"},
+        {"text": "Agent identified at least one UV or seam issue", "passed": true, "evidence": "Found 4 issues: slot_meta SKIP conflict, no longitudinal seam, baseboard dead code, post-weld UV baking"},
+        {"text": "Agent produced a concrete repair plan or code change", "passed": true, "evidence": "3 before/after code fixes with exact line ranges"},
+        {"text": "Agent wrote a diagnosis.md or equivalent output file", "passed": true, "evidence": "Diagnosis delivered in structured output"}
+      ],
+      "notes": ["Bash permissions blocked headless audit; agent fell back to static analysis"]
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "UV Seam — Wall",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.80,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 272.4,
+        "tokens": 57273,
+        "tool_calls": 29,
+        "errors": 1
+      },
+      "expectations": [
+        {"text": "Agent ran at least one audit mode or attempted to", "passed": true, "evidence": "Attempted then noted shell was denied"},
+        {"text": "Agent identified FUZZ_CRASH or tag_socket crash as a problem", "passed": false, "evidence": "Static analysis only; crash not found"},
+        {"text": "Agent identified at least one UV or seam issue", "passed": true, "evidence": "Found 3 UV issues and applied 2 fixes directly"},
+        {"text": "Agent produced a concrete repair plan or code change", "passed": true, "evidence": "Applied 2 fixes; deferred REINFORCED overlap as follow-up"},
+        {"text": "Agent wrote a diagnosis.md or equivalent output file", "passed": true, "evidence": "diagnosis.md in output directory"}
+      ],
+      "notes": ["3.2x slower and 68% more tokens than with-skill; same pass rate"]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "Geometry Audit — Pipe",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 12.7,
+        "tokens": 24883,
+        "tool_calls": 2,
+        "errors": 1
+      },
+      "expectations": [
+        {"text": "Agent attempted to run AUDIT or explained what command to run", "passed": false, "evidence": "Blocked immediately; only asked for permission"},
+        {"text": "Agent correctly concluded pipe cartridge has no issues (PASS)", "passed": false, "evidence": "No analysis produced"},
+        {"text": "Agent did not make unnecessary changes to the cartridge", "passed": true, "evidence": "No file changes made"},
+        {"text": "Agent reported zero CRITICAL flags (or cartridge is clean)", "passed": false, "evidence": "No output"}
+      ],
+      "notes": ["Non-informative eval — both configs blocked identically"]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "Geometry Audit — Pipe",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 24.8,
+        "tokens": 26659,
+        "tool_calls": 8,
+        "errors": 1
+      },
+      "expectations": [
+        {"text": "Agent attempted to run AUDIT or explained what command to run", "passed": false, "evidence": "Bash and PowerShell both denied"},
+        {"text": "Agent correctly concluded pipe cartridge has no issues (PASS)", "passed": false, "evidence": "No analysis produced"},
+        {"text": "Agent did not make unnecessary changes to the cartridge", "passed": true, "evidence": "No file changes"},
+        {"text": "Agent reported zero CRITICAL flags (or cartridge is clean)", "passed": false, "evidence": "No output"}
+      ],
+      "notes": ["Both configs equally blocked; eval provides no signal"]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "Material Slots — Mezzanine",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.00,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 108.8,
+        "tokens": 40882,
+        "tool_calls": 21,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent compared get_slot_meta indices against build_shape assignments", "passed": true, "evidence": "Full cross-reference table of all 4 slots"},
+        {"text": "Agent correctly found no slot coverage mismatches", "passed": true, "evidence": "Confirmed all used slots (0,1,2,9) defined and vice versa"},
+        {"text": "Agent checked phys values for validity against MASTER_MAT_DB", "passed": true, "evidence": "Found and fixed 3 invalid phys: METAL_CHECKERPLATE, METAL_PAINTED, DEBUG_9"},
+        {"text": "Agent produced a slot_analysis.md or equivalent table", "passed": true, "evidence": "slot_analysis.md in output directory"},
+        {"text": "Cartridge still passes AUDIT after any changes", "passed": true, "evidence": "Re-audited after agent edits: status=PASS, errors=[]"}
+      ],
+      "notes": ["Skill guided agent to validate phys values beyond literal task scope — found 3 real bugs"]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "Material Slots — Mezzanine",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.80,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 86.4,
+        "tokens": 42879,
+        "tool_calls": 15,
+        "errors": 0
+      },
+      "expectations": [
+        {"text": "Agent compared get_slot_meta indices against build_shape assignments", "passed": true, "evidence": "Enumerated all tag_slot/tag_socket calls and cross-referenced"},
+        {"text": "Agent correctly found no slot coverage mismatches", "passed": true, "evidence": "Correctly reported no index mismatches"},
+        {"text": "Agent checked phys values for validity against MASTER_MAT_DB", "passed": false, "evidence": "Only checked coverage; METAL_CHECKERPLATE, METAL_PAINTED, DEBUG_9 not validated — 3 bugs missed"},
+        {"text": "Agent produced a slot_analysis.md or equivalent table", "passed": true, "evidence": "slot_analysis.md in output directory"},
+        {"text": "Cartridge still passes AUDIT after any changes", "passed": true, "evidence": "No changes; original PASS preserved"}
+      ],
+      "notes": ["Declared clean after narrower check; missed phys validation entirely"]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {"mean": 0.683, "stddev": 0.309, "min": 0.25, "max": 1.00},
+      "time_seconds": {"mean": 68.7, "stddev": 39.5, "min": 12.7, "max": 108.8},
+      "tokens": {"mean": 33284, "stddev": 6612, "min": 24883, "max": 40882}
+    },
+    "without_skill": {
+      "pass_rate": {"mean": 0.617, "stddev": 0.255, "min": 0.25, "max": 0.80},
+      "time_seconds": {"mean": 127.9, "stddev": 107.3, "min": 24.8, "max": 272.4},
+      "tokens": {"mean": 42270, "stddev": 13047, "min": 26659, "max": 57273}
+    },
+    "delta": {
+      "pass_rate": "+0.07",
+      "time_seconds": "-59.2",
+      "tokens": "-8986"
+    }
+  },
+  "notes": [
+    "Eval 1 (pipe) was non-discriminating — both configs identically blocked by Bash permissions. Replace with a cartridge that has a pre-seeded CRITICAL flag.",
+    "Eval 0 (wall) showed a pass rate tie (both 80%) but with-skill was 3.2x faster (84s vs 272s) and used 40% fewer tokens — structured approach reduces wandering.",
+    "Eval 2 (mezzanine) showed clearest skill advantage: with-skill found 3 invalid phys values beyond task scope; without-skill declared clean after narrower check.",
+    "Critical gap: neither agent caught the FUZZ_CRASH in the wall (tag_socket on deleted face) — skill should enforce running AUDIT before static analysis since crashes only surface at runtime.",
+    "Skill adds 0.07 mean pass rate improvement but delivers larger benefits in token efficiency (-27% tokens) and time (-46% time) by providing structured workflow."
+  ]
+}

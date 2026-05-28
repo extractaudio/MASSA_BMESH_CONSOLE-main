@@ -1,0 +1,70 @@
+NOTE: Post-fix live headless audit was not executed — shell (Bash/PowerShell) permissions were denied in this session.
+Static verification of the fixed file was performed instead.
+
+=== POST-FIX STATIC VERIFICATION ===
+
+Cartridge: massa/modules/cartridges/cart_arc_01_wall.py
+Fixed at: 2026-05-27
+
+--- SLOT META (AFTER FIX) ---
+Slot 0: Wall Surface  | uv="BOX" | phys=MASSA_DEBUG_1   [CHANGED from SKIP]
+Slot 1: Detail        | uv="BOX" | phys=MASSA_DEBUG_2   [CHANGED from SKIP]
+Slot 2: Trim          | uv="BOX" | phys=MASSA_DEBUG_3   [CHANGED from SKIP]
+Slot 9: Socket Anchor | uv="SKIP" | sock=True           [UNCHANGED - correct]
+
+--- UV PASS (AFTER FIX) ---
+Manual tag_uvs calls REMOVED from build_shape.
+UV assignment now delegated to engine pipeline (runs post-weld at stage 9).
+Engine will apply BOX projection to all slot 0/1/2 faces from final welded geometry.
+
+--- EDGE SLOT TAGGING (AFTER FIX) ---
+Line 154: builder.select_all_faces().select_boundary().tag_edge_role(1)
+  -> Wall perimeter/boundary: role 1 (Seam+Sharp) [UNCHANGED - correct]
+
+REINFORCED style: .select_boundary().tag_edge_role(2) [UNCHANGED - Contour/Sharp on inset edges]
+
+BASEBOARD (AFTER FIX):
+  Front baseboard: .select_boundary().tag_edge_role(1)  [SIMPLIFIED - dead code removed]
+  Back baseboard:  .select_boundary().tag_edge_role(1)  [UNCHANGED]
+
+--- ISSUES RESOLVED ---
+
+[RESOLVED] Bug 1: slot_meta uv="SKIP" / manual tag_uvs conflict
+  -> slot_meta now uv="BOX", manual tag_uvs calls removed
+  -> Engine BOX-maps all content slots post-weld
+  -> UV coords derived from final stable geometry, not pre-weld positions
+  -> Expected result: no UV stretching at segment-join seams
+
+[RESOLVED] Bug 3: Baseboard double tag_edge_role dead code
+  -> Simplified to single role-1 tag on front baseboard boundary
+  -> Now consistent with back baseboard
+  -> Expected result: correct seam+sharp on both baseboard perimeters
+
+--- ISSUES REMAINING ---
+
+[DEFERRED] Bug 2: REINFORCED inset UV overlap (smeared band)
+  -> Outer ring and recessed inner face of inset still share same XZ footprint
+  -> BOX projection will still assign overlapping UV coords to both faces
+  -> Workaround: change slot 1 uv="BOX" to uv="UNWRAP" in slot_meta to let
+     LSCM separate the islands properly
+  -> OR: adjust inset parameters so inner face UV territory is shifted
+
+--- EXPECTED AUDIT RESULTS AFTER FIX ---
+
+For wall_style=STANDARD (no hole):
+  - UV: Single continuous island for front/back faces. BOX-mapped post-weld. No stretching expected.
+  - Seams: Perimeter edges tagged role 1. Effective only if edge_slot_1_action != IGNORE.
+
+For wall_style=STANDARD (with hole):
+  - UV: Multiple wall segment panels. Post-weld BOX mapping will handle each face independently.
+        Adjacent panels share the same U-space (world X), so tiling is continuous.
+  - Seams: Wall perimeter + hole perimeter tagged role 1.
+
+For wall_style=REINFORCED:
+  - UV: Slot 0 (wall body) correct. Slot 1 (inset ring + recessed face) may still show
+        UV overlap on the inset — both layers mapped to same XZ position.
+  - Seams: Inset boundary edges tagged role 2 (Contour/Sharp).
+
+For wall with baseboard:
+  - UV: Baseboard (slot 2) BOX-mapped. Front and back baseboards are separate islands.
+  - Seams: Role-1 on all baseboard perimeters (consistent now).

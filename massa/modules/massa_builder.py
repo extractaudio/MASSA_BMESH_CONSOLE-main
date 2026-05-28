@@ -470,7 +470,10 @@ class MassaBuilder:
             layer = self.bm.faces.layers.int.new("MASSA_SOCKETS")
 
         if self.active_faces:
-            for f in self.active_faces:
+            # Guard: BMFace objects become invalid after remove_doubles (clean()).
+            # Check is_valid before accessing any layer data to prevent ReferenceError.
+            live_faces = [f for f in self.active_faces if f.is_valid]
+            for f in live_faces:
                 f[layer] = socket_id
         return self
 
@@ -561,10 +564,13 @@ class MassaBuilder:
     # =========================================================================
 
     def clean(self):
-        """Runs remove_doubles and recalc_normals."""
+        """Runs remove_doubles and recalc_normals. Clears active selection (stale after merge)."""
         bmesh.ops.remove_doubles(self.bm, verts=self.bm.verts[:], dist=0.0001)
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces[:])
         self._update()
+        # Invalidate selection: remove_doubles may have freed faces in active_faces.
+        self.active_faces = []
+        self.active_edges = []
         return self
 
     # =========================================================================

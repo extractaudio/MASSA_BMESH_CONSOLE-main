@@ -1,0 +1,7 @@
+{"status": "PASS", "object": "ARC Mezzanine", "errors": []}
+
+--- Family C Analysis Result ---
+Index coverage : PASS — slots 0, 1, 2, 9 all defined in get_slot_meta and used in build_shape
+Phys validity  : PASS — METAL_IRON, METAL_STEEL, METAL_STEEL, GENERIC are all valid MASTER_MAT_DB keys
+Socket slot 9  : PASS — uv="SKIP", sock=True, phys="GENERIC"
+No fixes required — file was already in correct state on disk

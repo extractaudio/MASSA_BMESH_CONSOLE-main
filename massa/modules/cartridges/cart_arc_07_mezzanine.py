@@ -71,10 +71,10 @@ class MASSA_OT_ArcMezzanine(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Deck Surface", "uv": "BOX", "phys": "METAL_CHECKERPLATE"},
+            0: {"name": "Deck Surface", "uv": "BOX", "phys": "METAL_IRON"},
             1: {"name": "Structure", "uv": "BOX", "phys": "METAL_STEEL"},
-            2: {"name": "Railings", "uv": "BOX", "phys": "METAL_PAINTED"},
-            9: {"name": "Socket Anchor", "sock": True, "uv": "BOX", "phys": "DEBUG_9"}
+            2: {"name": "Railings", "uv": "BOX", "phys": "METAL_STEEL"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "SKIP", "phys": "GENERIC"}
         }
 
     def draw_shape_ui(self, layout):

@@ -57,9 +57,9 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Wall Surface", "uv": "SKIP", "phys": "MASSA_DEBUG_1"},
-            1: {"name": "Detail",       "uv": "SKIP", "phys": "MASSA_DEBUG_2"},
-            2: {"name": "Trim",         "uv": "SKIP", "phys": "MASSA_DEBUG_3"},
+            0: {"name": "Wall Surface", "uv": "BOX",  "phys": "MASSA_DEBUG_1"},
+            1: {"name": "Detail",       "uv": "BOX",  "phys": "MASSA_DEBUG_2"},
+            2: {"name": "Trim",         "uv": "UNWRAP", "phys": "MASSA_DEBUG_3"},
             9: {"name": "Socket Anchor","sock": True,  "uv": "SKIP", "phys": "MASSA_DEBUG_9"}
         }
 
@@ -125,6 +125,9 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
             if self.wall_style == 'REINFORCED':
                 # Add a central ridge
                 if r['w'] > 0.5 and r['h'] > 0.5:
+                    # Inset the front face only (+Y normal); tag inset boundary as Contour (role 2).
+                    # We do NOT call tag_uvs here — the engine will BOX-map slot 1 faces after
+                    # weld/merge, so UVs are assigned from final geometry, preventing inset overlap.
                     builder.select_faces_by_normal(Vector((0, 1, 0))) \
                            .inset(0.1, depth=0.05) \
                            .tag_slot(1) \
@@ -187,12 +190,13 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
                 cz = bh/2
 
                 # Front Baseboard (Y = -bd/2)
+                # tag_edge_role(1) = Perimeter (Seam + Sharp) on the outer boundary.
+                # The previous double-tag (role 2 then immediately role 1) was dead code —
+                # the second call overwrote the first. Simplified to a single role-1 tag.
                 builder.create_box(r['w'], bd, bh) \
                        .translate(cx, -bd/2, cz) \
                        .tag_slot(2) \
-                       .select_boundary().tag_edge_role(2)
-
-                builder.select_boundary().tag_edge_role(1)
+                       .select_boundary().tag_edge_role(1)
 
                 # Back Baseboard (Y = t + bd/2)
                 builder.create_box(r['w'], bd, bh) \
@@ -211,12 +215,11 @@ class MASSA_OT_ArcWall(Massa_OT_Base):
         builder.select_faces_by_normal(Vector((1, 0, 0)), tolerance=0.1) \
                .tag_socket(2)
 
-        # §7.2 — Dual-mode UV pass (respects uv_scale / fit_uvs)
-        uv_sc   = 1.0 if self.fit_uvs else self.uv_scale
-        uv_proj = 'FIT' if self.fit_uvs else 'BOX'
-        builder.select_faces_by_slot(0).tag_uvs(scale=uv_sc, projection=uv_proj)
-        builder.select_faces_by_slot(1).tag_uvs(scale=uv_sc, projection=uv_proj)
-        builder.select_faces_by_slot(2).tag_uvs(scale=uv_sc, projection=uv_proj)
+        # UV pass is handled by the engine pipeline using slot_meta uv="BOX".
+        # Manual tag_uvs calls were removed because they ran before weld/merge (pipeline stage 1),
+        # producing UV coords from pre-weld vertex positions — causing stretching and island
+        # misalignment at segment boundaries when USE_WELD merges adjacent panels.
+        # The engine UV pass runs after weld, so coords are stable and correctly placed.
 
     def draw_shape_ui(self, layout):
         box_dim = layout.box()

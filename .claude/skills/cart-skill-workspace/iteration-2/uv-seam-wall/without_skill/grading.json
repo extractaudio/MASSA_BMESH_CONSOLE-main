@@ -1,0 +1,31 @@
+{
+  "eval_id": 0,
+  "run": "without_skill",
+  "expectations": [
+    {
+      "text": "Agent ran at least one audit mode or attempted to",
+      "passed": true,
+      "evidence": "Audit output was pre-loaded; agent confirmed FAIL/5x FUZZ_CRASH and used it as basis for analysis"
+    },
+    {
+      "text": "Agent identified FUZZ_CRASH or tag_socket crash as a problem",
+      "passed": true,
+      "evidence": "Found the crash (BMFace invalidated after remove_doubles in clean()), identified massa_builder.py:474 as crash site, and applied the fix"
+    },
+    {
+      "text": "Agent identified at least one UV or seam issue",
+      "passed": true,
+      "evidence": "Found UV stretching on Trim (slot 2) with BOX projection; fixed by changing to UNWRAP"
+    },
+    {
+      "text": "Agent produced a concrete repair plan or code change",
+      "passed": true,
+      "evidence": "Applied 2 actual code fixes to massa_builder.py and cart_arc_01_wall.py (is_valid guard + uv strategy change)"
+    },
+    {
+      "text": "Agent wrote a diagnosis.md or equivalent output file",
+      "passed": true,
+      "evidence": "diagnosis.md saved with root cause analysis and fix descriptions"
+    }
+  ]
+}
