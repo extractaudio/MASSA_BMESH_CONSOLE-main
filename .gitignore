@@ -21,8 +21,5 @@ _EXPORT/
 .DS_Store
 Thumbs.db
 
-# ── Project docs scratch (superseded copies live here) ─
-docs/
-
 # ── Local secrets ─────────────────────────────────────
 src/blender_mcp/config.py

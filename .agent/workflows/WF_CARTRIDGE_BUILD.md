@@ -6,7 +6,7 @@ description: Create a New Geometry Cartridge from Scratch
 
 Use this workflow when tasked with adding a new geometry generator to `massa/modules/cartridges/`.
 
-> **Read first:** `CARTRIDGE_MANDATE.md` (root) and `AGENTS.md` (root) before writing any code.
+> **Read first:** `docs/blender-addon-docs/CARTRIDGE_MANDATE.md` and `AGENTS.md` (root) before writing any code.
 
 ---
 

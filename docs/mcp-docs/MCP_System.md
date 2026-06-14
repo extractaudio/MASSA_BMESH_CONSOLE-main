@@ -27,11 +27,12 @@ Blender bpy runtime, with optional Massa add-on, HardOps, NodeToPython, and geon
 
 ## Package Layout
 
+> Note: this document and the MCP setup guide now live in `docs/mcp-docs/`
+> (moved out of `_MCP/` during the docs reorganization).
+
 ```text
 _MCP/
   pyproject.toml
-  SETUP.md
-  MCP_System.md
   blmcp/
     __init__.py
     __main__.py
@@ -80,7 +81,7 @@ Package data includes:
 
 ### `SETUP.md`
 
-`_MCP/SETUP.md` is the user-facing setup guide. It explains installing with `uv`, configuring Claude/agent MCP clients, running over stdio or HTTP, connecting to the Blender add-on, and troubleshooting common connection problems.
+[`docs/mcp-docs/SETUP.md`](SETUP.md) is the user-facing setup guide. It explains installing with `uv`, configuring Claude/agent MCP clients, running over stdio or HTTP, connecting to the Blender add-on, and troubleshooting common connection problems.
 
 One important maintenance note: `SETUP.md` contains a broader tool reference than the current indexed `blmcp/tools` package. The live code currently contains the tool modules listed in this document below. Treat `blmcp/tools` as authoritative for what will be registered at startup.
 

@@ -5,7 +5,7 @@ description: Workflow for the Gemini Flash Agent to build new Massa Geometry Car
 # ⚡ MASSA FLASH AGENT: [STATE: BUILD] ⚡
 
 ## 1. OBJECTIVES & PRE-REQUISITES
-**Goal:** Generate a new, structurally sound Massa Geometry Cartridge following the strict "Golden Cartridge" `CARTRIDGE_MANDATE.md`.
+**Goal:** Generate a new, structurally sound Massa Geometry Cartridge following the strict "Golden Cartridge" `docs/blender-addon-docs/CARTRIDGE_MANDATE.md`.
 **Inputs:** A concept from the user (e.g., "Build a parametric wooden crate").
 **Output:** A `.py` file stored in `massa/modules/cartridges/`.
 **Constraints:** Do NOT hallucinate dependencies. Follow the required `import` list exactly. Do NOT invent new class methods outside of `get_slot_meta`, `draw_shape_ui`, and `build_shape`.

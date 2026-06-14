@@ -34,7 +34,7 @@ To prevent "Ghost Controls," any new parameter must be instantiated across five 
 Enforce explicit and correct Blender property typing (e.g., `bpy.props.FloatProperty`, `IntProperty`) with `default`, `min`, and `max` kwargs.
 
 ### The Cartridge System & Mandates
-All new geometry cartridges must adhere strictly to the rules laid out in `CARTRIDGE_MANDATE.md` and the 6 Laws of Compliance:
+All new geometry cartridges must adhere strictly to the rules laid out in `docs/blender-addon-docs/CARTRIDGE_MANDATE.md` and the 6 Laws of Compliance:
 1. **Law of Segmentation**: Long faces must be subdivided for proper Polish Stack deformation.
 2. **Law of Edge Roles**: Edges must be assigned to the `MASSA_EDGE_SLOTS` layer (Perimeter, Contour, Guide, Detail).
 3. **Law of Identity**: Cartridges must return a dictionary of used slots via `get_slot_meta()` to drive Socket manifestations.

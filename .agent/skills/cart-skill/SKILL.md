@@ -146,7 +146,7 @@ Pass criteria: zero `CRITICAL_UV_*` flags, islands within 0–1 bounds, heatmap 
 
 ## Family B — Geometry / Topology Fix
 
-**Reference docs:** `CARTRIDGE_MANDATE.md` (§5, §6), `.agent/workflows/WF_CARTRIDGE_MODIFY.md`
+**Reference docs:** `docs/blender-addon-docs/CARTRIDGE_MANDATE.md` (§5, §6), `.agent/workflows/WF_CARTRIDGE_MODIFY.md`
 
 ### B1 — Inspect Shape
 

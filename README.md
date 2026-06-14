@@ -124,13 +124,33 @@ MASSA_BMESH_CONSOLE-main/
 │   ├── package_massa_addon.py         ← Packages massa/ into _EXPORT/massa.zip
 │   └── test_run_cartridge.py          ← External audit entrypoint (wraps runner.py)
 │
+├── _MCP/                              ← Blender MCP server (docs in docs/mcp-docs/)
+│
+├── docs/
+│   ├── blender-addon-docs/            ← 📘 Blender Addon documentation
+│   │   ├── CARTRIDGE_MANDATE.md       ← Golden Cartridge creation standard
+│   │   ├── Console_System_Directive.md
+│   │   ├── SETUP.md                   ← Addon / headless debugging setup
+│   │   └── For_AI_Agents.md           ← Headless debugging suite reference
+│   ├── mcp-docs/                      ← 🔌 MCP server documentation
+│   │   ├── MCP_System.md              ← MCP architecture & tool inventory
+│   │   └── SETUP.md                   ← MCP server setup guide
+│   └── old/                           ← Archived, superseded docs (historical)
+│
+├── README.md                          ← This file
 ├── CLAUDE.md                          ← Claude Code project instructions
-├── AGENTS.md                          ← AI agent operating protocol
-├── CARTRIDGE_MANDATE.md               ← Golden Cartridge creation standard
-├── new_OVERVIEW-main.md               ← Full architecture overview (v6.6)
-├── master_README.md                   ← This file
+├── AGENTS.md                          ← AI agent operating protocol (Codex)
+├── GEMINI.md                          ← Gemini project instructions
 └── _EXPORT/                           ← Generated addon zip (git-ignored)
 ```
+
+### Documentation Map
+
+| Area | Where |
+|:---|:---|
+| **Blender Addon** | This README (master reference) + [`docs/blender-addon-docs/`](docs/blender-addon-docs/): [Cartridge Mandate](docs/blender-addon-docs/CARTRIDGE_MANDATE.md), [Console System Directive](docs/blender-addon-docs/Console_System_Directive.md), [Setup](docs/blender-addon-docs/SETUP.md), [Debugging Suite](docs/blender-addon-docs/For_AI_Agents.md) |
+| **MCP Server** | [`docs/mcp-docs/`](docs/mcp-docs/): [MCP System](docs/mcp-docs/MCP_System.md), [Setup](docs/mcp-docs/SETUP.md) |
+| **Archive** | [`docs/old/`](docs/old/) — superseded historical docs |
 
 ---
 
@@ -735,7 +755,7 @@ Every generated Massa object carries its full parameter state and can be fully r
 
 When tasked with creating or modifying a Cartridge, execute this exact workflow:
 
-1.  **Ingest the Mandate**: Re-read `CARTRIDGE_MANDATE.md` and this document. Refresh understanding of UV mapping, Edge Slots (1-5), and Socket Protocols.
+1.  **Ingest the Mandate**: Re-read [`docs/blender-addon-docs/CARTRIDGE_MANDATE.md`](docs/blender-addon-docs/CARTRIDGE_MANDATE.md) and this document. Refresh understanding of UV mapping, Edge Slots (1-5), and Socket Protocols.
 2.  **Analyze a Reference**: Inspect an existing Golden Cartridge that closely matches the task:
     *   Structural profiles → `cart_prim_01_beam.py`
     *   Complex UVs / boolean-like math → `cart_prim_04_panel.py`
