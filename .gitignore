@@ -1,7 +1,28 @@
+# ── Python ────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.DS_Store
+*.py[cod]
+*.egg-info/
+build/
+dist/
+wheels/
+
+# ── Virtual environments ──────────────────────────────
+.venv/
+env/
+venv/
+
+# ── Build / export artifacts ──────────────────────────
+_EXPORT/
+*.zip
+
+# ── Editor / OS ───────────────────────────────────────
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ── Project docs scratch (superseded copies live here) ─
 docs/
+
+# ── Local secrets ─────────────────────────────────────
+src/blender_mcp/config.py
