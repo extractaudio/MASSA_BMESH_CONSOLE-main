@@ -128,6 +128,6 @@ initial_instructions: |
 
   Instead, use the preferred NodeToPython (NTP) and Geonodes pipeline:
     1. **Inspection**: Use `ntp_snapshot_graph` to convert an existing node tree into a readable Python script.
-    2. **Authoring**: Use the `geonodes_*` tools (e.g., `geonodes_search`, `geonodes_get_demo`) to reference the Al1brn Python node-building syntax. All geonodes Python scripts MUST be saved permanently to `massa/modules/geonodes_library/` for future reference, do not treat them as ephemeral.
+    2. **Authoring**: Use the `geonodes_*` tools (e.g., `geonodes_search`, `geonodes_get_demo`) to reference the Al1brn Python node-building syntax. Geonodes Python scripts are typically one-time use; pass the code string directly to the tool without writing a file. If you must write a file to disk, place it ONLY in `massa/modules/geonodes_library/` and delete it after use.
     3. **Execution**: Use `geonodes_execute_script` to run the node-building Python script. This cleanly generates the NodeGroup or Material in Blender and can attach it to an object.
     4. **Integration**: Remember to link your node structures back into the main workflow, such as attaching them to objects or leveraging them in Massa cartridges.

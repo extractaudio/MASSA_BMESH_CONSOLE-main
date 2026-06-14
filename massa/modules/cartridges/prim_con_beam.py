@@ -91,7 +91,7 @@ class MASSA_OT_prim_con_beam(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Steel_Face", "uv": "TUBE_Y", "phys": "METAL_STEEL"},
+            0: {"name": "Steel_Face", "uv": "UNWRAP", "phys": "METAL_STEEL"},
             1: {"name": "Cut_End", "uv": "BOX", "phys": "METAL_RUST"},
             3: {"name": "Anchor_Point", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }

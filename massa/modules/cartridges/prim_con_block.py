@@ -46,6 +46,10 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
     seg_x: IntProperty(name="Seg X", default=4, min=1, description="Length Cuts")
     seg_y: IntProperty(name="Seg Y", default=2, min=1, description="Width Cuts")
     seg_z: IntProperty(name="Seg Z", default=2, min=1, description="Height Cuts")
+    
+    # --- UV Controls ---
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.01)
+    fit_uvs: bpy.props.BoolProperty(name="Fit UVs", default=False)
 
     def draw_shape_ui(self, layout):
         box = layout.box()
@@ -65,10 +69,16 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
         row.prop(self, "seg_x", text="X")
         row.prop(self, "seg_y", text="Y")
         row.prop(self, "seg_z", text="Z")
+        
+        box = layout.box()
+        box.label(text="UV Mapping", icon="UV_DATA")
+        row = box.row(align=True)
+        row.prop(self, "uv_scale")
+        row.prop(self, "fit_uvs", toggle=True)
 
     def get_slot_meta(self):
-        # Update UV mode to UNWRAP for custom seaming
-        return {0: {"name": "Concrete", "uv": "UNWRAP", "phys": "CONCRETE_BLOCK"}}
+        # Update UV mode to SKIP for explicit manual UV mapping
+        return {0: {"name": "Concrete", "uv": "SKIP", "phys": "CONCRETE_BLOCK"}}
 
     def build_shape(self, bm):
         # 1. SETUP PARAMETERS
@@ -297,3 +307,62 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
                 zipper_key = min(pillars.keys(), key=lambda k: (k[1], k[0]))
                 for e in pillars[zipper_key]:
                     mark_edge(e, slot=3, seam=True, protect=True)
+
+        # 9. MANUAL UV MAPPING (SKIP Mode)
+        uv_layer = bm.loops.layers.uv.verify()
+        
+        su = self.uv_scale
+        sv = self.uv_scale
+        fit = self.fit_uvs
+        
+        for f in cap_faces:
+            for loop in f.loops:
+                u = loop.vert.co.x
+                v = loop.vert.co.z
+                if fit:
+                    u = (u + l/2) / l
+                    v = (v + h/2) / h
+                else:
+                    u *= su
+                    v *= sv
+                loop[uv_layer].uv = (u, v)
+                
+        def get_tube_u(x, z, min_x, max_x, min_z, max_z):
+            eps = 0.001
+            w_x = max_x - min_x
+            w_z = max_z - min_z
+            if abs(z - min_z) < eps: return x - min_x
+            elif abs(x - max_x) < eps: return w_x + (z - min_z)
+            elif abs(z - max_z) < eps: return w_x + w_z + (max_x - x)
+            elif abs(x - min_x) < eps: return w_x + w_z + w_x + (max_z - z)
+            return 0.0
+
+        for island in islands:
+            min_x = min(v.co.x for f in island for v in f.verts)
+            max_x = max(v.co.x for f in island for v in f.verts)
+            min_z = min(v.co.z for f in island for v in f.verts)
+            max_z = max(v.co.z for f in island for v in f.verts)
+            perim = 2 * (max_x - min_x) + 2 * (max_z - min_z)
+            
+            for f in island:
+                loop_uvs = []
+                for loop in f.loops:
+                    u = get_tube_u(loop.vert.co.x, loop.vert.co.z, min_x, max_x, min_z, max_z)
+                    v = loop.vert.co.y
+                    loop_uvs.append([loop, u, v])
+                
+                # Fix wrapping seam
+                us = [item[1] for item in loop_uvs]
+                if max(us) - min(us) > perim * 0.5:
+                    for item in loop_uvs:
+                        if item[1] < perim * 0.5:
+                            item[1] += perim
+                            
+                for loop, u, v in loop_uvs:
+                    if fit:
+                        u = u / perim if perim > 0 else 0
+                        v = (v + w/2) / w
+                    else:
+                        u *= su
+                        v *= sv
+                    loop[uv_layer].uv = (u, v)
