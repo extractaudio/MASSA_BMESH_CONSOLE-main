@@ -15,16 +15,19 @@ Call the jcodemunch_guide tool and strictly follow its instructions.
 If `resolve_repo` returns a different repo identifier for this checkout, use the returned identifier for all later jCodemunch calls in the same session.
 
 **Start any session:**
+
 1. `resolve_repo { "path": "." }` — confirm the project is indexed. If not: `index_folder { "path": "." }`
 2. `plan_turn { "repo": "local/MASSA_BMESH_CONSOLE-main-baadc0ec", "query": "<task>", "model": "Codex-sonnet-4-6" }` before any code task
 
 **Finding code:**
+
 - symbol by name → `search_symbols`
 - string / comment / config → `search_text`
 - before opening any file → `get_file_outline` first
 - one or more symbols → `get_symbol_source`
 
 **jCodemunch v1.108.22 tool surface:**
+
 - **Indexing:** `index_repo`, `index_folder`, `summarize_repo`, `index_file`
 - **Discovery:** `list_repos`, `resolve_repo`, `suggest_queries`, `get_repo_outline`, `get_file_tree`, `get_file_outline`
 - **Search & Retrieval:** `search_symbols`, `get_symbol_source`, `get_context_bundle`, `get_file_content`, `search_text`, `search_columns`, `get_ranked_context`, `assemble_task_context`
@@ -74,6 +77,7 @@ python _Scripts/test_run_cartridge.py <path/to/cartridge.py> [--mode MODE]
 **Available modes:** `AUDIT` (default), `VISUAL_DIFF`, `UV_HEATMAP`, `UV_INSPECT`, `PERFORMANCE`, `CSG_DEBUG`, `RENDER`, `SKILL_EXEC`, `CONSOLE_AUDIT`
 
 Example:
+
 ```
 python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_02_pipe.py --mode AUDIT
 ```
@@ -116,6 +120,7 @@ Every cartridge **must** define:
 | `get_slot_meta(self)` method | Returns dict mapping slot index → `{name, uv, phys, sock?}` |
 
 **Minimal `CARTRIDGE_META`:**
+
 ```python
 CARTRIDGE_META = {
     "name": "My Part",
@@ -131,6 +136,7 @@ CARTRIDGE_META = {
 **Valid flags:** `USE_WELD`, `ALLOW_SOLIDIFY`, `ALLOW_FUSE`, `ALLOW_CHAMFER`, `LOCK_PIVOT`, `REMOVE_LOOSE`, `FIX_DEGENERATE`
 
 **`get_slot_meta` example:**
+
 ```python
 def get_slot_meta(self):
     return {
@@ -178,6 +184,7 @@ Pipeline stages in order:
 10. Mesh output: material assignment, UV unwrap/pack, socket spawning, UCX collision generation, auto-rigger
 
 Output object receives:
+
 - `obj["massa_op_id"]` — operator ID for resurrection
 - `obj["MASSA_PARAMS"]` — full serialized operator state for edit/redo
 
