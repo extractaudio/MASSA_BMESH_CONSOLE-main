@@ -64,7 +64,16 @@
       "Bash(mkdir -p \"D:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.claude/skills/cart-skill-workspace/iteration-2/geometry-fuzz-pipe/with_skill/outputs\")",
       "Bash(mkdir -p \"D:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.claude/skills/cart-skill-workspace/iteration-2/geometry-fuzz-pipe/without_skill/outputs\")",
       "Bash(mkdir -p \"D:/AntiGravity_google/MASSA_BMESH_CONSOLE-main/.claude/skills/cart-skill-workspace/iteration-2/material-slot-mezzanine/with_skill/outputs\")",
-      "Bash(python \"C:\\\\Users\\\\thinktank\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\bb70ace9-8c9b-4ace-8a22-ee0fda1bc3f6\\\\af16e3f8-18c5-4cb3-84ce-dece2f04ca45\\\\skills\\\\skill-creator\\\\eval-viewer\\\\generate_review.py\" \".claude/skills/cart-skill-workspace/iteration-2\" --skill-name \"cart-skill\" --benchmark \".claude/skills/cart-skill-workspace/iteration-2/benchmark.json\" --previous-workspace \".claude/skills/cart-skill-workspace/iteration-1\" --static \".claude/skills/cart-skill-workspace/cart-skill-review-iter2.html\")"
+      "Bash(python \"C:\\\\Users\\\\thinktank\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\bb70ace9-8c9b-4ace-8a22-ee0fda1bc3f6\\\\af16e3f8-18c5-4cb3-84ce-dece2f04ca45\\\\skills\\\\skill-creator\\\\eval-viewer\\\\generate_review.py\" \".claude/skills/cart-skill-workspace/iteration-2\" --skill-name \"cart-skill\" --benchmark \".claude/skills/cart-skill-workspace/iteration-2/benchmark.json\" --previous-workspace \".claude/skills/cart-skill-workspace/iteration-1\" --static \".claude/skills/cart-skill-workspace/cart-skill-review-iter2.html\")",
+      "Bash(git fsck *)",
+      "Bash(git rev-list *)",
+      "Bash(git cat-file *)",
+      "Bash(sort -k3 -n -r)",
+      "Bash(awk '{printf \"%6.2f MB  %s\\\\n\",$3/1048576,$4}')",
+      "Bash(grep \"\\\\.py$\")",
+      "Bash(sed 's/\\\\.py$//')",
+      "Bash(grep -E \"^massa_[^_]+\\\\.py$\")",
+      "mcp__jcodemunch__list_repos"
     ]
   }
 }

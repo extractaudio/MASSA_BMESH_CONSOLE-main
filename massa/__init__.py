@@ -9,6 +9,7 @@ from .operators import massa_base, massa_tools, massa_console_op, massa_point_to
 from .modules import cartridges  # 4. CONTENT
 from .modules import advanced_analytics # 4.5 ANALYTICS
 from .ui import ui_massa_panel, ui_massa_pie, gizmo_massa  # 5. INTERFACE
+from .modules import mcp_bridge  # 6. MCP BRIDGE (Blender-side socket server)
 
 # --- MANUAL OVERRIDE / HOT RELOAD LOGIC ---
 if "massa_console" in locals():
@@ -61,6 +62,14 @@ if "massa_console" in locals():
         importlib.reload(ui_massa_pie)
         importlib.reload(gizmo_massa)
 
+        # 5. MCP BRIDGE (stop any running server before swapping the code)
+        try:
+            mcp_bridge.server.stop_server()
+        except Exception:
+            pass
+        importlib.reload(mcp_bridge.server)
+        importlib.reload(mcp_bridge)
+
         print("Massa: Reload Complete.")
     except Exception as e:
         print(f"Massa: Reload Error: {e}")
@@ -100,6 +109,9 @@ def register():
     bpy.utils.register_class(ui_massa_pie.MASSA_MT_pie_add)
     bpy.utils.register_class(gizmo_massa.MASSA_GGT_GizmoGroup)
 
+    # 4.6 MCP Bridge operators (server itself is started explicitly by the user)
+    mcp_bridge.register()
+
     # 5. Keymaps
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
@@ -115,6 +127,9 @@ def unregister():
     from .modules import massa_collision
 
     massa_collision.unregister()
+
+    # 0. Stop + unregister the MCP bridge (closes socket and main-thread timer)
+    mcp_bridge.unregister()
 
     # 1. Unregister Keymaps
     for km, kmi in addon_keymaps:

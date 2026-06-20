@@ -42,6 +42,18 @@ class MASSA_PT_Main(bpy.types.Panel):
         row.prop(console, "massa_op_mode", expand=True)
         layout.separator()
 
+        # --- MCP BRIDGE (AI agent socket server) ---
+        from ..modules import mcp_bridge
+        bridge_box = layout.box()
+        brow = bridge_box.row(align=True)
+        if mcp_bridge.server.is_running():
+            brow.label(text="MCP Server: ON", icon="RADIOBUT_ON")
+            brow.operator("massa.mcp_bridge_stop", text="Stop", icon="PAUSE")
+        else:
+            brow.label(text="MCP Server: off", icon="RADIOBUT_OFF")
+            brow.operator("massa.mcp_bridge_start", text="Start", icon="PLAY")
+        layout.separator()
+
         # [ARCHITECT UI UPDATE] High-Priority Actions (Resurrect/Condemn)
         # Always drawn — poll() on each operator handles the disabled/greyed state
         # when no Massa object is active.

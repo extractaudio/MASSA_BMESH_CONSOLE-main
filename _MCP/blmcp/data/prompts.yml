@@ -131,3 +131,41 @@ initial_instructions: |
     2. **Authoring**: Use the `geonodes_*` tools (e.g., `geonodes_search`, `geonodes_get_demo`) to reference the Al1brn Python node-building syntax. Geonodes Python scripts are typically one-time use; pass the code string directly to the tool without writing a file. If you must write a file to disk, place it ONLY in `massa/modules/geonodes_library/` and delete it after use.
     3. **Execution**: Use `geonodes_execute_script` to run the node-building Python script. This cleanly generates the NodeGroup or Material in Blender and can attach it to an object.
     4. **Integration**: Remember to link your node structures back into the main workflow, such as attaching them to objects or leveraging them in Massa cartridges.
+
+  # MASSA Cartridge Workflow
+
+  This Blender instance runs the MASSA addon: a library of parametric mesh
+  "cartridges" (operators `massa.gen_<id>`) driven by a shared console
+  (`bpy.context.scene.massa_console`). Prefer the dedicated `massa_*` tools over
+  `execute_blender_code` for anything cartridge-related — they are structured,
+  validated, and avoid mode/selection mistakes.
+
+  Canonical loop:
+    1. **Discover**: `massa_list_cartridges` to see what exists, then
+       `massa_get_cartridge_parameters` to learn a cartridge's exact parameters
+       (types, defaults, min/max, enums). NEVER guess parameter names — look
+       them up. `cartridge_specific_params` highlights the distinctive ones.
+    2. **Spawn**: `massa_spawn_cartridge(cartridge_id, location, rotation,
+       console_params, cartridge_params)`. Capture the returned `object_name`.
+    3. **Inspect slots**: `massa_get_slot_meta` reports the slot map and which
+       slot is the socket slot (`sock:True`) — use it instead of guessing.
+    4. **Select**: `massa_set_mode(object_name, "EDIT", select_mode=[...])` then
+       `massa_select_geometry(...)` to select by index / edge slot / material /
+       face normal / seam / sharp. Use `massa_get_selected_geometry` to read back
+       the current selection with MASSA edge-slot/bevel/crease data.
+    5. **Tag**: `massa_assign_edge_slot_to_selection` (edge slots 1-5: SEAM /
+       SHARP / BOTH / CREASE / BEVEL), `massa_assign_face_material_slot_to_selection`
+       (material slots 0-9; ensure the slot exists first via
+       `massa_manage_material_slots`), and `massa_create_socket_at_selected_face`.
+       These also return a `cartridge_snippet` you can paste into a cartridge's
+       `build_shape()` to make the tagging procedural.
+    6. **Verify**: screenshot (`get_screenshot_of_window_as_image`) or inspect
+       (`get_object_detail_summary`).
+    7. **Iterate**: `massa_rerun_cartridge(object_name, cartridge_params=...)`
+       regenerates the object in place with new parameters — use this instead of
+       deleting and re-spawning.
+
+  Slot model: material slots are 0-9 (per-cartridge meaning via `get_slot_meta`);
+  edge slots are 1-5 (tagged on the `MASSA_EDGE_SLOTS` layer, drive seams/sharps/
+  crease/bevel). Generated objects store their full state in `obj["MASSA_PARAMS"]`
+  and their operator id in `obj["massa_op_id"]`.

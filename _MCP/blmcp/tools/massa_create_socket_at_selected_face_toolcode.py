@@ -13,6 +13,7 @@ class Result(NamedTuple):
     object: str | None = None
     sockets_created: list[dict[str, object]] | None = None
     count: int | None = None
+    socket_slot_index: int | None = None
     cartridge_snippet: str | None = None
     message: str | None = None
 
@@ -69,13 +70,36 @@ def main(params: Params) -> Result:
     if not target_centers:
         return Result(status="error", message="No faces selected for socket creation.")
 
+    # Resolve the cartridge's real socket slot (the slot flagged sock:True) from
+    # get_slot_meta() instead of hard-coding it. Fall back to 3 only if unknown.
+    socket_slot_index = 3
+    try:
+        op_id = obj.get("massa_op_id")
+        if op_id:
+            from massa.modules.cartridges import CLASSES
+
+            class _PermissiveSelf:
+                def __getattr__(self, _name):
+                    return 0
+
+            for cls in CLASSES:
+                if getattr(cls, "bl_idname", "") == op_id:
+                    meta = cls.get_slot_meta(_PermissiveSelf())
+                    for idx, data in meta.items():
+                        if isinstance(data, dict) and data.get("sock"):
+                            socket_slot_index = int(idx)
+                            break
+                    break
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
     snippet = textwrap.dedent(f"""\
         # --- PROCEDURAL SOCKET TAGGING ({params.socket_name}) ---
-        # Note: Set socket_slot_index to the designated 'sock': True slot
+        # socket_slot_index resolved from the cartridge's get_slot_meta() (sock:True)
         import mathutils
         socket_target_centers = {target_centers}
-        socket_slot_index = 3 
-        
+        socket_slot_index = {socket_slot_index}
+
         for f in bm.faces:
             c = f.calc_center_median()
             for tc in socket_target_centers:
@@ -87,5 +111,6 @@ def main(params: Params) -> Result:
 
     return Result(
         status="ok", object=obj.name, sockets_created=created_sockets,
-        count=len(target_centers), cartridge_snippet=snippet
+        count=len(target_centers), socket_slot_index=socket_slot_index,
+        cartridge_snippet=snippet
     )
