@@ -41,6 +41,93 @@ except ImportError:
     except ImportError:
         pass
 
+# =============================================================================
+# SEVERITY MODEL
+# -----------------------------------------------------------------------------
+# Auditors emit free-form flag strings. Historically the runner marked an audit
+# FAIL whenever *any* flag was present — including WARNING_/INFO_ flags such as
+# INFO_FUZZER_SKIPPED_NO_PARAMS, which made nearly every headless audit report a
+# false failure. We classify each flag by severity and only FAIL on CRITICAL.
+# =============================================================================
+
+# CRITICAL-looking flags that are routinely valid for this addon's cartridges
+# (open shells, flat panels, thin industrial strips, box-mapped closed volumes).
+# They are downgraded to WARNING so they surface in telemetry without failing
+# an otherwise-healthy mesh.
+SOFT_FLAG_TOKENS = (
+    "NON_MANIFOLD",
+    "OPEN_SHELL",
+    "NO_PERIMETER",
+    "FLAT_Z_AXIS",
+    "NO_SEAMS_ON_COMPLEX_MESH",
+    "THIN_FACES",
+    "ISOLATED_SEAM",
+)
+
+
+def classify_flag(flag):
+    """Map a single auditor flag string to 'critical' | 'warning' | 'info'."""
+    f = str(flag).upper()
+    if f.startswith("INFO_") or f.startswith("INFO "):
+        sev = "info"
+    elif f.startswith("WARNING_") or f.startswith("WARN"):
+        sev = "warning"
+    elif f.startswith("CRITICAL_"):
+        sev = "critical"
+    elif "CRASH" in f or "_ERROR" in f or "ERROR:" in f or "TRACEBACK" in f:
+        # Unprefixed auditor/loader failures still count as hard failures.
+        sev = "critical"
+    else:
+        # Unknown / legacy unprefixed strings: treat as warning, not failure.
+        sev = "warning"
+
+    if sev == "critical" and any(tok in f for tok in SOFT_FLAG_TOKENS):
+        sev = "warning"
+    return sev
+
+
+def classify_flags(flags):
+    """
+    Group a flat list of flags into severity buckets (order-preserving,
+    de-duplicated) and produce a summary count block.
+    """
+    buckets = {"critical": [], "warning": [], "info": []}
+    seen = set()
+    for flag in flags or []:
+        flag = str(flag)
+        if flag in seen:
+            continue
+        seen.add(flag)
+        buckets[classify_flag(flag)].append(flag)
+
+    buckets["summary"] = {
+        "critical": len(buckets["critical"]),
+        "warning": len(buckets["warning"]),
+        "info": len(buckets["info"]),
+        "total": len(seen),
+    }
+    return buckets
+
+
+def _get_auditors_module():
+    """Locate the loaded auditors package regardless of how it was imported."""
+    if 'auditors' in sys.modules:
+        return sys.modules['auditors']
+    if 'massa.modules.debugging_system.auditors' in sys.modules:
+        return sys.modules['massa.modules.debugging_system.auditors']
+    if 'auditors' in globals():
+        return globals()['auditors']
+    return None
+
+
+def _find_op_class():
+    """Return the cartridge operator class loaded into globals (not the base)."""
+    for name, val in globals().items():
+        if name.startswith("MASSA_OT_") and isinstance(val, type) and name != "Massa_OT_Base":
+            return val
+    return None
+
+
 def setup_massa_env():
     """
     Sets up the 'massa' package environment by aliasing the addon directory
@@ -154,72 +241,201 @@ def prepare_cartridge_env():
         print(f"Failed to import dependencies: {e}")
         return False
 
-def run_checks(obj):
+def fallback_basic_checks(obj):
+    """
+    Minimal built-in mesh checks used when the auditors package is unavailable.
+    Non-mutating: reads the active UV layer rather than verify()-ing one into
+    existence (which would have masked a genuinely missing UV layer).
+    """
     errors = []
-    
-    # --- DYNAMICALLY RUN ATTACHED AUDITORS ---
-    # Try to find auditors module
-    auditors_mod = None
-    if 'auditors' in sys.modules:
-        auditors_mod = sys.modules['auditors']
-    elif 'massa.modules.debugging_system.auditors' in sys.modules:
-        auditors_mod = sys.modules['massa.modules.debugging_system.auditors']
-    elif 'auditors' in globals():
-        auditors_mod = globals()['auditors']
-
-    if auditors_mod:
-        # Identify the Operator Class from globals if possible
-        op_class = None
-        # Look for class starting with MASSA_OT_
-        for name, val in globals().items():
-            if name.startswith("MASSA_OT_") and isinstance(val, type):
-                op_class = val
-                break
-        
-        # Register Class to populate bl_rna
-        if op_class:
-            try:
-                bpy.utils.register_class(op_class)
-            except Exception as e:
-                pass 
-                
-        try:
-            if hasattr(auditors_mod, 'run_all_auditors'):
-                errors.extend(auditors_mod.run_all_auditors(obj, op_class))
-        except Exception as e:
-            errors.append(f"Auditor Loader Failed: {str(e)}")
-
-    
-    # --- CONNECT YOUR ATTACHED SCRIPTS HERE ---
-    
-    # [FALLBACK LOGIC]: If attached files aren't linked, we run a basic check
-    # to ensure the system works out of the box.
     if not obj or obj.type != 'MESH':
-       return ["Object not valid for mesh audit"]
+        return ["WARNING_OBJECT_NOT_MESH"]
 
     bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    bm.faces.ensure_lookup_table()
-    
-    # Check A: Zero Faces
-    zero_faces = [f.index for f in bm.faces if f.calc_area() < 0.000001]
-    if zero_faces:
-        errors.append(f"Found {len(zero_faces)} Zero-Area Faces. Indices: {zero_faces[:5]}...")
+    try:
+        bm.from_mesh(obj.data)
+        bm.faces.ensure_lookup_table()
 
-    # Check B: Pinched UVs
-    uv_layer = bm.loops.layers.uv.verify()
-    pinched = []
-    for f in bm.faces:
-        uvs = [l[uv_layer].uv for l in f.loops]
-        # Shoelace formula for UV area
-        area = 0.5 * abs(sum(x0*y1 - x1*y0 for ((x0, y0), (x1, y1)) in zip(uvs, uvs[1:] + [uvs[0]])))
-        if area < 0.000001 and f.calc_area() > 0.000001:
-            pinched.append(f.index)
-    if pinched:
-        errors.append(f"Found {len(pinched)} Pinched UV Faces.")
+        # Check A: Zero-area faces
+        zero_faces = [f.index for f in bm.faces if f.calc_area() < 0.000001]
+        if zero_faces:
+            errors.append(f"CRITICAL_ZERO_AREA_FACES_{len(zero_faces)}")
 
-    bm.free()
+        # Check B: UV layer presence + pinched UVs (only if UVs exist)
+        uv_layer = bm.loops.layers.uv.active
+        if uv_layer is None:
+            if len(bm.faces) > 0:
+                errors.append("CRITICAL_MISSING_UV_LAYER")
+        else:
+            pinched = 0
+            for f in bm.faces:
+                uvs = [l[uv_layer].uv for l in f.loops]
+                # Shoelace formula for UV area
+                area = 0.5 * abs(sum(x0 * y1 - x1 * y0
+                                     for ((x0, y0), (x1, y1)) in zip(uvs, uvs[1:] + [uvs[0]])))
+                if area < 0.000001 and f.calc_area() > 0.000001:
+                    pinched += 1
+            if pinched:
+                errors.append(f"WARNING_PINCHED_UV_FACES_{pinched}")
+    finally:
+        bm.free()
     return errors
+
+
+def run_checks(obj):
+    """
+    Flat-list audit used by skill handlers (e.g. get_object_info). Runs the full
+    auditor suite when available, otherwise the built-in fallback checks.
+    Returns a de-duplicated ``list[str]`` of flags (legacy contract preserved).
+    """
+    if not obj or getattr(obj, "type", None) != 'MESH':
+        return ["WARNING_OBJECT_NOT_MESH"]
+
+    auditors_mod = _get_auditors_module()
+    if not (auditors_mod and hasattr(auditors_mod, 'run_all_auditors')):
+        return fallback_basic_checks(obj)
+
+    # Register the operator class so bl_rna-dependent auditors (UI, fuzz) work.
+    op_class = _find_op_class()
+    if op_class:
+        try:
+            bpy.utils.register_class(op_class)
+        except Exception:
+            pass
+
+    try:
+        flags = list(auditors_mod.run_all_auditors(obj, op_class))
+    except Exception as e:
+        flags = [f"CRITICAL_AUDITOR_LOADER_FAILED: {str(e)}"] + fallback_basic_checks(obj)
+
+    # De-duplicate while preserving order.
+    seen, deduped = set(), []
+    for f in flags:
+        f = str(f)
+        if f not in seen:
+            seen.add(f)
+            deduped.append(f)
+    return deduped
+
+
+def gather_mesh_telemetry(obj):
+    """
+    Collect structured, JSON-serializable telemetry about an object so callers
+    can parse Blender data without re-deriving it. Safe on non-mesh objects.
+    """
+    tel = {"name": getattr(obj, "name", None), "type": getattr(obj, "type", None)}
+    if not obj or obj.type != 'MESH':
+        return tel
+
+    me = obj.data
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(me)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        tri_faces = quad_faces = ngon_faces = 0
+        tri_total = 0
+        for f in bm.faces:
+            n = len(f.verts)
+            tri_total += max(n - 2, 0)
+            if n == 3:
+                tri_faces += 1
+            elif n == 4:
+                quad_faces += 1
+            elif n > 4:
+                ngon_faces += 1
+
+        open_edges = sum(1 for e in bm.edges if len(e.link_faces) < 2)
+        non_manifold = sum(1 for e in bm.edges if not e.is_manifold)
+        wire_edges = sum(1 for e in bm.edges if not e.link_faces)
+        loose_verts = sum(1 for v in bm.verts if not v.link_edges)
+
+        tel["geometry"] = {
+            "verts": len(bm.verts),
+            "edges": len(bm.edges),
+            "faces": len(bm.faces),
+            "tris_equiv": tri_total,
+            "tri_faces": tri_faces,
+            "quad_faces": quad_faces,
+            "ngon_faces": ngon_faces,
+            "open_edges": open_edges,
+            "non_manifold_edges": non_manifold,
+            "wire_edges": wire_edges,
+            "loose_verts": loose_verts,
+            "is_watertight": (open_edges == 0 and non_manifold == 0 and len(bm.faces) > 0),
+        }
+
+        # Local-space bounds + world-space dimensions (accounts for scale).
+        if bm.verts:
+            xs = [v.co.x for v in bm.verts]
+            ys = [v.co.y for v in bm.verts]
+            zs = [v.co.z for v in bm.verts]
+            tel["bounds_local"] = {
+                "min": [round(min(xs), 5), round(min(ys), 5), round(min(zs), 5)],
+                "max": [round(max(xs), 5), round(max(ys), 5), round(max(zs), 5)],
+            }
+        tel["dimensions"] = [round(d, 5) for d in obj.dimensions]
+
+        # MASSA edge-slot telemetry.
+        slot_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        if slot_layer is None:
+            tel["edge_slots"] = {"layer_present": False}
+        else:
+            hist = {}
+            for e in bm.edges:
+                val = e[slot_layer]
+                if val:
+                    hist[val] = hist.get(val, 0) + 1
+            tel["edge_slots"] = {
+                "layer_present": True,
+                "tagged_edges": sum(hist.values()),
+                "histogram": {str(k): v for k, v in sorted(hist.items())},
+            }
+
+        # UV telemetry.
+        uv_names = list(bm.loops.layers.uv.keys())
+        uv_block = {"layers": uv_names, "layer_count": len(uv_names)}
+        active_uv = bm.loops.layers.uv.active
+        if active_uv is not None:
+            us, vs = [], []
+            collapsed = 0
+            for f in bm.faces:
+                if f.calc_area() <= 0.0001:
+                    continue
+                loops = f.loops
+                uv_area = 0.0
+                ring = [l[active_uv].uv for l in loops]
+                for i, uv in enumerate(ring):
+                    nxt = ring[(i + 1) % len(ring)]
+                    uv_area += (uv.x * nxt.y) - (uv.y * nxt.x)
+                    us.append(uv.x)
+                    vs.append(uv.y)
+                if abs(uv_area * 0.5) < 0.000001:
+                    collapsed += 1
+            if us:
+                uv_block["bounds"] = {
+                    "min": [round(min(us), 5), round(min(vs), 5)],
+                    "max": [round(max(us), 5), round(max(vs), 5)],
+                }
+            uv_block["collapsed_faces"] = collapsed
+        tel["uv"] = uv_block
+    finally:
+        bm.free()
+
+    tel["materials"] = [m.name if m else None for m in obj.data.materials]
+    tel["modifiers"] = [{"name": m.name, "type": m.type} for m in obj.modifiers]
+    tel["transform"] = {
+        "location": [round(v, 5) for v in obj.location],
+        "rotation_euler": [round(v, 5) for v in obj.rotation_euler],
+        "scale": [round(v, 5) for v in obj.scale],
+    }
+    # Resurrection metadata (only the safe, serializable keys).
+    tel["massa_op_id"] = obj.get("massa_op_id")
+    tel["has_massa_params"] = "MASSA_PARAMS" in obj
+    tel["custom_prop_keys"] = [k for k in obj.keys()]
+    return tel
 
 def find_generated_object(exclude=None):
     if exclude is None: exclude = []
@@ -343,16 +559,21 @@ def skill_get_object_info(params):
         "poly_count": len(obj.data.polygons) if obj.type == 'MESH' else 0
     }
     
-    # Run Health Check
+    # Run Health Check (severity-aware: only CRITICAL flags fail the object)
     health = "PASS"
     issues = []
     if obj.type == 'MESH':
         issues = run_checks(obj)
-        if issues: health = "FAIL"
-        
+        classified = classify_flags(issues)
+        if classified["critical"]:
+            health = "FAIL"
+        elif classified["warning"]:
+            health = "WARN"
+        info["audit_summary"] = classified["summary"]
+
     info["health"] = health
     info["audit_issues"] = issues
-    
+
     return {"status": "SUCCESS", "info": info}
 
 def skill_transform_object(params):
@@ -615,7 +836,7 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     if not obj:
         # If we didn't run a cartridge, and there's no object, fail.
         # But if we are in a mode that expects one, we should error.
-        if mode in ["AUDIT", "PERFORMANCE", "UV_HEATMAP", "CSG_DEBUG", "UV_INSPECT"]:
+        if mode in ["AUDIT", "PERFORMANCE", "UV_HEATMAP", "CSG_DEBUG", "UV_INSPECT", "RENDER"]:
              return {"status": "FAIL", "errors": ["No Mesh Created by Cartridge or Found in Scene"]}
 
     if mode == "UV_HEATMAP":
@@ -641,16 +862,18 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     if mode == "PERFORMANCE":
         poly_count = len(obj.data.polygons)
         vert_count = len(obj.data.vertices)
-        
-        crashes_blender = False
-        if poly_count > 100000: crashes_blender = True
-        
+
+        crashes_blender = poly_count > 100000
+
         result = {
             "status": "SUCCESS",
-            "execution_time_ms": exec_time_ms,
+            "mode": "PERFORMANCE",
+            "object": obj.name,
+            "execution_time_ms": round(exec_time_ms, 3),
             "poly_count": poly_count,
             "vert_count": vert_count,
-            "budget_status": "FAIL" if crashes_blender else "PASS"
+            "budget_status": "FAIL" if crashes_blender else "PASS",
+            "telemetry": gather_mesh_telemetry(obj),
         }
         return result
 
@@ -689,14 +912,55 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
              return {"status": "FAIL", "message": f"Render Error: {str(e)}"}
 
     # Default AUDIT execution
+    # -------------------------------------------------------------------------
+    # Run the full auditor suite (severity-aware) and attach rich telemetry so
+    # the caller can both judge PASS/FAIL and inspect the underlying mesh data.
+    # -------------------------------------------------------------------------
+    op_class = _find_op_class()
+    auditors_mod = _get_auditors_module()
 
-    # Run Standard Audit
-    error_list = run_checks(obj)
-    
+    by_auditor = {}
+    ran = []
+    skipped = []
+    if auditors_mod and hasattr(auditors_mod, 'run_all_auditors'):
+        if op_class:
+            try:
+                bpy.utils.register_class(op_class)
+            except Exception:
+                pass
+        try:
+            detail = auditors_mod.run_all_auditors(obj, op_class, detailed=True)
+            flags = detail.get("flags", [])
+            by_auditor = detail.get("by_auditor", {})
+            ran = detail.get("ran", [])
+            skipped = detail.get("skipped", [])
+        except TypeError:
+            # Older auditors package without the detailed= kwarg.
+            flags = list(auditors_mod.run_all_auditors(obj, op_class))
+        except Exception as e:
+            flags = [f"CRITICAL_AUDITOR_LOADER_FAILED: {str(e)}"]
+    else:
+        flags = fallback_basic_checks(obj)
+
+    classified = classify_flags(flags)
+    status = "FAIL" if classified["critical"] else "PASS"
+
     result = {
-        "status": "PASS" if not error_list else "FAIL",
+        "status": status,
+        "mode": "AUDIT",
         "object": obj.name,
-        "errors": error_list
+        "operator": getattr(op_class, "bl_idname", None),
+        "summary": classified["summary"],
+        "issues": {
+            "critical": classified["critical"],
+            "warning": classified["warning"],
+            "info": classified["info"],
+        },
+        "auditors": {"ran": ran, "skipped": skipped, "by_auditor": by_auditor},
+        "telemetry": gather_mesh_telemetry(obj),
+        "execution_time_ms": round(exec_time_ms, 3),
+        # Backward-compatible flat list of every flag found.
+        "errors": classified["critical"] + classified["warning"] + classified["info"],
     }
 
     return result
@@ -858,8 +1122,14 @@ def setup_uv_layout_view(obj):
     plane.show_wire = True
 
 def print_json(data):
+    # default=str guarantees serialization never raises on stray Blender objects
+    # (which would otherwise leave the launcher with "no data").
     print("---AUDIT_START---")
-    print(json.dumps(data))
+    try:
+        print(json.dumps(data, default=str))
+    except Exception as e:
+        print(json.dumps({"status": "SYSTEM_FAILURE",
+                          "message": f"Result serialization failed: {str(e)}"}))
     print("---AUDIT_END---")
 
 def main():

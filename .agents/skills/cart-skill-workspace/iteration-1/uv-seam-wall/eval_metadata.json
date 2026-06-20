@@ -1,0 +1,27 @@
+{
+  "eval_id": 0,
+  "eval_name": "uv-seam-wall",
+  "prompt": "Cart_skill the wall cartridge at massa/modules/cartridges/cart_arc_01_wall.py has seam issues — the UV unwrap looks stretched and there may be a smeared band on one face. Diagnose the UV and edge slot state, identify what's wrong, and either fix it or produce a clear repair plan with the exact code changes needed.",
+  "assertions": [
+    {
+      "id": "ran_audit_mode",
+      "text": "Agent ran at least one audit mode (AUDIT, UV_INSPECT, or UV_HEATMAP) or attempted to"
+    },
+    {
+      "id": "found_fuzz_crash",
+      "text": "Agent identified FUZZ_CRASH or a crash related to tag_socket/deleted face as a problem in the wall cartridge"
+    },
+    {
+      "id": "found_uv_issues",
+      "text": "Agent identified at least one UV or seam issue (missing wrapping fix, slot strategy mismatch, seam tagging problem)"
+    },
+    {
+      "id": "proposed_fix_with_code",
+      "text": "Agent produced a concrete repair plan or code change, not just a description of the problem"
+    },
+    {
+      "id": "produced_diagnosis_file",
+      "text": "Agent wrote a diagnosis.md or equivalent output file"
+    }
+  ]
+}

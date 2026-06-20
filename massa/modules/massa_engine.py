@@ -286,29 +286,63 @@ def run_pipeline(op, context):
 
 def _capture_operator_params(op):
     """
-    Serializes all custom properties of the operator into a dictionary.
-    Excludes standard Blender properties and internal methods.
+    Serializes the cartridge-LOCAL parameters of the operator into a dictionary
+    for Resurrection (stored on the object as obj["MASSA_PARAMS"]).
+
+    Deliberately EXCLUDES, so the payload stays lightweight and never shadows
+    the global Console:
+      - Console-backed shared DNA: every property declared on MassaPropertiesMixin
+        (materials, UV, seam, polish, physics, slots, global_scale, ...). Those are
+        driven live by context.scene.massa_console, NOT stored per-object.
+      - Transient operator control / transform-persistence props
+        (rerun_mode, target_delete_name, obj_location, obj_rotation), which are
+        derived live each run and must never enter the saved payload.
+      - Standard Blender RNA bookkeeping props.
+
+    Failures are logged (not silently swallowed) so a shape param that cannot be
+    serialized is visible rather than vanishing.
     """
     params = {}
+    failed_keys = []
+
+    # The Console DNA lives on the Console, not on the object. Capturing it here
+    # would both bloat the payload and let a stale per-object copy override the
+    # global Console on restore. Exclude the exact set _sync() manages.
+    try:
+        from .massa_properties import MassaPropertiesMixin
+        console_keys = set(MassaPropertiesMixin.__annotations__.keys())
+    except Exception:
+        console_keys = set()
+
+    # RNA bookkeeping + transient control/transform flags that must not be stored.
+    excluded = {
+        "bl_idname", "bl_label", "bl_description", "bl_options", "rna_type",
+        "rerun_mode", "target_delete_name", "obj_location", "obj_rotation",
+    }
 
     # Iterate over all RNA properties defined in the operator
     for prop in op.bl_rna.properties:
         if prop.is_readonly:
             continue
-        if prop.identifier in {"bl_idname", "bl_label", "bl_description", "bl_options", "rna_type"}:
+        ident = prop.identifier
+        if ident in excluded or ident in console_keys:
             continue
 
         try:
-            val = getattr(op, prop.identifier)
+            val = getattr(op, ident)
             # Convert mathutils types to lists/tuples for JSON compatibility
             if hasattr(val, "to_tuple"):
                 val = val.to_tuple()
             elif hasattr(val, "to_list"):
                 val = val.to_list()
 
-            params[prop.identifier] = val
-        except Exception:
-            pass
+            params[ident] = val
+        except Exception as e:
+            failed_keys.append(ident)
+            print(f"[Massa] _capture_operator_params: could not serialize '{ident}': {e}")
+
+    if failed_keys:
+        print(f"[Massa] _capture_operator_params skipped {len(failed_keys)} key(s): {failed_keys}")
 
     params["MASSA_PARAMS_VERSION"] = getattr(op, "MASSA_PARAMS_VERSION", MASSA_PARAMS_VERSION)
     return params
@@ -501,9 +535,11 @@ def _generate_output(op, context, bm, socket_data, manifest):
     obj["massa_op_id"] = op_id
 
     # [ARCHITECT NEW] Save Parameters for Resurrection
+    # Note: target_delete_name is intentionally NOT stored here. It is a transient
+    # control flag re-derived live in invoke() (self.target_delete_name = obj.name),
+    # so persisting it would only pollute the payload with a self-referential name.
     try:
         params = _capture_operator_params(op)
-        params["target_delete_name"] = obj.name
         obj["MASSA_PARAMS"] = params
     except Exception as e:
         print(f"Massa Save Error: {e}")

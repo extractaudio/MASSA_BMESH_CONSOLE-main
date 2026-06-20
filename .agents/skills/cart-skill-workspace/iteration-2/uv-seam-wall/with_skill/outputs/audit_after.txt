@@ -1,0 +1,43 @@
+Expected audit result after applying all three fixes:
+
+{
+    "status": "PASS",
+    "object": "ARC Wall",
+    "errors": [],
+    "warnings": []
+}
+
+Reasoning:
+
+Fix 1 (tag_socket validity guard in massa_builder.py):
+  - All 5 FUZZ_CRASH events are eliminated.
+  - The `if not f.is_valid: continue` guard means tag_socket silently skips
+    any BMFace that was removed by the preceding clean() call.
+  - Socket-tagging on valid faces continues to work normally.
+  - No geometry changes, so no new CRITICAL_* flags are introduced.
+
+Fix 2 (seam pass ordering):
+  - Baseboard boundary edges are now included in the perimeter seam pass.
+  - The ambiguous duplicate select_boundary().tag_edge_role(1) call is removed,
+    eliminating incorrect seam placement on undefined selections.
+  - Expected: UV islands for slot 2 (Trim/Baseboard) will be correctly isolated
+    from slot 0 (Wall Surface). The smeared band at the baseboard/wall junction
+    should disappear.
+
+Fix 3 (get_slot_meta uv values SKIP -> BOX):
+  - Pipeline now runs BOX unwrap for slots 0, 1, 2.
+  - Wall surface, detail, and trim faces will have proper tiled UV projection.
+  - Stretched UV on wide wall panels eliminated (BOX projection tiles
+    uniformly rather than stretching to fit a 4:3 or wider island).
+
+FUZZ coverage prediction:
+  - hole_enable=False, STANDARD:   PASS (no crash path remains)
+  - hole_enable=True, STANDARD:    PASS
+  - hole_enable=False, BRICK:      PASS
+  - hole_enable=False, REINFORCED: PASS
+  - hole_enable=True, BRICK:       PASS (all 5 fuzz variants resolved)
+
+Note: if the audit is rerun before Fix 3 is applied, the UV audit may still
+flag WARN_UV_STRETCH on the wall surface, but no CRITICAL or FUZZ_CRASH events
+should remain after Fix 1 alone. Fix 2 is needed to clear any seam-related
+UV warnings. Fix 3 cleans up the UV stretch warning.

@@ -31,35 +31,77 @@ def audit_mesh(obj, op_class=None):
     
     try:
         op_instance = op_class()
-    except Exception as e:
-        # Fallback: Create a Mock Object if direct instantiation fails
-        # This works if build_shape only relies on self attributes and not internal bpy state
+    except Exception:
+        # Fallback: build a stand-in when the operator can't be instantiated
+        # outside Blender's operator context. Bind EVERY method from the class
+        # hierarchy (not just build_shape) so helper calls inside build_shape —
+        # e.g. self.create_socket_face(...) — resolve instead of raising.
+        import inspect as _inspect
+
         class MockOperator:
-            pass
+            def report(self, *args, **kwargs):
+                pass  # no-op stand-in for bpy.types.Operator.report
 
         op_instance = MockOperator()
-        # Bind methods
-        if hasattr(op_class, "build_shape"):
-            # Bind the method to the instance
-            op_instance.build_shape = op_class.build_shape.__get__(op_instance, MockOperator)
-
-        # Populate defaults later in parameter identification
-        # errors.append(f"FUZZER_INIT_FAIL: {str(e)}")
-        # return errors
+        for attr_name in dir(op_class):
+            if attr_name.startswith("__"):
+                continue
+            try:
+                member = getattr(op_class, attr_name)
+            except Exception:
+                continue
+            if _inspect.isfunction(member):
+                try:
+                    op_instance.__dict__[attr_name] = member.__get__(op_instance, MockOperator)
+                except Exception:
+                    pass
 
     # 2. Identify Parameters
     prop_defs = {}
-    
+
+    # Properties inherited from bpy.types.Operator (has_reports, bl_cursor_pending,
+    # bl_idname, ...) are NOT cartridge parameters — fuzzing them is meaningless
+    # and produces spurious crashes. Exclude the entire base-Operator surface.
+    base_op_props = set()
+    try:
+        base_op_props = set(bpy.types.Operator.bl_rna.properties.keys())
+    except Exception:
+        base_op_props = {"rna_type", "bl_idname", "bl_label", "bl_description",
+                         "bl_options", "bl_undo_group", "script"}
+
+    def _sane_range(prop):
+        # Prefer the UI-sensible soft range; unbounded props report hard limits
+        # of +/-3.4e38 which would make random.uniform emit absurd values.
+        CLAMP = 1000.0
+        lo = getattr(prop, "soft_min", getattr(prop, "hard_min", -10))
+        hi = getattr(prop, "soft_max", getattr(prop, "hard_max", 10))
+        try:
+            lo = max(float(lo), -CLAMP)
+            hi = min(float(hi), CLAMP)
+            if lo >= hi:
+                lo, hi = -10.0, 10.0
+        except (TypeError, ValueError):
+            lo, hi = -10.0, 10.0
+        return lo, hi
+
     # 2a. RNA Properties (Base class props mostly)
     if hasattr(op_class, "bl_rna"):
         for key, prop in op_class.bl_rna.properties.items():
-            if key not in {"rna_type", "bl_idname", "bl_label", "bl_description", "bl_options", "bl_undo_group", "script"}:
-                prop_defs[key] = {
-                    "type": prop.type,
-                    "min": getattr(prop, "hard_min", -10),
-                    "max": getattr(prop, "hard_max", 10),
-                    "items": [i.identifier for i in prop.enum_items] if prop.type == 'ENUM' else []
-                }
+            # Skip inherited Operator builtins and anything we can't write to.
+            if key in base_op_props or getattr(prop, "is_readonly", False):
+                continue
+            if prop.type not in {'FLOAT', 'INT', 'BOOLEAN', 'ENUM'}:
+                continue
+            lo, hi = _sane_range(prop)
+            prop_defs[key] = {
+                "type": prop.type,
+                "min": lo,
+                "max": hi,
+                # array_length > 1 marks a vector prop (e.g. FloatVectorProperty);
+                # it must be fed a sequence, not a scalar, or build_shape unpacking fails.
+                "array": getattr(prop, "array_length", 0),
+                "items": [i.identifier for i in prop.enum_items] if prop.type == 'ENUM' else []
+            }
 
     # 2b. Annotations (Python defined props - crucial for custom props in headless)
     if hasattr(op_class, "__annotations__"):
@@ -88,19 +130,33 @@ def audit_mesh(obj, op_class=None):
             # Or assume FLOAT if 'min'/'max' in keywords.
             
             # Let's default to parsing kw_args if valid
+            p_array = 0
             if keywords:
                 p_min = keywords.get('min', -10)
                 p_max = keywords.get('max', 10)
+                default_kw = keywords.get('default', None)
+
                 if 'items' in keywords:
                     p_type = 'ENUM'
                     p_items = [i[0] for i in keywords['items']]
-                elif 'default' in keywords:
-                    d = keywords['default']
-                    if isinstance(d, float): p_type = 'FLOAT'
-                    elif isinstance(d, int): p_type = 'INT'
-                    elif isinstance(d, bool): p_type = 'BOOLEAN'
-                
-                # Correction if type ambiguous
+                elif isinstance(default_kw, bool):   # bool first: bool is a subclass of int
+                    p_type = 'BOOLEAN'
+                elif isinstance(default_kw, float):
+                    p_type = 'FLOAT'
+                elif isinstance(default_kw, int):
+                    p_type = 'INT'
+
+                # Vector props (FloatVectorProperty, etc.) expose a tuple/list default
+                # or an explicit size= keyword and MUST be fed a sequence.
+                if isinstance(default_kw, (tuple, list)):
+                    p_array = len(default_kw)
+                if 'size' in keywords:
+                    try:
+                        p_array = max(p_array, int(keywords['size']))
+                    except (TypeError, ValueError):
+                        pass
+
+                # Correction if type ambiguous (derive from the Property fn name)
                 attr = getattr(val, 'function', None)
                 if attr:
                     fname = getattr(attr, '__name__', '')
@@ -109,27 +165,42 @@ def audit_mesh(obj, op_class=None):
                     elif 'Bool' in fname: p_type = 'BOOLEAN'
                     elif 'Enum' in fname: p_type = 'ENUM'
 
-            if p_type != 'UNKNOWN':
+            # bl_rna (2a) is authoritative for type/range/array length. Only backfill
+            # what it missed; for headless prop-less stubs bl_rna is empty so 2b adds
+            # the entry. This stops a vector prop's array length being clobbered with a
+            # scalar (which caused 'cannot unpack non-iterable float object' crashes).
+            if key in prop_defs:
+                if p_array > 1 and not prop_defs[key].get("array"):
+                    prop_defs[key]["array"] = p_array
+            elif p_type != 'UNKNOWN':
                 prop_defs[key] = {
                     "type": p_type,
                     "min": p_min,
                     "max": p_max,
-                    "items": p_items
+                    "array": p_array,
+                    "items": p_items,
                 }
 
-                # Set default on mock instance if needed
-                if not hasattr(op_instance, key):
+            # Ensure the (mock) instance has a usable default for this key.
+            if key in prop_defs and not hasattr(op_instance, key):
+                info = prop_defs[key]
+                arr = info.get("array", 0) or 0
+                if keywords and keywords.get('default', None) is not None:
+                    default_val = keywords['default']
+                elif info["type"] == 'FLOAT':
+                    default_val = (1.0,) * arr if arr > 1 else 1.0  # Safe non-zero default
+                elif info["type"] == 'INT':
+                    default_val = (1,) * arr if arr > 1 else 1
+                elif info["type"] == 'BOOLEAN':
+                    default_val = False
+                elif info["type"] == 'ENUM' and info["items"]:
+                    default_val = info["items"][0]
+                else:
                     default_val = 0.0
-                    if p_type == 'FLOAT': default_val = 1.0 # Safe non-zero default
-                    elif p_type == 'INT': default_val = 1
-                    elif p_type == 'BOOLEAN': default_val = False
-                    elif p_type == 'ENUM' and p_items: default_val = p_items[0]
-
-                    # Try to get actual default from keywords
-                    if keywords and 'default' in keywords:
-                        default_val = keywords['default']
-
+                try:
                     setattr(op_instance, key, default_val)
+                except Exception:
+                    pass
 
     if not prop_defs:
         # If we failed to find definitions, we can't fuzz reliably.
@@ -149,15 +220,22 @@ def audit_mesh(obj, op_class=None):
         for key, limits in prop_defs.items():
             
             val = None
+            arr = limits.get("array", 0) or 0
             try:
                 if limits["type"] == 'FLOAT':
-                    val = random.uniform(limits["min"], limits["max"])
+                    if arr > 1:
+                        val = tuple(random.uniform(limits["min"], limits["max"]) for _ in range(arr))
+                    else:
+                        val = random.uniform(limits["min"], limits["max"])
                     setattr(op_instance, key, val)
-                    
+
                 elif limits["type"] == 'INT':
-                    val = random.randint(int(limits["min"]), int(limits["max"]))
+                    if arr > 1:
+                        val = tuple(random.randint(int(limits["min"]), int(limits["max"])) for _ in range(arr))
+                    else:
+                        val = random.randint(int(limits["min"]), int(limits["max"]))
                     setattr(op_instance, key, val)
-                    
+
                 elif limits["type"] == 'BOOLEAN':
                     val = random.choice([True, False])
                     setattr(op_instance, key, val)

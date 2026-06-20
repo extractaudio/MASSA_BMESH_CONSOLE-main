@@ -376,51 +376,59 @@ class MASSA_OT_prim_con_pipe(Massa_OT_Base):
         # 4. EDGE ROLES (UV SEAMS)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
+        if edge_slots is None:
             edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
 
+        guide_slot = 3
+        tol = 0.001
+        hard_angle = math.radians(45)
+        port_faces = {f for f in bm.faces if f.material_index == 3}
+        flange_faces = {f for f in bm.faces if f.material_index == 2}
+
+        def mark_guide_seam(edge):
+            edge.seam = True
+            edge[edge_slots] = guide_slot
+
+        def borders_face_group(edge, face_group):
+            linked_faces = set(edge.link_faces)
+            return bool(linked_faces & face_group) and (
+                len(linked_faces) == 1 or bool(linked_faces - face_group)
+            )
+
+        def is_straight_zipper(edge):
+            v0, v1 = edge.verts
+            return (
+                v0.co.x > 0
+                and v1.co.x > 0
+                and abs(v0.co.z) < tol
+                and abs(v1.co.z) < tol
+                and abs(v0.co.y - v1.co.y) > tol
+            )
+
+        def is_elbow_zipper(edge):
+            v0, v1 = edge.verts
+            if abs(v0.co.z) >= tol or abs(v1.co.z) >= tol:
+                return False
+
+            dist0 = math.hypot(v0.co.x - self.length, v0.co.y)
+            dist1 = math.hypot(v1.co.x - self.length, v1.co.y)
+            return abs(dist0 - dist1) < tol and dist0 > self.length
+
         for e in bm.edges:
-            is_cap_border = any(f.material_index == 3 for f in e.link_faces)
-            is_flange_border = False
-            
-            # Check Hard Angle (Flanges)Safety Check
-            if len(e.link_faces) == 2:
-                if e.calc_face_angle() > math.radians(45):
-                     e.seam = True
-                     e[edge_slots] = 2 # CONTOUR
-                     is_flange_border = True
-            elif len(e.link_faces) == 1:
-                # Boundary Edge (e.g. Open Port)
-                # Mark as Seam 
-                e.seam = True
-                e[edge_slots] = 1 # PERIMETER
+            if len(e.link_faces) == 1 or borders_face_group(e, port_faces):
+                mark_guide_seam(e)
 
-            # Check Port Border
-            if is_cap_border:
-                e.seam = True
-                e[edge_slots] = 1 # PERIMETER
+        for e in bm.edges:
+            if e.seam:
+                continue
+            if any(f in flange_faces for f in e.link_faces) and len(e.link_faces) == 2:
+                if e.calc_face_angle() > hard_angle:
+                    mark_guide_seam(e)
 
-            # Zipper Logic (Longitudinal Seam at Bottom)
-            # Conditions: Not a Seam yet, Not Vertical (Side Edge)
-            # For Straight/Elbow, "Bottom" means Normal Z < -0.9 or Position Relative to Center?
-            # Standard Pipe: The bottom-most edge.
-            if not e.seam:
-                # Average Normal of connected faces
-                navg = Vector((0,0,0))
-                for f in e.link_faces: navg += f.normal
-                if len(e.link_faces) > 0: navg /= len(e.link_faces)
-                
-                # Check if Bottom (-Z)
-                # This works for horizontal pipes (Straight or Elbow flat on ground)
-                if navg.z < -0.9:
-                    e.seam = True
-                    # Slot 3 = Guide/Zipper? Protocol says Slot 3.
-                    # Wait, Protocol says Slot 3 is GUIDE. 
-                    # Slot Meta 3 is Port...
-                    # Let's check Slot 3 description in Protocol?
-                    # "zipper[edge_slots] = 3 # GUIDE (Red Viz)"
-                    # Meta says Slot 3 is Port. 
-                    # Maybe we use Slot 4 for Guide? Or just Seam=True.
-                    # I will stick to Seam=True.
-                    # And maybe Slot 2 (Contour) for viz?
-                    pass
+        for e in bm.edges:
+            if self.shape_mode == "STRAIGHT":
+                if is_straight_zipper(e):
+                    mark_guide_seam(e)
+            else:
+                if is_elbow_zipper(e):
+                    mark_guide_seam(e)

@@ -1,0 +1,27 @@
+{
+  "eval_id": 2,
+  "eval_name": "material-slot-mezzanine",
+  "prompt": "Cart_skill check the mezzanine cartridge at massa/modules/cartridges/cart_arc_07_mezzanine.py for material slot issues. Compare what get_slot_meta defines against what build_shape actually assigns to faces. Fix any mismatches and verify the slot meta covers all indices used.",
+  "assertions": [
+    {
+      "id": "compared_slot_meta_vs_build_shape",
+      "text": "Agent compared get_slot_meta slot indices against face assignments in build_shape"
+    },
+    {
+      "id": "found_no_coverage_mismatches",
+      "text": "Agent correctly found no slot coverage mismatches (all used slots are defined, all defined slots are used)"
+    },
+    {
+      "id": "checked_phys_values",
+      "text": "Agent checked phys values in get_slot_meta for validity against MASTER_MAT_DB (beyond just checking index coverage)"
+    },
+    {
+      "id": "produced_slot_analysis",
+      "text": "Agent produced a slot_analysis.md or equivalent table comparing defined vs used slots"
+    },
+    {
+      "id": "audit_still_passes",
+      "text": "If any changes were made, the cartridge still passes AUDIT afterward"
+    }
+  ]
+}

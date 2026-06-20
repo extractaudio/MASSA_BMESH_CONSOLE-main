@@ -1,0 +1,6 @@
+{
+  "total_tokens": 57273,
+  "duration_ms": 272403,
+  "total_duration_seconds": 272.4,
+  "note": "Blocked on Bash; did static analysis, applied 2 fixes directly"
+}

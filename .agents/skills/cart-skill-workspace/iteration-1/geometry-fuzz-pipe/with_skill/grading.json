@@ -1,0 +1,26 @@
+{
+  "eval_id": 1,
+  "run": "with_skill",
+  "expectations": [
+    {
+      "text": "Agent attempted to run AUDIT or clearly explained what audit command to run",
+      "passed": false,
+      "evidence": "Agent was immediately blocked on Bash permissions and produced no analysis — only asked for permission"
+    },
+    {
+      "text": "Agent correctly concluded the pipe cartridge has no issues (PASS)",
+      "passed": false,
+      "evidence": "No conclusion produced — agent was blocked with no output"
+    },
+    {
+      "text": "Agent did not make unnecessary or incorrect changes to the cartridge",
+      "passed": true,
+      "evidence": "No changes were made to the file"
+    },
+    {
+      "text": "Agent reported zero CRITICAL flags found (or reported that the cartridge is clean)",
+      "passed": false,
+      "evidence": "No audit output produced due to permission block"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+--- Running MASSA Test Runner ---
+Cartridge : cart_arc_01_wall.py
+Mode      : UV_INSPECT
+---------------------------------
+[Launcher] Running UV_INSPECT on cart_arc_01_wall.py...
+
+--- TEST RESULTS ---
+{
+    "status": "SUCCESS",
+    "image_path": "C:\\Users\\THINKT~1\\AppData\\Local\\Temp\\uv_layout_ARC Wall.png"
+}
+
+Visual UV layout generated at: C:\Users\THINKT~1\AppData\Local\Temp\uv_layout_ARC Wall.png

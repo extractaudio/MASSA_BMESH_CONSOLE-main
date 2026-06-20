@@ -1,0 +1,12 @@
+--- Running MASSA Test Runner ---
+Cartridge : cart_prim_02_pipe.py
+Mode      : AUDIT
+---------------------------------
+[Launcher] Running AUDIT on cart_prim_02_pipe.py...
+
+--- TEST RESULTS ---
+{
+    "status": "PASS",
+    "object": "PRIM_02: Pipe",
+    "errors": []
+}

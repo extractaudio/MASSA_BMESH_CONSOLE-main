@@ -8,6 +8,30 @@ try:
 except ImportError:
     HAS_BVH = False
 
+
+def audit_mesh(obj, op_class=None):
+    """
+    Standard entry point consumed by ``auditors.run_all_auditors``.
+
+    Wraps :class:`Massa_Surface_Auditor` (UV existence, normals, degenerate
+    faces, self-intersection, UV spikes, collapsed UVs) and returns its flag
+    list. Without this wrapper the class was never invoked by the loader, so
+    none of the surface/UV checks ran during an AUDIT.
+    """
+    if getattr(obj, "type", None) != 'MESH':
+        return []
+
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(obj.data)
+        report = Massa_Surface_Auditor(bm).run_scan()
+        return report.get("flags", [])
+    except Exception as e:
+        return [f"CRITICAL_AUDITOR_CRASH_massa_surface_auditor: {str(e)}"]
+    finally:
+        bm.free()
+
+
 class Massa_Surface_Auditor:
     def __init__(self, bm: bmesh.types.BMesh):
         self.bm = bm
@@ -43,11 +67,14 @@ class Massa_Surface_Auditor:
         return self.report
 
     def _check_uv_existence(self):
-        try:
-            uv_layer = self.bm.loops.layers.uv.verify()
-        except:
-            self.report["flags"].append("CRITICAL_MISSING_UV_LAYER")
-            self.report["status"] = "FAIL"
+        # NOTE: .verify() would *create* a UV layer if one is missing, which
+        # masks the very defect we want to catch. Read the active layer instead
+        # so a genuinely missing layer is reported.
+        uv_layer = self.bm.loops.layers.uv.active
+        if uv_layer is None:
+            if len(self.bm.faces) > 0:
+                self.report["flags"].append("CRITICAL_MISSING_UV_LAYER")
+                self.report["status"] = "FAIL"
             return
 
         has_data = False

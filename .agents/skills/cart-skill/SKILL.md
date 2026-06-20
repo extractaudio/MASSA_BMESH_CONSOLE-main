@@ -4,14 +4,17 @@ description: >
   Diagnose and fix MASSA Blender cartridges in massa/modules/cartridges/.
   ALWAYS trigger immediately when the user's message begins with "Cart_skill" — this is a hard keyword trigger, no exceptions.
   Also use when the user reports: broken UV unwrap, seam errors, edge slot problems, wrong material slots (0-9), geometry shape errors,
-  wrong object placement, CRITICAL audit flags, FUZZ_CRASH in test output, or any request to "fix", "repair", "audit", or "clean up" a cartridge.
+  wrong object placement, parameter behavior regressions, viewport/render mismatches, CRITICAL audit flags, FUZZ_CRASH in test output,
+  or any request to "fix", "repair", "audit", or "clean up" a cartridge.
   Covers three issue families: (1) UV / seam / edge-slot errors, (2) geometry / topology / shape errors, (3) material slot assignment errors.
 ---
 
 # Cart-Skill — MASSA Cartridge Diagnosis & Repair
 
 When a user message starts with **Cart_skill**, execute this skill in full.
-Three issue families are handled. Classify first, then follow the matching path.
+Three issue families are handled. Gather evidence first, classify second, then follow the matching path.
+
+**Core rule:** Do not edit a cartridge until you have a baseline audit, a short shape contract, and a repair hypothesis backed by runtime or visual evidence. For simple issues the evidence packet can be short, but it must exist.
 
 All paths below are relative to the repo root `MASSA_BMESH_CONSOLE-main/`.
 
@@ -32,14 +35,17 @@ Confirm the target before proceeding.
 
 ---
 
-## Step 1 — Baseline Audit
+## Step 1 — Baseline Audit (mandatory, do this before anything else)
 
-Always run a baseline AUDIT before touching anything:
+The headless audit is the only way to surface runtime crashes. Do not read source code or classify issues until you have the audit output in hand.
+
 ```
 python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode AUDIT
 ```
-Parse the JSON between `---AUDIT_START---` / `---AUDIT_END---`.
-Record every `CRITICAL_*`, `WARNING_*`, and `FUZZ_CRASH` flag — these are your repair targets.
+
+Parse the JSON between `---AUDIT_START---` / `---AUDIT_END---`. Record every `CRITICAL_*`, `WARNING_*`, and `FUZZ_CRASH` flag — these are your repair targets. A `FUZZ_CRASH` means the cartridge crashes with random parameters; that must be fixed before anything else.
+
+If Bash is unavailable (permissions blocked), note the limitation clearly, then proceed with static source analysis — but flag that runtime crashes may be present that static analysis cannot detect.
 
 Also take a visual baseline if Blender MCP is connected:
 ```
@@ -49,15 +55,126 @@ mcp__blender__get_screenshot_of_window_as_image
 
 ---
 
-## Step 2 — Classify the Issue
+## Step 2 - Build the Evidence Packet (mandatory before editing)
+
+After the baseline audit, build a compact evidence packet. This is where the agent converts source and runtime output into understanding.
+
+### 2A - Static Shape Contract
+
+Read the target cartridge after the audit. Extract:
+
+- `CARTRIDGE_META` name, id, flags, and intended category.
+- All `bpy.props`: enums, booleans, dimensions, segment counts, min/max/default values.
+- `get_slot_meta()` slot names, UV strategies, phys keys, sockets.
+- `build_shape()` phases: profile creation, extrusion/spin/boolean/inset steps, slot assignment, edge-slot assignment, UV assignment.
+
+Write a 5-10 line contract before editing:
+
+```
+Shape contract:
+- Modes:
+- Expected orientation/axis:
+- Expected bounds/proportions:
+- Material slots:
+- Edge-slot/seam roles:
+- Sockets:
+- Parameter risks:
+```
+
+If the user named a reference cartridge, build the same contract for the reference and compare:
+
+- prop names and mode semantics
+- slot ids and slot meanings
+- edge-slot writes (`MASSA_EDGE_SLOTS`) and seam/sharp behavior
+- UV strategy and manual UV math
+- object orientation, bounds, sockets, and optional parts
+
+### 2B - Parameter Matrix Simulation
+
+Simulate meaningful parameter variants, not just defaults. At minimum include:
+
+- default values
+- every enum mode
+- every boolean feature both on and off when relevant
+- minimum legal segment counts
+- small dimensions near property minima
+- thin and thick wall/profile cases
+- user-reported values, if provided
+- reference-matching values, if comparing to another cartridge
+
+Use the smallest available runtime path:
+
+```
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode AUDIT
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode PERFORMANCE
+```
+
+If the current runner cannot set operator parameters directly, use Blender MCP, `SKILL_EXEC`, or a temporary targeted harness to instantiate the operator, set properties, run the pipeline, and print JSON summaries. Put temporary harnesses under `_Scripts/__cart_matrix_tmp.py` or `C:\tmp`, remove them before final delivery, and state if parameter simulation was blocked.
+
+For each variant, record:
+
+```
+case, status, errors, bbox, verts, faces, material_slot_counts,
+edge_slot_counts, seam_count, sharp_count, socket_count
+```
+
+### 2C - Runtime Geometry Summary
+
+For shape/topology/material/edge-slot work, inspect the generated object in addition to raw audit status. Prefer Blender MCP when available:
+
+```
+mcp__blender__massa_spawn_cartridge
+mcp__blender__get_objects_summary
+mcp__blender__get_object_detail_summary
+mcp__blender__massa_get_selected_geometry
+```
+
+If MCP is unavailable, use headless output modes and a temporary summary harness. The summary must answer: did the cartridge produce the expected object count, bounds, open/closed ports, slot coverage, seam/edge-slot counts, sockets, and manifold state?
+
+### 2D - Visual Viewport Analysis
+
+For wrong shape, placement, UV, edge marking, reference comparison, or material bleed, create images and inspect them before editing and after editing:
+
+```
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode RENDER --payload "{\"camera_angle\":\"ISO_CAM\"}"
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode RENDER --payload "{\"camera_angle\":\"ISO_CAM\",\"shading\":\"WIREFRAME\"}"
+```
+
+Use `UV_INSPECT` / `UV_HEATMAP` for UV or seam issues. Use `VISUAL_DIFF` when comparing against a backup or reference:
+
+```
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode VISUAL_DIFF --payload "{\"filename_b\":\"<reference_or_backup>.py\"}"
+```
+
+Open generated images with the available image-viewing tool. Parse the image against the shape contract: orientation, proportions, openings, optional parts, sockets, material regions, visible seams/edge slots, and whether the viewport result matches the code change. Do not rely on "render succeeded" alone.
+
+### 2E - Hypothesis Gate
+
+Before editing, state:
+
+```
+Observed evidence:
+Root cause hypothesis:
+Targeted edit:
+Expected verification change:
+```
+
+If the evidence does not support a specific hypothesis, gather more data instead of patching.
+
+---
+
+## Step 3 - Classify the Issue
 
 | Signal | Family |
 |---|---|
+| `FUZZ_CRASH` in audit output (any traceback from `build_shape`) | **B — Geometry / Topology** — fix this first, always |
+| `CRITICAL_ZERO_AREA_FACES`, `CRITICAL_NON_MANIFOLD`, `CRITICAL_LOOSE_VERTS`, wrong shape, wrong proportions, wrong placement | **B — Geometry / Topology** |
 | `CRITICAL_UV_*`, `WARNING_UV_*`, UV_INSPECT shows collapsed/overlapping/outside-bounds islands, seam lines visible in render, red heatmap | **A — UV / Seam / Edge Slot** |
-| `CRITICAL_ZERO_AREA_FACES`, `CRITICAL_NON_MANIFOLD`, `CRITICAL_LOOSE_VERTS`, wrong shape, wrong proportions, wrong placement, FUZZ_CRASH | **B — Geometry / Topology** |
-| Wrong material on faces, faces missing material, slot indices in `build_shape` don't match `get_slot_meta`, visual material bleed between parts | **C — Material Slot** |
+| Wrong material on faces, faces missing material, slot indices in `build_shape` don't match `get_slot_meta`, invalid `phys` values, visual material bleed between parts | **C — Material Slot** |
 
-A cartridge can have issues in more than one family — fix in order: B first (geometry), then C (slots), then A (UVs), because later phases depend on earlier ones being correct.
+A cartridge can have issues in more than one family. Fix order: **B first** (a crashing cartridge can't be UV-debugged), then C (slots drive UV strategies), then A (UVs last).
+
+Classify only after completing the Step 2 evidence packet. If the evidence packet reveals multiple issue families, keep the fix order above and re-run the relevant matrix/render checks after each family.
 
 ---
 
@@ -159,6 +276,8 @@ mcp__blender__get_screenshot_of_window_as_image
 ```
 Check: vertex count, face count, non-manifold edges, normals, overall proportions match intent.
 
+For shape, placement, or proportion issues, also use the Step 2 runtime geometry summary and parameter matrix. A clean AUDIT result is not enough when the reported problem is visual or behavioral.
+
 For headless inspection: the AUDIT output already surfaces topology flags — parse those.
 
 ### B2 — Fix by Flag
@@ -185,6 +304,8 @@ python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode 
   --payload '{"filename_b": "massa/modules/cartridges/<name>_backup.py"}'
 ```
 
+Before editing, compare the visible result to the Step 2 shape contract and parameter matrix. After editing, inspect the rendered image again and state whether the object now matches the contract.
+
 ### B4 — Headless Safety Rules (non-negotiable)
 
 - No `bpy.ops` inside `build_shape` — use `bmesh.ops` only.
@@ -209,8 +330,11 @@ If geometry was changed, also screenshot from Blender MCP and confirm visually.
 
 ### C1 — Read Current Slot State
 
-Read the cartridge's `get_slot_meta()` — note which slot indices are defined and what `uv` / `phys` / `sock` they carry.
-Then read `build_shape` and note every `f.material_index = N` assignment — do the indices used match `get_slot_meta`?
+Two things to check — both matter:
+
+**1. Index coverage:** Read `get_slot_meta()` and note every slot index defined. Read `build_shape` and note every `f.material_index = N` assignment. Every index used in `build_shape` must appear in `get_slot_meta`, and every slot in `get_slot_meta` should be used by at least one face.
+
+**2. Phys value validity:** For every slot in `get_slot_meta`, verify the `phys` value is a real key in `MASTER_MAT_DB`. Invalid phys values (`"METAL_CHECKERPLATE"`, `"METAL_PAINTED"`, `"DEBUG_9"`, etc.) silently fall back to a default material at runtime. Valid keys include: `METAL_IRON`, `METAL_STEEL`, `CONCRETE_RAW`, `RUBBER`, `GLASS_CLEAR`, `FABRIC_ROUGH`, `WOOD_OAK`, `PLASTIC_HARD`, `GENERIC`, `MASSA_DEBUG_1` through `MASSA_DEBUG_9`.
 
 If Blender MCP is connected (Edit Mode, faces selected):
 ```
@@ -223,8 +347,8 @@ mcp__blender__massa_get_selected_geometry   → check material_index per face
 |---|---|
 | `build_shape` uses slot index not in `get_slot_meta` | Add the missing slot to `get_slot_meta` with correct `name`, `uv`, `phys` |
 | `get_slot_meta` defines a slot but no faces use it | Either remove the unused slot or assign the correct faces to it |
-| Wrong `phys` value causes bad material at runtime | Update `phys` in `get_slot_meta` to a valid key from `MASTER_MAT_DB` |
-| Socket slot not on index 9 | Move socket faces to `material_index = 9` and set `"sock": True` in `get_slot_meta[9]` |
+| Invalid `phys` value (not in `MASTER_MAT_DB`) | Replace with the closest valid key (e.g. `METAL_CHECKERPLATE` → `METAL_IRON`) |
+| Socket slot not on index 9 | Move socket faces to `material_index = 9`, set `"sock": True` and `"uv": "SKIP"` in `get_slot_meta[9]` |
 
 Valid `uv` strategies: `"SKIP"`, `"BOX"`, `"FIT"`, `"TUBE_Z"`, `"TUBE_Y"`, `"TUBE_X"`, `"UNWRAP"`.
 Use `"SKIP"` for any slot where `build_shape` writes UVs manually.
@@ -247,16 +371,21 @@ Confirm `get_slot_meta` covers all indices used in `build_shape`. No new flags.
 
 ---
 
-## Step 3 — Final Delivery Checklist
+## Step 4 - Final Delivery Checklist
 
 Before reporting done:
 
 - [ ] Zero `CRITICAL_*` flags (same or fewer than baseline)
 - [ ] No `FUZZ_CRASH` events
+- [ ] Shape contract written and used to justify the edit
+- [ ] Parameter matrix run, or limitation stated with a fallback static/runtime check
+- [ ] Runtime geometry summary checked for touched behavior
+- [ ] Relevant viewport/UV/render images inspected, not merely generated
+- [ ] Reference cartridge comparison performed when a reference was named
 - [ ] No existing `bpy.props` renamed or removed
 - [ ] `get_slot_meta()` covers all face slot indices used in `build_shape`
 - [ ] `draw_shape_ui` reflects any newly added properties
 - [ ] UV islands within 0–1 bounds when `fit_uvs = True`
 - [ ] Backup file removed (or noted if kept for versioning)
 
-Report: what was found, what was changed, audit result before and after.
+Report: shape contract summary, evidence found, root cause, what changed, parameter/visual checks, and audit result before and after.

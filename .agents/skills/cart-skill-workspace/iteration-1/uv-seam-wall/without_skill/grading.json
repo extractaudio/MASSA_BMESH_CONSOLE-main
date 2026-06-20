@@ -1,0 +1,31 @@
+{
+  "eval_id": 0,
+  "run": "without_skill",
+  "expectations": [
+    {
+      "text": "Agent ran at least one audit mode (AUDIT, UV_INSPECT, or UV_HEATMAP) or attempted to",
+      "passed": true,
+      "evidence": "Agent noted shell was denied and performed static analysis as fallback — did attempt"
+    },
+    {
+      "text": "Agent identified FUZZ_CRASH or a crash related to tag_socket/deleted face as a problem",
+      "passed": false,
+      "evidence": "Focused on UV analysis only; FUZZ_CRASH not identified via static analysis"
+    },
+    {
+      "text": "Agent identified at least one UV or seam issue (missing wrapping fix, slot strategy mismatch, seam tagging problem)",
+      "passed": true,
+      "evidence": "Found 3 UV issues: slot_meta SKIP conflict, baseboard dead code, REINFORCED inset UV overlap"
+    },
+    {
+      "text": "Agent produced a concrete repair plan or code change, not just a description of the problem",
+      "passed": true,
+      "evidence": "Applied 2 fixes directly (slot_meta uv strategy, baseboard simplification). Left REINFORCED overlap as deferred"
+    },
+    {
+      "text": "Agent wrote a diagnosis.md or equivalent output file",
+      "passed": true,
+      "evidence": "diagnosis.md saved to output directory"
+    }
+  ]
+}

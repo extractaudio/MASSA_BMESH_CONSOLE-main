@@ -1,0 +1,6 @@
+{
+  "total_tokens": 26659,
+  "duration_ms": 24836,
+  "total_duration_seconds": 24.8,
+  "note": "Agent blocked on Bash permissions — no audit output produced"
+}

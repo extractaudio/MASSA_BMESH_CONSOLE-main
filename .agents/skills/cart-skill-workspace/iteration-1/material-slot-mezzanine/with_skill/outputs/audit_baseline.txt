@@ -1,0 +1,15 @@
+AUDIT BASELINE — cart_arc_07_mezzanine.py
+=========================================
+
+NOTE: Bash and PowerShell access was denied during this session.
+The audit script could not be executed automatically.
+
+To reproduce the baseline audit manually, run:
+  cd D:\AntiGravity_google\MASSA_BMESH_CONSOLE-main
+  python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_arc_07_mezzanine.py --mode AUDIT
+
+Expected issues detected via static analysis (no runtime needed):
+  - Slot 0 phys "METAL_CHECKERPLATE" not in MASTER_MAT_DB
+  - Slot 2 phys "METAL_PAINTED" not in MASTER_MAT_DB
+  - Slot 9 phys "DEBUG_9" not in MASTER_MAT_DB
+  - Slot 9 uv "BOX" inappropriate for a socket slot (should be "SKIP")

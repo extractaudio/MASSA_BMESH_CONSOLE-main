@@ -19,13 +19,22 @@ with open(config_path, 'r') as f:
 
 BLENDER_PATH = config.get("BLENDER_PATH")
 
-def _run_blender_process(cmd, capture_output=True):
+def _run_blender_process(cmd, capture_output=True, timeout=300):
     try:
         if not capture_output:
             subprocess.Popen(cmd)
             return {"status": "LAUNCHED", "message": "Blender process started."}
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # Timeout guards against a hung Blender blocking the runner indefinitely.
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired as e:
+            return {
+                "status": "SYSTEM_FAILURE",
+                "message": f"Blender timed out after {timeout}s.",
+                "stdout_tail": (e.stdout or "")[-2000:] if isinstance(e.stdout, str) else "",
+                "stderr_tail": (e.stderr or "")[-2000:] if isinstance(e.stderr, str) else "",
+            }
 
         json_output = ""
         capture = False
@@ -42,13 +51,31 @@ def _run_blender_process(cmd, capture_output=True):
                     json_output += line
 
         if not json_output:
+            # Capture BOTH streams — Blender prints Python tracebacks to stderr.
             return {
                 "status": "SYSTEM_FAILURE",
-                "message": "Blender crashed or returned no data.",
-                "log": result.stdout[-2000:] if result.stdout else "No Output"
+                "message": "Blender crashed or returned no audit data (markers not found).",
+                "returncode": result.returncode,
+                "stdout_tail": result.stdout[-2000:] if result.stdout else "No Output",
+                "stderr_tail": result.stderr[-2000:] if result.stderr else "No Errors",
             }
 
-        return json.loads(json_output)
+        try:
+            parsed = json.loads(json_output)
+        except json.JSONDecodeError as e:
+            return {
+                "status": "SYSTEM_FAILURE",
+                "message": f"Failed to parse audit JSON: {str(e)}",
+                "returncode": result.returncode,
+                "raw_tail": json_output[-2000:],
+                "stderr_tail": result.stderr[-2000:] if result.stderr else "",
+            }
+
+        if isinstance(parsed, dict):
+            parsed.setdefault("_process", {"returncode": result.returncode})
+            if result.returncode != 0 and result.stderr:
+                parsed["_process"]["stderr_tail"] = result.stderr[-1500:]
+        return parsed
 
     except Exception as e:
         return {"status": "SYSTEM_FAILURE", "message": str(e)}

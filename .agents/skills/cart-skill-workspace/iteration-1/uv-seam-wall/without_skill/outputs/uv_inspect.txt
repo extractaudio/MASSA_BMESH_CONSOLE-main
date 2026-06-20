@@ -1,0 +1,87 @@
+NOTE: Live UV_INSPECT mode was not executed — shell (Bash/PowerShell) permissions were denied in this session.
+The following is derived from static analysis of the cartridge and MassaBuilder.tag_uvs source.
+
+=== UV PROJECTION ANALYSIS (STATIC) ===
+
+Projection mode: BOX (default, fit_uvs=False)
+Scale: uv_scale (default 1.0)
+
+BOX projection logic in MassaBuilder.tag_uvs (massa/modules/massa_builder.py lines 493-502):
+  if abs(n.z) >= 0.5:  -> Top/Bottom faces:  u=v.x, v=v.y
+  elif abs(n.x) >= 0.5: -> Left/Right faces: u=v.y, v=v.z
+  else:                  -> Front/Back faces: u=v.x, v=v.z
+
+--- FACE NORMAL GROUPS AND EXPECTED UV MAPPING ---
+
+Wall Segment (Slot 0):
+  Front face  (n=(0,-1,0)): u=v.x, v=v.z   -- maps using world X and Z positions
+  Back face   (n=(0,+1,0)): u=v.x, v=v.z   -- same
+  Top face    (n=(0,0,+1)): u=v.x, v=v.y   -- thin (wall thickness), likely OK
+  Bottom face (n=(0,0,-1)): u=v.x, v=v.y   -- thin, OK
+  Left cap    (n=(-1,0,0)): u=v.y, v=v.z   -- end cap, uses thickness (Y) + height (Z)
+  Right cap   (n=(+1,0,0)): u=v.y, v=v.z   -- end cap
+
+--- STRETCHING ANALYSIS ---
+
+PROBLEM A: Front/Back face UVs use raw v.x world coordinate.
+  For a simple wall (l=4.0, h=3.0, t=0.2, no hole):
+    Wall panel at cx=2.0, cz=1.5
+    Front face vertices at X: 0.0, 4.0 -> U range: 0.0..4.0 (correct, no tiling issue for 4m wall)
+    Z: 0.0, 3.0 -> V range: 0.0..3.0 (correct)
+  -> For simple wall: UV appears correct. No stretching.
+
+  For wall WITH HOLE (hole_enable=True, e.g. centered hole):
+    Left Panel: x=0..x1, cx varies
+    Right Panel: x=x2..l
+    Front faces:
+      Left panel U range: 0..x1 (correct)
+      Right panel U range: x2..l (correct, NOT 0..l-x2)
+      -> These are separate UV islands, each using absolute world X. No seam smear here.
+
+PROBLEM B: REINFORCED style inset ridge face.
+  The inset creates geometry on the +Y face (n=(0,1,0)).
+  BOX maps this as: else branch -> u=v.x, v=v.z
+  The inset ridge is a small rectangular face that is recessed into the wall.
+  v.x range for a 4m wall = 0..4, v.z range = 0..3.
+  UV aspect ratio matches the wall face, so no stretching on front-face inset.
+  BUT: the inner recessed face of the inset is also normal to +Y and mapped identically.
+  The recessed face has SAME v.x range but the same v.z range -> UV overlap with outer face.
+  This UV overlap produces a "smeared band" when rendered — two polygons at different depths
+  share nearly identical UV coords, causing z-fighting-like UV overlap in the atlas.
+
+PROBLEM C: Baseboard front/back faces (n=(0,±1,0) or near-horizontal depending on scale):
+  Baseboard placed at Y = -bd/2. The box created is (w, bd, bh) with bd=0.02 (very thin).
+  Top face normal is (0,0,1). BOX maps: u=v.x, v=v.y -> V range is only 0.02 units (bd).
+  This produces an extremely squashed UV band for the top of the baseboard.
+  The front/back faces of the baseboard (very thin, h=bh=0.15) map: u=v.x, v=v.z
+  V range = 0..0.15. This is tiny but technically correct for a 15cm baseboard.
+
+--- SEAM PLACEMENT ---
+
+Role 1 (Perimeter) = SEAM + SHARP (when edge_slot_1_action = "BOTH" or "SEAM")
+  Applied at line 151: builder.select_all_faces().select_boundary().tag_edge_role(1)
+  This tags ALL boundary edges of the wall mesh as role 1.
+
+  After weld (USE_WELD=True), interior edges between segments become non-boundary.
+  Boundary edges are: outer perimeter, hole perimeter (if enabled).
+  Seam placement at the outer perimeter is CORRECT for UV unwrap containment.
+
+  However, the wall has no seams on the silhouette edges (top edge, side edges).
+  For a 4m wall, the BOX projection works WITHOUT seams because each planar face group
+  maps independently. Seams on the perimeter boundary are not needed for BOX mapping —
+  they would only matter for UNWRAP/LSCM.
+
+ISSUE: All slot_meta entries use uv="SKIP". This means the engine's UV pipeline will NOT
+  run LSCM or box-mapping for these slots. The only UV assignment comes from the manual
+  tag_uvs calls in build_shape. These run BEFORE the seam processing step. Seams are then
+  applied AFTER the UV assignment. The engine's seam solver (seam_solvers.apply_base_drivers)
+  will attempt to solve seams based on tagged edges, but the UV map is already baked.
+  => The seams affect UV unwrap only if an UNWRAP operation follows seam tagging.
+     With BOX projection, pre-baked UV coords are independent of seams — seams do not
+     re-project UVs. This means the seam tags are effectively unused for UV purposes.
+
+VERDICT: The primary UV issue is the conflict between:
+  1. get_slot_meta() returning uv="SKIP" for all slots (tells engine to not UV-map)
+  2. build_shape() manually calling tag_uvs (applies BOX/FIT UV before seam solving)
+  The seam setup and UV coords are therefore decoupled — seams exist as mesh metadata
+  but were applied after UV baking, so they have no effect on the UV layout.

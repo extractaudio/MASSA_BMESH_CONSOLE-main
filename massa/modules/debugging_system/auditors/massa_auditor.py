@@ -1,6 +1,35 @@
 import bmesh
 import mathutils
 
+
+def audit_mesh(obj, op_class=None):
+    """
+    Standard entry point consumed by ``auditors.run_all_auditors``.
+
+    Wraps :class:`Massa_Auditor` (dimensions / slot layer / integrity /
+    degenerate geometry) and returns its flag list. Without this wrapper the
+    class was never invoked by the dynamic loader.
+    """
+    if getattr(obj, "type", None) != 'MESH':
+        return []
+
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(obj.data)
+        meta_flags = {}
+        # Honour an explicit open-mesh allowance if the operator advertises one
+        # via CARTRIDGE_META flags (keeps open shells from reading as critical).
+        flags = getattr(op_class, "CARTRIDGE_FLAGS", None) or {}
+        if isinstance(flags, dict) and flags.get("ALLOW_OPEN_MESH"):
+            meta_flags["ALLOW_OPEN_MESH"] = True
+        report = Massa_Auditor(bm).run_full_scan(meta_flags=meta_flags)
+        return report.get("flags", [])
+    except Exception as e:
+        return [f"CRITICAL_AUDITOR_CRASH_massa_auditor: {str(e)}"]
+    finally:
+        bm.free()
+
+
 class Massa_Auditor:
     def __init__(self, bm: bmesh.types.BMesh):
         self.bm = bm

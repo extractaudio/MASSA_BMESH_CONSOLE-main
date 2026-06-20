@@ -1,0 +1,23 @@
+{
+  "eval_id": 1,
+  "eval_name": "geometry-fuzz-pipe",
+  "prompt": "Cart_skill run a full AUDIT on massa/modules/cartridges/cart_prim_02_pipe.py. Report every CRITICAL flag and FUZZ_CRASH found. For each issue identify the root cause and either fix it or produce the exact code change needed.",
+  "assertions": [
+    {
+      "id": "attempted_audit",
+      "text": "Agent attempted to run AUDIT or clearly explained what audit command to run"
+    },
+    {
+      "id": "correct_pass_conclusion",
+      "text": "Agent correctly concluded the pipe cartridge has no issues (PASS) or would have after seeing the output"
+    },
+    {
+      "id": "no_spurious_changes",
+      "text": "Agent did not make unnecessary or incorrect changes to the cartridge"
+    },
+    {
+      "id": "reported_clean_state",
+      "text": "Agent reported zero CRITICAL flags found (or: reported that the cartridge is clean)"
+    }
+  ]
+}

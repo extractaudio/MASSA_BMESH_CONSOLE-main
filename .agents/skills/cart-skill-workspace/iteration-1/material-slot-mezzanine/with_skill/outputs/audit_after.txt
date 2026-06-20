@@ -1,0 +1,15 @@
+AUDIT AFTER FIX — cart_arc_07_mezzanine.py
+==========================================
+
+NOTE: Bash and PowerShell access was denied during this session.
+The post-fix audit script could not be executed automatically.
+
+To verify the fix manually, run:
+  cd D:\AntiGravity_google\MASSA_BMESH_CONSOLE-main
+  python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_arc_07_mezzanine.py --mode AUDIT
+
+Expected result after fix:
+  - All phys keys in get_slot_meta are valid MASTER_MAT_DB keys
+  - No CRITICAL flags for invalid material references
+  - Slot coverage: 0 (Deck), 1 (Structure), 2 (Railings), 9 (Socket) — all match build_shape usage
+  - Socket slot 9: uv="SKIP", sock=True, phys="GENERIC"

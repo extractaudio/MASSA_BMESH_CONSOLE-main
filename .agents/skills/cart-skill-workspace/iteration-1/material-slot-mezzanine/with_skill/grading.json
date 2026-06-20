@@ -1,0 +1,31 @@
+{
+  "eval_id": 2,
+  "run": "with_skill",
+  "expectations": [
+    {
+      "text": "Agent compared get_slot_meta slot indices against face assignments in build_shape",
+      "passed": true,
+      "evidence": "Produced a full cross-reference table of defined vs used slots (0,1,2,9)"
+    },
+    {
+      "text": "Agent correctly found no slot coverage mismatches (all used slots are defined, all defined slots are used)",
+      "passed": true,
+      "evidence": "Confirmed all 4 slots used in build_shape (0,1,2,9) are defined in get_slot_meta, and no extras exist"
+    },
+    {
+      "text": "Agent checked phys values in get_slot_meta for validity against MASTER_MAT_DB",
+      "passed": true,
+      "evidence": "Found and fixed 3 invalid phys values: METAL_CHECKERPLATE→METAL_IRON, METAL_PAINTED→METAL_STEEL, DEBUG_9→GENERIC"
+    },
+    {
+      "text": "Agent produced a slot_analysis.md or equivalent table comparing defined vs used slots",
+      "passed": true,
+      "evidence": "slot_analysis.md saved to output directory with full table"
+    },
+    {
+      "text": "If any changes were made, the cartridge still passes AUDIT afterward",
+      "passed": true,
+      "evidence": "Re-audited after agent's changes: status=PASS, errors=[]"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "eval_id": 1,
+  "eval_name": "Geometry Audit — Pipe",
+  "prompt": "Cart_skill cart_prim_02_pipe.py — run a full audit. Audit output: [AUDIT_START] {\"status\": \"PASS\", \"object\": \"PRIM_02: Pipe\", \"errors\": []} [AUDIT_END]",
+  "assertions": [
+    "Agent attempted to run AUDIT or explained what audit command to run",
+    "Agent correctly concluded pipe cartridge has no issues (PASS)",
+    "Agent did not make unnecessary changes to the cartridge",
+    "Agent reported zero CRITICAL flags (or cartridge is clean)"
+  ]
+}

@@ -119,8 +119,8 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     val = getattr(self, key, None)
                     if val is not None:
                         setattr(console, key, val)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[Massa] _sync: skipped '{key}': {e}")
 
     def invoke(self, context, event):
         # 1. Sync from Console (Persistent Settings)
@@ -144,6 +144,7 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     version = params.get("MASSA_PARAMS_VERSION", 0)
                     params = _migrate_params(params, version)
                     ignored_keys = []
+                    failed_keys = []
                     for k, v in params.items():
                         if k == "MASSA_PARAMS_VERSION":
                             continue
@@ -166,8 +167,9 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                         if hasattr(self, k):
                             try:
                                 setattr(self, k, v)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                failed_keys.append(k)
+                                print(f"[Massa] Resurrect: could not restore '{k}'={v!r}: {e}")
                         else:
                             ignored_keys.append(k)
 
@@ -175,12 +177,13 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     # [ARCHITECT FIX] Ensure we only delete the target object
                     # MOVED TO EXECUTE TO SUPPORT REDO
                     self.target_delete_name = obj.name
-                    if ignored_keys:
-                        self.report(
-                            {"WARNING"},
-                            "Ignored stale MASSA_PARAMS keys: "
-                            + ", ".join(sorted(ignored_keys)[:6]),
-                        )
+                    if ignored_keys or failed_keys:
+                        parts = []
+                        if ignored_keys:
+                            parts.append("ignored stale: " + ", ".join(sorted(ignored_keys)[:6]))
+                        if failed_keys:
+                            parts.append("failed to set: " + ", ".join(sorted(failed_keys)[:6]))
+                        self.report({"WARNING"}, "MASSA_PARAMS restore — " + "; ".join(parts))
 
                 except Exception as e:
                     print(f"Massa Resurrection Error: {e}")
@@ -200,8 +203,8 @@ class Massa_OT_Base(Operator, MassaPropertiesMixin):
                     if hasattr(self, k):
                         try:
                             setattr(self, k, v)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"[Massa] Resurrect(legacy): could not restore '{k}': {e}")
                     else:
                         ignored_keys.append(k)
                 if ignored_keys:

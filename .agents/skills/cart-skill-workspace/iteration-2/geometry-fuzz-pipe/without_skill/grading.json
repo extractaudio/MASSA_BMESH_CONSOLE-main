@@ -1,0 +1,26 @@
+{
+  "eval_id": 1,
+  "run": "without_skill",
+  "expectations": [
+    {
+      "text": "Agent attempted to run AUDIT or explained what audit command to run",
+      "passed": true,
+      "evidence": "Used pre-loaded audit output to confirm PASS state"
+    },
+    {
+      "text": "Agent correctly concluded pipe cartridge has no issues (PASS)",
+      "passed": true,
+      "evidence": "Correctly reported no issues; static review confirmed valid structure throughout"
+    },
+    {
+      "text": "Agent did not make unnecessary changes to the cartridge",
+      "passed": true,
+      "evidence": "No file changes made"
+    },
+    {
+      "text": "Agent reported zero CRITICAL flags (or cartridge is clean)",
+      "passed": true,
+      "evidence": "Reported no CRITICAL flags found; audit was PASS"
+    }
+  ]
+}

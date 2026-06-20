@@ -73,7 +73,14 @@
       "Bash(grep \"\\\\.py$\")",
       "Bash(sed 's/\\\\.py$//')",
       "Bash(grep -E \"^massa_[^_]+\\\\.py$\")",
-      "mcp__jcodemunch__list_repos"
+      "mcp__jcodemunch__list_repos",
+      "mcp__jcodemunch__get_file_content",
+      "Bash(python massa/modules/debugging_system/debug_agent.py --file _Scripts/__verify_params_tmp.py)",
+      "Bash(PYTHONPYCACHEPREFIX=\"/tmp/massa_pycache\" \"/c/Program Files/Blender Foundation/Blender 5.1/blender.exe\" --background --python _Scripts/__verify_clean.py)",
+      "mcp__jcodemunch__register_edit",
+      "Bash(ls \"/c/Program Files/Blender Foundation/\" 2>/dev/null; echo \"---\"; test -f \"/c/Program Files/Blender Foundation/Blender 5.1/blender.exe\" && echo \"BLENDER_5.1_FOUND\" || echo \"BLENDER_5.1_MISSING\")",
+      "Bash(python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_01_beam.py --mode AUDIT)",
+      "Bash(python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_04_panel.py --mode AUDIT)"
     ]
   }
 }
