@@ -69,6 +69,120 @@ def occlusion_score(edge, comp_ctr, parent_ctr=None):
     return score
 ```
 
+## Object Analysis (measure before you mark)
+
+Do not classify by eye or by cartridge name. Split the mesh into components, **measure** each, and let the numbers choose the archetype and the UV strategy. All of this is BMesh/Mathutils only, so it runs inside `build_shape`. Requires `import math` and `from mathutils import Vector`.
+
+### Split into components
+
+A cartridge often emits several disconnected parts (body + trim + sockets). Classify each independently — a single global archetype is almost always wrong for compound parts.
+
+```python
+def connected_components(bm):
+    bm.faces.ensure_lookup_table()
+    seen, comps = set(), []
+    for f0 in bm.faces:
+        if f0 in seen: continue
+        stack, comp = [f0], []
+        while stack:
+            f = stack.pop()
+            if f in seen: continue
+            seen.add(f); comp.append(f)
+            for e in f.edges:
+                for nf in e.link_faces:
+                    if nf not in seen: stack.append(nf)
+        comps.append(comp)
+    return comps
+```
+
+### Measure a component
+
+Build a local frame from the principal axis, then derive oriented extents, slenderness, flatness, and radial symmetry — the signals that actually separate the archetypes.
+
+```python
+def orthonormal_basis(axis):
+    a = axis.normalized()
+    ref = Vector((0, 0, 1)) if abs(a.z) < 0.9 else Vector((1, 0, 0))
+    u = a.cross(ref).normalized()
+    v = a.cross(u).normalized()
+    return a, u, v
+
+def component_metrics(faces):
+    verts = list({v for f in faces for v in f.verts})
+    edges = list({e for f in faces for e in f.edges})
+    ctr   = component_centroid(verts)
+    axis  = principal_axis(verts)
+    a, u, v = orthonormal_basis(axis)
+
+    pa = [(vt.co - ctr).dot(a) for vt in verts]   # along principal axis
+    pu = [(vt.co - ctr).dot(u) for vt in verts]   # cross-section 1
+    pv = [(vt.co - ctr).dot(v) for vt in verts]   # cross-section 2
+    ext = sorted([max(pa) - min(pa), max(pu) - min(pu), max(pv) - min(pv)], reverse=True)
+    e_max = max(ext[0], 1e-6)
+
+    # radial symmetry about the principal axis: low spread ⇒ round cross-section
+    radii  = [math.hypot((vt.co - ctr).dot(u), (vt.co - ctr).dot(v)) for vt in verts]
+    mean_r = sum(radii) / max(1, len(radii))
+    cv_r   = (math.sqrt(sum((r - mean_r) ** 2 for r in radii) / len(radii)) / mean_r) if mean_r > 1e-6 else 1.0
+
+    open_e = [e for e in edges if len(e.link_faces) < 2]
+    return {
+        "verts": len(verts), "faces": len(faces),
+        "ext": (ext[0], ext[1], ext[2]),
+        "slenderness": ext[1] / e_max,   # mid/max  → low = long & thin
+        "flatness":    ext[2] / e_max,   # min/max  → low = sheet-like
+        "radial_cv":   cv_r,             # → low = round / tubular cross-section
+        "open_edges":  len(open_e),
+        "is_closed":   len(open_e) == 0,
+        "axis": axis, "ctr": ctr,
+    }
+```
+
+### Classify from the metrics
+
+```python
+def classify_archetype(m):
+    if m["flatness"] < 0.04:                    # one dimension ~ vanishes
+        return "SHEET"
+    if m["slenderness"] < 0.30:                 # long & slender
+        return "TUBE" if m["radial_cv"] < 0.18 else "PLANK"
+    if m["radial_cv"] < 0.18:                    # chunky but round
+        return "TUBE"
+    return "BOX_DETAIL"
+```
+
+Read the metrics, don't just trust the label:
+
+- **`is_closed == True`** (no open edges) ⇒ a watertight volume, so a face *will* span the seam ⇒ the **Wrapping Fix is mandatory**. `is_closed == False` (open shell / sheet) usually does not need it.
+- A PLANK whose medial line **curves** (re-fit `principal_axis` over sub-spans and check the residual) is a **STRIP** — cut one hidden underside edge that follows the path, not a single straight zipper.
+- `open_edges` is your boundary-seam budget for SHEET/STRIP parts.
+- Thresholds above are sane defaults — widen `radial_cv` toward ~0.25 for low-segment cylinders (a hexagonal tube has higher CV than a 32-gon).
+
+### Drive the marking from the classification
+
+```python
+obj_ctr = component_centroid(list(bm.verts))
+for comp in connected_components(bm):
+    m = component_metrics(comp)
+    kind = classify_archetype(m)
+    if   kind == "PLANK": mark_plank_uv(comp, parent_ctr=obj_ctr, local_axis=m["axis"])
+    elif kind == "TUBE":  mark_tube_uv({v for f in comp for v in f.verts}, parent_ctr=obj_ctr, local_axis=m["axis"])
+    elif kind == "SHEET": mark_sheet_uv(comp)
+    # BOX_DETAIL → contour (slot 2) + guide (slot 3) passes; INTERSECTION → mark_intersection_relief
+```
+
+### Decision matrix
+
+| Measured signal | Archetype | Seam pattern (helper) | `get_slot_meta` uv | Scaling basis |
+|---|---|---|---|---|
+| `flatness < 0.04` | SHEET | `mark_sheet_uv` (perimeter slot 1) | `BOX` / `FIT` | width × height |
+| `slenderness < 0.30`, `radial_cv ≥ 0.18` | PLANK | `mark_plank_uv` (caps slot 1 + 1 longitudinal slot 3) | `SKIP` (arc-length) | perimeter × length |
+| `slenderness < 0.30`, `radial_cv < 0.18` | TUBE | `mark_tube_uv` (caps slot 1 + 1 zipper slot 3) | `SKIP` or `TUBE_*` | circumference × length |
+| slender + curved medial line | STRIP | underside guide slot 3 along path | `SKIP` | path length × width |
+| chunky, multiple hard contours | BOX_DETAIL | contour slot 2 + guide slot 3 | `SKIP` / `BOX` per slot | per-face |
+| boolean/concave junctions present | INTERSECTION | `mark_intersection_relief` | inherit body | inherit |
+| tagged socket face | SOCKET | isolate, slot 9 | `SKIP` | n/a |
+
 ## Archetypes & Spatial Patterns
 
 Capture geometry right after creation (e.g., `ret["geom"]`), avoid global edge indices later.
@@ -248,12 +362,43 @@ Different parts of the geometry should use different UV strategies defined in th
 | `"TUBE_Z"` / `"Y"` / `"X"` | Cylindrical projection along an axis. Use for radial trim if manual computation is skipped. |
 | `"UNWRAP"` | LSCM/Angle-Based unwrap. Fallback for highly organic or complex forms. Requires explicit seams (`e.seam=True`). |
 
+## Audit-Driven Refinement Loop
+
+UV authoring is iterative. After marking + UV math, run the headless audit and let the telemetry and surface auditor close the loop — never stop at "the render looked fine".
+
+```
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode AUDIT
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode UV_INSPECT   # island layout
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode UV_HEATMAP   # distortion
+python _Scripts/test_run_cartridge.py massa/modules/cartridges/<name>.py --mode RENDER --payload '{"camera_angle":"ISO_CAM","operator_props":{"debug_view":"UV","viz_edge_mode":"SLOTS","show_wireframe":true}}'
+```
+
+On Windows, if native shell quoting strips JSON quotes, put the same JSON in an environment variable and pass `--payload-env <VAR_NAME>`.
+
+The evidence render should be generated with Preview: UV Check and Edge Viz: Slots applied, so the image shows the UV checker material and colored edge-slot lines together. The AUDIT JSON is still the authority: read `telemetry.uv` (`layer_count`, `bounds`, `collapsed_faces`), `telemetry.edge_slots.histogram`, `render_overlays.edge_slots.counts`, and the `massa_surface_auditor` / `massa_edge_auditor` entries under `auditors.by_auditor`. Map each signal to a corrective edit:
+
+| Audit signal | What it means | Corrective edit |
+|---|---|---|
+| `telemetry.uv.layer_count == 0` / `CRITICAL_MISSING_UV_LAYER` | No UV layer written | `uv_layer = bm.loops.layers.uv.verify()` then write UVs, or set a non-`SKIP` slot strategy |
+| `CRITICAL_ZERO_UV_DATA` | Layer exists but all coords at (0,0) | Mapping never ran for those faces — check the `material_index` filter and the `get_u` path |
+| `CRITICAL_COLLAPSED_UVS_N` / `telemetry.uv.collapsed_faces > 0` | Faces have 3D area but 0 UV area | Side faces got a planar projection that collapses on their axis — give them arc-length / box UVs |
+| `CRITICAL_UV_SPIKES_N` | Tiny geo edge → huge UV jump | A thin/degenerate face — fix topology first (Family B), then re-map |
+| `telemetry.uv.bounds` outside 0–1 with `fit_uvs=True` | Normalization wrong | Recompute scale from the **measured** extent, not an assumed dimension |
+| `WARNING_ISOLATED_SEAM_EDGES_N` | Seam doesn't form a continuous loop | Extend the seam path until endpoints meet a boundary or another seam |
+| `CRITICAL_NO_SEAMS_ON_COMPLEX_MESH` (warning bucket) | Closed complex mesh with 0 seams | Add the longitudinal/zipper seam for its archetype |
+| `telemetry.edge_slots.histogram` missing key `1` | No perimeter authored | Tag silhouette/cap edges slot 1 (or confirm auto-detect is intended) |
+| heatmap mostly red | High area distortion | Add/relocate seams to relax stretched islands; recheck texel scaling |
+
+Re-run until UV flags clear from `issues.critical`, `telemetry.uv.bounds ⊆ 0–1` (when fitting), `collapsed_faces == 0`, and the evidence render exposes the expected slot 1/2/3 lines for the shape contract.
+
+Interpret bounds by mode: default `fit_uvs=False` may tile outside 0–1 for texel density, so judge it with collapsed faces, distortion, and intended scale. For `fit_uvs=True`, bounds must fit inside 0–1.
+
 ## Final Polish & Output
 
 1. **Metadata:** Ensure `get_slot_meta` matches strategy (e.g., `UNWRAP` for tubes, `FIT`/`BOX` for sheets, `SKIP` for sockets).
 2. **Texel Density:** Normalize UV islands using `CARTRIDGE_META` scale class (`SMALL`/`MEDIUM`/`LARGE`).
-3. **Audit:** Verify visually and via tests: `python _Scripts/test_run_cartridge.py massa/modules/cartridges/<cartridge>.py --mode AUDIT`.
-4. **Agent Output:** State archetypes used, slot decisions, local orientation method, and normalization status.
+3. **Audit:** Run the Audit-Driven Refinement Loop above; confirm `summary.critical == 0` for UV flags and that `telemetry.uv` is within bounds — not just that the render succeeded.
+4. **Agent Output:** State the per-component metrics + archetype chosen, slot decisions, local orientation method, normalization status, and the before/after audit `summary`.
 
 ## Hard Rules
 
@@ -266,4 +411,4 @@ Different parts of the geometry should use different UV strategies defined in th
 
 ## Quick Prompt For Agents
 
-Act as the Massa UV Engineer. Read the cartridge geometry and classify each component as PLANK, TUBE, SHEET, STRIP, BOX_DETAIL, SOCKET, or INTERSECTION. Do not rely on console auto-detected boundaries. In build_shape, create or retrieve MASSA_EDGE_SLOTS and massa_force_seam, then mark seams spatially at geometry birth. Use slot 1 for protected cap/perimeter seams, slot 2 for hard contours, and slot 3 for hidden guide zippers and intersection relief seams. Choose seams by generator vectors, cap-loop normals, PCA/OBB local frames, material boundaries, occlusion score, and concave junction depth, never by raw edge index or fixed negative-Y bias. Update get_slot_meta so UV modes match the geometry. Normalize UV islands to the CARTRIDGE_META scale class after UVMap generation when the engine supports it. Run a targeted audit and fix missing perimeter, missing seam, isolated seam, collapsed UV, UV spike, and texel-density issues before delivery.
+Act as the Massa UV Engineer. First **measure, then mark**: split the mesh with `connected_components`, run `component_metrics` + `classify_archetype` on each part, and let the metrics (slenderness, flatness, radial_cv, is_closed) pick PLANK / TUBE / SHEET / STRIP / BOX_DETAIL / SOCKET / INTERSECTION — do not classify by eye, by cartridge name, or by console auto-detected boundaries. In build_shape, create or retrieve MASSA_EDGE_SLOTS and massa_force_seam, then mark seams spatially at geometry birth via the matching `mark_*` helper. Use slot 1 for protected cap/perimeter seams, slot 2 for hard contours, slot 3 for hidden guide zippers and intersection relief seams. Choose seams by generator vectors, cap-loop normals, PCA local frames, material boundaries, occlusion score, and concave junction depth — never by raw edge index or fixed negative-Y bias. Apply the Wrapping Fix to any `is_closed` component. Update get_slot_meta so UV modes match each archetype, and normalize islands to the CARTRIDGE_META scale class. Then run the Audit-Driven Refinement Loop: read `telemetry.uv`, `telemetry.edge_slots.histogram`, and `auditors.by_auditor`, and iterate until UV flags clear from `issues.critical`, `uv.bounds ⊆ 0–1`, and `collapsed_faces == 0`.

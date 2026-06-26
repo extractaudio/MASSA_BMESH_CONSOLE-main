@@ -31,11 +31,12 @@ class MASSA_OT_PrimCableTray(Massa_OT_Base):
     rung_width: FloatProperty(name="Rung Width", default=0.03, min=0.01)
     rung_height: FloatProperty(name="Rung Height", default=0.015, min=0.005)
     
-    uv_scale: FloatProperty(name="UV Scale", default=1.0)
+    uv_scale: FloatProperty(name="UV Scale", default=1.0, min=0.1)
+    fit_uvs: BoolProperty(name="Fit UVs 0-1", default=False)
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Tray Metal", "uv": "UNWRAP", "phys": "METAL_ALUMINUM"},
+            0: {"name": "Tray Metal", "uv": "SKIP", "phys": "METAL_ALUMINUM"},
         }
 
     def draw_shape_ui(self, layout):
@@ -55,11 +56,16 @@ class MASSA_OT_PrimCableTray(Massa_OT_Base):
         col.prop(self, "rung_width")
         col.prop(self, "rung_height")
 
+        layout.separator()
+        layout.label(text="UV")
+        col.prop(self, "uv_scale")
+        col.prop(self, "fit_uvs")
+
     def build_shape(self, bm: bmesh.types.BMesh):
         w = max(0.1, self.width)
         h = max(0.02, self.height)
         l = max(0.1, self.length)
-        rt = min(max(0.002, self.rail_thick), h * 0.45, w * 0.2)
+        rt = min(max(0.002, self.rail_thick), h * 0.4, w * 0.2)
         rf = min(max(0.0, self.flange_size), max(0.0, (w - rt) * 0.45))
 
         edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
@@ -189,45 +195,47 @@ class MASSA_OT_PrimCableTray(Massa_OT_Base):
         if self.rung_spacing > 0:
             count = int(l / self.rung_spacing)
             step = l / (count + 1)
-            rw, rh_ = self.rung_width, self.rung_height
+            rw = min(max(0.005, self.rung_width), max(0.005, step * 0.65))
+            rh_ = min(max(0.002, self.rung_height), max(0.002, h - rt - 0.002))
             
             # Rung width: spans between rails
             # Distance: w - 2*rt
             clearance = 0.001
-            rung_len = max(0.001, w - rt - (clearance * 2.0))
+            rung_len = max(0.001, w - rt - (rf * 2.0) - (clearance * 2.0))
             
-            for i in range(1, count + 1):
-                y = i * step
-                # Box
-                res = bmesh.ops.create_cube(bm, size=1.0)
-                rv = res["verts"]
-                bmesh.ops.scale(bm, vec=(rung_len, rw, rh_), verts=rv)
-                # Keep rungs above the lower flanges so they do not leave hidden overlap faces.
-                z_pos = -h/2 + rt + rh_/2 + clearance
-                bmesh.ops.translate(bm, vec=(0, y, z_pos), verts=rv)
-                rung_faces = list({f for v in rv for f in v.link_faces if f.is_valid})
+            if rung_len >= 0.01:
+                for i in range(1, count + 1):
+                    y = i * step
+                    # Box
+                    res = bmesh.ops.create_cube(bm, size=1.0)
+                    rv = res["verts"]
+                    bmesh.ops.scale(bm, vec=(rung_len, rw, rh_), verts=rv)
+                    # Keep rungs above the lower flanges so they do not leave hidden overlap faces.
+                    z_pos = -h/2 + rt + rh_/2 + clearance
+                    bmesh.ops.translate(bm, vec=(0, y, z_pos), verts=rv)
+                    rung_faces = list({f for v in rv for f in v.link_faces if f.is_valid})
 
-                bm.normal_update()
-                for f in rung_faces:
-                    if abs(f.normal.x) > 0.9:
-                        mark_cap_face(f)
+                    bm.normal_update()
+                    for f in rung_faces:
+                        if abs(f.normal.x) > 0.9:
+                            mark_cap_face(f)
 
-                bottom_y = y - (rw * 0.5)
-                bottom_z = z_pos - (rh_ * 0.5)
-                for e in {edge for face in rung_faces for edge in face.edges if edge.is_valid}:
-                    v1, v2 = e.verts
-                    along_x = abs(v1.co.x - v2.co.x) > max(rung_len * 0.5, 0.001)
-                    on_hidden_bottom_back = (
-                        along_x
-                        and abs(v1.co.y - bottom_y) < 0.001
-                        and abs(v2.co.y - bottom_y) < 0.001
-                        and abs(v1.co.z - bottom_z) < 0.001
-                        and abs(v2.co.z - bottom_z) < 0.001
-                    )
-                    if on_hidden_bottom_back:
-                        mark_edge(e, slot=3, seam=True, protect=True)
+                    bottom_y = y - (rw * 0.5)
+                    bottom_z = z_pos - (rh_ * 0.5)
+                    for e in {edge for face in rung_faces for edge in face.edges if edge.is_valid}:
+                        v1, v2 = e.verts
+                        along_x = abs(v1.co.x - v2.co.x) > max(rung_len * 0.5, 0.001)
+                        on_hidden_bottom_back = (
+                            along_x
+                            and abs(v1.co.y - bottom_y) < 0.001
+                            and abs(v2.co.y - bottom_y) < 0.001
+                            and abs(v1.co.z - bottom_z) < 0.001
+                            and abs(v2.co.z - bottom_z) < 0.001
+                        )
+                        if on_hidden_bottom_back:
+                            mark_edge(e, slot=3, seam=True, protect=True)
 
-                mark_hard_contours(rung_faces)
+                    mark_hard_contours(rung_faces)
 
         # Mat
         for f in bm.faces:
@@ -245,8 +253,8 @@ class MASSA_OT_PrimCableTray(Massa_OT_Base):
         bmesh.ops.dissolve_degenerate(bm, dist=0.0001, edges=bm.edges[:])
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-        scale = self.uv_scale
         uv_layer = bm.loops.layers.uv.verify()
+        uv_data = []
         for f in bm.faces:
             nx, ny, nz = abs(f.normal.x), abs(f.normal.y), abs(f.normal.z)
             for loop in f.loops:
@@ -257,4 +265,18 @@ class MASSA_OT_PrimCableTray(Massa_OT_Base):
                     u, v = co.y, co.z
                 else:
                     u, v = co.x, co.z
+                uv_data.append((loop, u, v))
+
+        if self.fit_uvs and uv_data:
+            min_u = min(u for _, u, _ in uv_data)
+            min_v = min(v for _, _, v in uv_data)
+            max_u = max(u for _, u, _ in uv_data)
+            max_v = max(v for _, _, v in uv_data)
+            size_u = max(max_u - min_u, 0.0001)
+            size_v = max(max_v - min_v, 0.0001)
+            for loop, u, v in uv_data:
+                loop[uv_layer].uv = ((u - min_u) / size_u, (v - min_v) / size_v)
+        else:
+            scale = self.uv_scale
+            for loop, u, v in uv_data:
                 loop[uv_layer].uv = (u * scale, v * scale)

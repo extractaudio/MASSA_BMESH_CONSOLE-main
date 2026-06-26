@@ -449,6 +449,144 @@ def find_generated_object(exclude=None):
             return o
     return None
 
+def get_operator_payload_props(op_class, payload):
+    """
+    Pull operator/console property overrides from payload and keep only valid
+    RNA properties so headless renders can mirror MASSA console preview toggles.
+    """
+    if payload is None:
+        payload = {}
+
+    raw_props = {}
+    errors = []
+    for key in ("operator_props", "console_props"):
+        block = payload.get(key)
+        if block is None:
+            continue
+        if not isinstance(block, dict):
+            errors.append(f"{key} must be a JSON object")
+            continue
+        raw_props.update(block)
+
+    if not raw_props:
+        return {}, {}, errors
+
+    valid_props = set()
+    try:
+        for prop in op_class.bl_rna.properties:
+            if prop.identifier != "rna_type" and not getattr(prop, "is_readonly", False):
+                valid_props.add(prop.identifier)
+    except Exception:
+        pass
+
+    try:
+        for cls in op_class.mro():
+            valid_props.update(getattr(cls, "__annotations__", {}).keys())
+    except Exception:
+        pass
+
+    if not valid_props:
+        valid_props = set(raw_props.keys())
+
+    applied = {}
+    ignored = {}
+    for key, value in raw_props.items():
+        if valid_props and key not in valid_props:
+            ignored[key] = value
+            continue
+        applied[key] = value
+
+    return applied, ignored, errors
+
+EDGE_SLOT_RENDER_COLORS = {
+    1: (1.0, 0.82, 0.05, 1.0),  # perimeter / caps
+    2: (0.10, 0.32, 1.00, 1.0), # contour / material boundary
+    3: (1.00, 0.12, 0.08, 1.0), # guide / zipper
+    4: (0.08, 0.85, 0.18, 1.0), # detail
+    5: (1.00, 0.00, 0.95, 1.0), # fold / seam debug
+}
+
+def get_edge_slot_render_material(slot):
+    name = f"Massa_Render_EdgeSlot_{slot}"
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name=name)
+        mat.diffuse_color = EDGE_SLOT_RENDER_COLORS.get(slot, (1.0, 1.0, 1.0, 1.0))
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes.get("Principled BSDF")
+        if bsdf:
+            color = EDGE_SLOT_RENDER_COLORS.get(slot, (1.0, 1.0, 1.0, 1.0))
+            bsdf.inputs["Base Color"].default_value = color
+            bsdf.inputs["Roughness"].default_value = 0.35
+    return mat
+
+def add_edge_slot_render_overlay(obj, bevel_depth=None):
+    """
+    Geometry-nodes slot viz is viewport-only. For headless Workbench renders,
+    add temporary colored curve tubes over tagged edges so exported evidence
+    images still show the actual MASSA_EDGE_SLOTS map.
+    """
+    if not obj or obj.type != 'MESH':
+        return {"created": 0, "counts": {}, "layer": None}
+
+    bm = bmesh.new()
+    grouped = {}
+    layer_name = None
+    try:
+        bm.from_mesh(obj.data)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+
+        slot_layer = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+        layer_name = "MASSA_EDGE_SLOTS" if slot_layer else None
+        if slot_layer is None:
+            slot_layer = bm.edges.layers.int.get("Massa_Viz_ID")
+            layer_name = "Massa_Viz_ID" if slot_layer else None
+        if slot_layer is None:
+            return {"created": 0, "counts": {}, "layer": None}
+
+        for edge in bm.edges:
+            slot = int(edge[slot_layer])
+            if slot not in EDGE_SLOT_RENDER_COLORS:
+                continue
+            grouped.setdefault(slot, []).append(
+                (edge.verts[0].co.copy(), edge.verts[1].co.copy())
+            )
+    finally:
+        bm.free()
+
+    if not grouped:
+        return {"created": 0, "counts": {}, "layer": layer_name}
+
+    max_dim = max([abs(v) for v in obj.dimensions] or [1.0])
+    depth = bevel_depth if bevel_depth is not None else max(0.003, max_dim * 0.0025)
+    created = 0
+    for slot, segments in grouped.items():
+        curve = bpy.data.curves.new(f"EdgeSlot_{slot}_Overlay", "CURVE")
+        curve.dimensions = "3D"
+        curve.resolution_u = 1
+        curve.bevel_depth = depth
+        curve.bevel_resolution = 2
+        curve.materials.append(get_edge_slot_render_material(slot))
+
+        for p0, p1 in segments:
+            spline = curve.splines.new("POLY")
+            spline.points.add(1)
+            spline.points[0].co = (p0.x, p0.y, p0.z, 1.0)
+            spline.points[1].co = (p1.x, p1.y, p1.z, 1.0)
+
+        overlay_obj = bpy.data.objects.new(f"EdgeSlot_{slot}_Overlay", curve)
+        overlay_obj.matrix_world = obj.matrix_world.copy()
+        overlay_obj.show_in_front = True
+        bpy.context.collection.objects.link(overlay_obj)
+        created += 1
+
+    return {
+        "created": created,
+        "counts": {str(slot): len(segments) for slot, segments in sorted(grouped.items())},
+        "layer": layer_name,
+    }
+
 def setup_visual_diff(obj_a, obj_b):
     # Red for A
     mat_a = bpy.data.materials.new(name="Red_Wire")
@@ -476,24 +614,41 @@ def setup_camera(angle="ISO_CAM"):
     cam_obj = bpy.data.objects.new("Cam", cam_data)
     bpy.context.collection.objects.link(cam_obj)
     bpy.context.scene.camera = cam_obj
+
+    if not any(obj.type == 'LIGHT' for obj in bpy.context.scene.objects):
+        light_data = bpy.data.lights.new("Render_Key", type='SUN')
+        light_obj = bpy.data.objects.new("Render_Key", light_data)
+        bpy.context.collection.objects.link(light_obj)
+        light_data.energy = 2.5
+        light_obj.rotation_euler = (0.75, 0.0, 0.55)
     
     if angle == "ISO_CAM":
         cam_obj.location = (10, -10, 10)
         cam_obj.rotation_euler = (0.95, 0, 0.78)
 
-def render_viewport(name):
-    tmp_path = os.path.join(os.environ.get("TEMP", "/tmp"), f"{name}.png")
+def safe_image_name(name):
+    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", str(name)).strip(" .")
+    return cleaned or "render"
+
+def render_viewport(name, engine=None):
+    tmp_path = os.path.join(os.environ.get("TEMP", "/tmp"), f"{safe_image_name(name)}.png")
     bpy.context.scene.render.filepath = tmp_path
 
     if bpy.app.background:
-        # Use Workbench for software render
-        bpy.context.scene.render.engine = 'BLENDER_WORKBENCH'
-        # Configure Workbench for clarity
-        bpy.context.scene.display.shading.light = 'FLAT'
-        bpy.context.scene.display.shading.color_type = 'MATERIAL' # Use Material colors (for Heatmaps/UVs)
-        # Ensure we show wireframes if set on objects
-        # Workbench X-Ray might be needed for UV overlap checking?
-        # Actually wireframe attribute on object works in Workbench.
+        requested_engine = engine or 'BLENDER_WORKBENCH'
+        try:
+            bpy.context.scene.render.engine = requested_engine
+        except Exception:
+            bpy.context.scene.render.engine = 'BLENDER_WORKBENCH'
+
+        if bpy.context.scene.render.engine == 'BLENDER_WORKBENCH':
+            # Use Workbench for software render
+            # Configure Workbench for clarity
+            bpy.context.scene.display.shading.light = 'FLAT'
+            bpy.context.scene.display.shading.color_type = 'MATERIAL' # Use Material colors (for Heatmaps/UVs)
+            # Ensure we show wireframes if set on objects
+            # Workbench X-Ray might be needed for UV overlap checking?
+            # Actually wireframe attribute on object works in Workbench.
 
         bpy.ops.render.render(write_still=True)
     else:
@@ -688,6 +843,9 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
     is_direct: If True, skips scene clearing and uses current context.
     """
     if payload is None: payload = {}
+    operator_props = {}
+    ignored_operator_props = {}
+    operator_prop_errors = []
 
     if not is_direct:
         # Clean Scene
@@ -809,7 +967,14 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
                                 cat, name = idname.split(".")
                                 if hasattr(bpy.ops, cat):
                                     func = getattr(getattr(bpy.ops, cat), name)
-                                    func() # Run!
+                                    operator_props, ignored_operator_props, operator_prop_errors = get_operator_payload_props(op_class, payload)
+                                    if operator_props:
+                                        print(f"Runner: Applying operator props {operator_props}")
+                                    if ignored_operator_props:
+                                        print(f"Runner: Ignored invalid operator props {ignored_operator_props}")
+                                    if operator_prop_errors:
+                                        print(f"Runner: Operator prop payload errors {operator_prop_errors}")
+                                    func(**operator_props) # Run!
                                     print(f"Runner: Executed {idname}")
                                 else:
                                     print(f"Runner: Could not find category {cat} in bpy.ops")
@@ -819,6 +984,15 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
                         print(f"Runner Execution Error: {e}")
                         import traceback
                         traceback.print_exc()
+                        return {
+                            "status": "FAIL",
+                            "errors": [f"Operator Execution Error: {str(e)}"],
+                            "operator_props": {
+                                "applied": operator_props,
+                                "ignored": ignored_operator_props,
+                                "errors": operator_prop_errors,
+                            },
+                        }
 
         else:
              # If cartridge doesn't exist (and we aren't in SKILL_EXEC), it's okay if we just want to audit existing?
@@ -875,6 +1049,12 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
             "budget_status": "FAIL" if crashes_blender else "PASS",
             "telemetry": gather_mesh_telemetry(obj),
         }
+        if operator_props or ignored_operator_props or operator_prop_errors:
+            result["operator_props"] = {
+                "applied": operator_props,
+                "ignored": ignored_operator_props,
+                "errors": operator_prop_errors,
+            }
         return result
 
     if mode == "CSG_DEBUG":
@@ -899,15 +1079,46 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
         setup_camera(payload.get("camera_angle", "ISO_CAM"))
         try:
              # Basic View Settings for clear render
+             overlay_info = {"created": 0, "counts": {}, "layer": None}
              if obj:
-                 obj.show_wire = (payload.get("shading") == "WIREFRAME")
-                 if obj.show_wire:
+                 wire_requested = (
+                     payload.get("shading") == "WIREFRAME"
+                     or payload.get("show_wireframe") is True
+                     or operator_props.get("show_wireframe") is True
+                 )
+                 obj.show_wire = wire_requested
+                 obj.show_all_edges = wire_requested
+                 if payload.get("shading") == "WIREFRAME":
                      obj.display_type = 'WIRE'
                  else:
                      obj.display_type = 'SOLID'
+
+                 slot_overlay_requested = payload.get("edge_slot_overlay")
+                 if slot_overlay_requested is None:
+                     slot_overlay_requested = operator_props.get("viz_edge_mode") == "SLOTS"
+                 if slot_overlay_requested:
+                     overlay_info = add_edge_slot_render_overlay(
+                         obj, payload.get("edge_slot_overlay_depth")
+                     )
                      
-             output_path = render_viewport(f"render_{obj.name}")
-             return {"status": "SUCCESS", "image_path": output_path}
+             render_engine = payload.get("render_engine")
+             if render_engine is None and operator_props.get("debug_view") == "UV":
+                 render_engine = "BLENDER_EEVEE"
+
+             output_path = render_viewport(f"render_{obj.name}", engine=render_engine)
+             result = {
+                 "status": "SUCCESS",
+                 "image_path": output_path,
+                 "render_engine": bpy.context.scene.render.engine,
+                 "render_overlays": {"edge_slots": overlay_info},
+             }
+             if operator_props or ignored_operator_props or operator_prop_errors:
+                 result["operator_props"] = {
+                     "applied": operator_props,
+                     "ignored": ignored_operator_props,
+                     "errors": operator_prop_errors,
+                 }
+             return result
         except Exception as e:
              return {"status": "FAIL", "message": f"Render Error: {str(e)}"}
 
@@ -962,6 +1173,12 @@ def execute_audit(cartridge_path, mode="AUDIT", payload=None, is_direct=False):
         # Backward-compatible flat list of every flag found.
         "errors": classified["critical"] + classified["warning"] + classified["info"],
     }
+    if operator_props or ignored_operator_props or operator_prop_errors:
+        result["operator_props"] = {
+            "applied": operator_props,
+            "ignored": ignored_operator_props,
+            "errors": operator_prop_errors,
+        }
 
     return result
 
@@ -1146,12 +1363,17 @@ def main():
                  "PERFORMANCE", "CSG_DEBUG", "RENDER", "SKILL_EXEC", "CONSOLE_AUDIT"]
     )
     parser.add_argument("--payload", default=None)
+    parser.add_argument("--payload-env", default=None)
     
     args, _ = parser.parse_known_args(argv)
 
+    payload_json = args.payload
+    if args.payload_env:
+        payload_json = os.environ.get(args.payload_env)
+
     payload = {}
-    if args.payload:
-        try: payload = json.loads(args.payload)
+    if payload_json:
+        try: payload = json.loads(payload_json)
         except: pass
 
     # Execute

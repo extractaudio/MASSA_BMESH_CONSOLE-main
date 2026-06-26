@@ -123,6 +123,11 @@ def main():
         default=None,
         help="Optional JSON string of payload data (e.g., for VISUAL_DIFF: '{\"filename_b\": \"other_file.py\"}')"
     )
+    parser.add_argument(
+        "--payload-env",
+        default=None,
+        help="Name of an environment variable containing payload JSON. Useful on Windows when shell quoting mangles --payload."
+    )
 
     args = parser.parse_args()
 
@@ -136,10 +141,17 @@ def main():
         sys.exit(1)
 
     # Parse payload if present
+    payload_json = args.payload
+    if args.payload_env:
+        payload_json = os.environ.get(args.payload_env)
+        if payload_json is None:
+            print(f"Error: payload environment variable not found: {args.payload_env}")
+            sys.exit(1)
+
     payload_data = {}
-    if args.payload:
+    if payload_json:
         try:
-            payload_data = json.loads(args.payload)
+            payload_data = json.loads(payload_json)
         except json.JSONDecodeError as e:
             print(f"Error parsing payload JSON: {e}")
             sys.exit(1)

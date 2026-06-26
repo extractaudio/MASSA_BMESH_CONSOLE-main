@@ -152,27 +152,134 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
         elif self.shape_type == 'COUPLER':
             MASSA_OT_PrimDuct._build_coupler(self, bm)
 
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
         MASSA_OT_PrimDuct._apply_box_uvs(self, bm)
+        MASSA_OT_PrimDuct._mark_uv_seams(self, bm)
 
-        # Post-Process: Seams & Edge Roles
-        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
-        if not edge_slots:
-            edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+    def _component_center(self, verts):
+        if not verts:
+            return Vector()
+        return sum((v.co for v in verts), Vector()) / len(verts)
 
-        for e in bm.edges:
-            # Mark sharp angles
-            if e.is_manifold:
-                angle = e.calc_face_angle(0)
-                if angle > 0.5: # ~30 deg
-                    e.seam = True
-                    e[edge_slots] = 1 # Perimeter/Sharp
+    def _component_axis(self, verts):
+        if len(verts) < 2:
+            return Vector((0, 0, 1))
+        center = MASSA_OT_PrimDuct._component_center(self, verts)
+        direction = Vector((1.0, 0.37, 0.19)).normalized()
+        points = [v.co - center for v in verts]
+        for _ in range(8):
+            projected = sum((p * p.dot(direction) for p in points), Vector())
+            if projected.length < 0.0001:
+                break
+            direction = projected.normalized()
+        return direction if direction.length > 0.0001 else Vector((0, 0, 1))
 
-            # Mark material boundaries
-            mats = {f.material_index for f in e.link_faces}
-            if len(mats) > 1:
-                e.seam = True
-                e[edge_slots] = 2 # Material Boundary
+    def _connected_face_components(self, bm):
+        seen = set()
+        components = []
+        for start in bm.faces:
+            if start in seen:
+                continue
+            stack = [start]
+            faces = []
+            while stack:
+                face = stack.pop()
+                if face in seen:
+                    continue
+                seen.add(face)
+                faces.append(face)
+                for edge in face.edges:
+                    for linked in edge.link_faces:
+                        if linked not in seen:
+                            stack.append(linked)
+            components.append(faces)
+        return components
+
+    def _mark_uv_seams(self, bm):
+        edge_slots = bm.edges.layers.int.get("MASSA_EDGE_SLOTS") or bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        force_seam = bm.edges.layers.int.get("massa_force_seam") or bm.edges.layers.int.new("massa_force_seam")
+
+        def mark_edge(edge, slot=None, seam=False, sharp=False, protect=False):
+            if slot is not None:
+                current = edge[edge_slots]
+                if not (current in {1, 3} and slot == 2):
+                    edge[edge_slots] = slot
+            if seam:
+                edge.seam = True
+            if sharp:
+                edge.smooth = False
+            if protect:
+                edge[force_seam] = 1
+
+        for edge in bm.edges:
+            edge.seam = False
+            edge.smooth = True
+            edge[edge_slots] = 0
+            edge[force_seam] = 0
+
+        bm.normal_update()
+
+        for faces in MASSA_OT_PrimDuct._connected_face_components(self, bm):
+            verts = list({vert for face in faces for vert in face.verts})
+            if not verts:
+                continue
+
+            axis = MASSA_OT_PrimDuct._component_axis(self, verts).normalized()
+            center = MASSA_OT_PrimDuct._component_center(self, verts)
+            cap_faces = [face for face in faces if abs(face.normal.normalized().dot(axis)) > 0.82]
+
+            for face in cap_faces:
+                for edge in face.edges:
+                    mark_edge(edge, slot=1, seam=True, sharp=True, protect=True)
+
+            cap_edges = {edge for face in cap_faces for edge in face.edges}
+            component_edges = {edge for face in faces for edge in face.edges}
+            side_edges = []
+            for edge in component_edges:
+                if edge in cap_edges or len(edge.link_faces) != 2:
+                    continue
+                direction = edge.verts[1].co - edge.verts[0].co
+                if direction.length < 0.0001:
+                    continue
+                same_surface = len({face.material_index for face in edge.link_faces}) == 1
+                if same_surface and abs(direction.normalized().dot(axis)) > 0.65:
+                    side_edges.append(edge)
+
+            if side_edges:
+                selected = max(
+                    side_edges,
+                    key=lambda edge: (
+                        (((edge.verts[0].co + edge.verts[1].co) * 0.5) - center).length,
+                        edge.calc_length(),
+                    ),
+                )
+                selected_dir = ((selected.verts[0].co + selected.verts[1].co) * 0.5) - center
+                if selected_dir.length > 0.0001:
+                    selected_dir.normalize()
+                    for edge in side_edges:
+                        edge_dir = ((edge.verts[0].co + edge.verts[1].co) * 0.5) - center
+                        if edge_dir.length > 0.0001 and edge_dir.normalized().dot(selected_dir) > 0.96:
+                            mark_edge(edge, slot=3, seam=True, protect=True)
+
+        for edge in bm.edges:
+            if len(edge.link_faces) < 2:
+                mark_edge(edge, slot=1, seam=True, sharp=True, protect=True)
+                continue
+
+            material_ids = {face.material_index for face in edge.link_faces}
+            if len(material_ids) > 1:
+                mark_edge(edge, slot=2, seam=True, sharp=True, protect=True)
+                continue
+
+            if edge.is_manifold:
+                try:
+                    if edge.calc_face_angle(0.0) > 0.5:
+                        mark_edge(edge, slot=2, sharp=True)
+                except ValueError:
+                    pass
 
     def _create_rect_profile(self, bm, w, h, z=0):
         pts = [
@@ -358,18 +465,34 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
             MASSA_OT_PrimDuct._create_flange_geo(self, bm, w, h, z - 0.01, depth, 0.02, mat_idx=2)
 
     def _apply_box_uvs(self, bm):
-        scale = 1.0 if getattr(self, "fit_uvs", False) else self.uv_scale
         uv_layer = bm.loops.layers.uv.verify()
         bm.normal_update()
+        fit_uvs = getattr(self, "fit_uvs", False)
+        uv_data = []
+
         for f in bm.faces:
             n = f.normal
             for l in f.loops:
-                v = l.vert.co
+                co = l.vert.co
                 nx, ny, nz = abs(n.x), abs(n.y), abs(n.z)
                 if nx >= ny and nx >= nz:
-                    u, v_ = v.y, v.z
+                    u, v_ = co.y, co.z
                 elif ny >= nx and ny >= nz:
-                    u, v_ = v.x, v.z
+                    u, v_ = co.x, co.z
                 else:
-                    u, v_ = v.x, v.y
-                l[uv_layer].uv = (u * scale, v_ * scale)
+                    u, v_ = co.x, co.y
+                uv_data.append((l, u, v_))
+
+        if fit_uvs and uv_data:
+            min_u = min(u for _, u, _ in uv_data)
+            min_v = min(v for _, _, v in uv_data)
+            max_u = max(u for _, u, _ in uv_data)
+            max_v = max(v for _, _, v in uv_data)
+            size_u = max(max_u - min_u, 0.0001)
+            size_v = max(max_v - min_v, 0.0001)
+            for loop, u, v_ in uv_data:
+                loop[uv_layer].uv = ((u - min_u) / size_u, (v_ - min_v) / size_v)
+        else:
+            scale = self.uv_scale
+            for loop, u, v_ in uv_data:
+                loop[uv_layer].uv = (u * scale, v_ * scale)
