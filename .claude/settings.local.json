@@ -80,7 +80,14 @@
       "mcp__jcodemunch__register_edit",
       "Bash(ls \"/c/Program Files/Blender Foundation/\" 2>/dev/null; echo \"---\"; test -f \"/c/Program Files/Blender Foundation/Blender 5.1/blender.exe\" && echo \"BLENDER_5.1_FOUND\" || echo \"BLENDER_5.1_MISSING\")",
       "Bash(python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_01_beam.py --mode AUDIT)",
-      "Bash(python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_04_panel.py --mode AUDIT)"
+      "Bash(python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_04_panel.py --mode AUDIT)",
+      "Bash(test -f \"/c/Program Files/Blender Foundation/Blender 5.1/blender.exe\" && echo \"BLENDER_5.1_FOUND\" || ls \"/c/Program Files/Blender Foundation/\" 2>/dev/null || echo \"NO_BLENDER_DIR\")",
+      "Bash(cd \"/c/Users/extra/OneDrive/Documents/vscode projects/Massa_Mesh/MASSA_BMESH_CONSOLE-main\")",
+      "Bash(export PYTHONPYCACHEPREFIX=\"/c/tmp/massa_pycache\")",
+      "Bash(python -m py_compile massa/modules/cartridges/cart_prim_02_pipe.py massa/modules/cartridges/cart_prim_03_corrugated.py massa/modules/cartridges/cart_prim_04_panel.py massa/modules/cartridges/cart_prim_05_catenary.py massa/modules/cartridges/cart_prim_06_gusset.py massa/modules/cartridges/cart_prim_10_arch.py massa/modules/cartridges/cart_prim_14_y_joint.py massa/modules/cartridges/cart_prim_16_lathe.py massa/modules/cartridges/cart_prim_17_canvas.py massa/modules/cartridges/cart_prim_20_bundle.py massa/modules/cartridges/cart_prim_21_column.py massa/modules/cartridges/cart_prim_22_duct.py massa/modules/cartridges/cart_prim_23_cable_tray.py massa/modules/cartridges/cart_prim_24_gutter.py)",
+      "Bash(echo \"ALL_COMPILE_OK\")",
+      "Bash(echo \"COMPILE_FAILED\")",
+      "Bash(python _Scripts/test_run_cartridge.py massa/modules/cartridges/cart_prim_24_gutter.py --mode AUDIT)"
     ]
   }
 }

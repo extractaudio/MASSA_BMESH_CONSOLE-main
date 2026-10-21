@@ -39,9 +39,27 @@ class _PermissiveSelf:
         return 0
 
 
+def _import_massa_cartridges():
+    """Return MASSA's ``modules.cartridges`` package from whichever install is
+    loaded: an extension (``bl_ext.<repo>.massa_mesh_gen``) or a legacy ``massa`` add-on."""
+    import importlib
+    import sys
+
+    loaded = sorted(
+        n for n in sys.modules
+        if "massa" in n and n.count(".") == (2 if n.startswith("bl_ext.") else 0)
+    )
+    for root in loaded + ["massa"]:
+        try:
+            return importlib.import_module(root + ".modules.cartridges")
+        except ImportError:
+            continue
+    raise ImportError("MASSA add-on is not loaded (no 'massa' or bl_ext.*.massa* package)")
+
+
 def _resolve_class(cartridge_id, object_name):
     import bpy
-    from massa.modules.cartridges import CLASSES
+    CLASSES = _import_massa_cartridges().CLASSES
 
     bl_target = None
     if object_name:

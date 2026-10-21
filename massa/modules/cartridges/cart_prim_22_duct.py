@@ -83,7 +83,7 @@ class MASSA_OT_PrimDuct(Massa_OT_Base):
             0: {"name": "Duct Surface", "uv": "SKIP", "phys": "METAL_ALUMINUM"},
             1: {"name": "Flange/Connection", "uv": "BOX", "phys": "METAL_STEEL"},
             2: {"name": "Ribs/Detail", "uv": "BOX", "phys": "METAL_ALUMINUM"},
-            3: {"name": "Interior", "uv": "SKIP", "phys": "METAL_ALUMINUM_DARK"},
+            3: {"name": "Interior", "uv": "SKIP", "phys": "METAL_IRON"},
         }
 
     def draw_shape_ui(self, layout):

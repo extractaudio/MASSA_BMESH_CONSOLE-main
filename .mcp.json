@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "blender": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "_MCP", "run", "massa-blender-mcp"],
+      "env": {
+        "BLENDER_PATH": "C:\\Program Files\\Blender Foundation\\Blender 5.1\\blender.exe"
+      }
+    }
+  }
+}

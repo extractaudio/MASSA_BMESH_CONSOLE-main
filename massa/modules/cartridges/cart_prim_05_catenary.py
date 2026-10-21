@@ -14,7 +14,6 @@ CARTRIDGE_META = {
         "LOCK_PIVOT": True,  # Keeps Origin at Start Point for easy snapping
         "ALLOW_SOLIDIFY": False,  # Wire is solid
         "USE_WELD": True,
-        "PROTECT_NORMALS": False,  # Cylindrical smoothing handles this
     },
 }
 
@@ -41,7 +40,8 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
 
     def get_slot_meta(self):
         """
-        FIXED: 'METAL_COPPER' replaced with 'METAL_GOLD' to match MASTER_MAT_DB registry.
+        Conductor caps use METAL_ALUMINUM — the brightest valid metal in
+        MASTER_MAT_DB (no copper/gold key exists in the registry).
         """
         return {
             0: {
@@ -49,7 +49,7 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                 "uv": "SKIP",
                 "phys": "SYNTH_RUBBER",
             },  # UVs calc'd in script
-            1: {"name": "Caps", "uv": "BOX", "phys": "METAL_GOLD"},
+            1: {"name": "Caps", "uv": "BOX", "phys": "METAL_ALUMINUM"},
             2: {"name": "Guide Edge", "uv": "SKIP", "phys": "GENERIC"},
         }
 
@@ -162,7 +162,8 @@ class MASSA_OT_PrimCatenary(Massa_OT_Base):
                 f.smooth = True
 
         # 4. MARK SEAMS & EDGE SLOTS
-        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        edge_slots = (bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+                      or bm.edges.layers.int.new("MASSA_EDGE_SLOTS"))
 
         for e in bm.edges:
             # 1. Material Boundary (Caps vs Insulation)

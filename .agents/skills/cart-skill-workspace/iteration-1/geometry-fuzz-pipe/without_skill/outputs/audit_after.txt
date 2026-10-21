@@ -1,1 +1,0 @@
-No fixes applied — baseline audit was already PASS.

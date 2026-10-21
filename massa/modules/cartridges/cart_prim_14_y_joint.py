@@ -159,12 +159,22 @@ class MASSA_OT_PrimYJoint(Massa_OT_Base):
         # 5. MERGE PARTS
         # ----------------------------------------------------------------------
         def merge_bm(target_bm, source_bm):
+            # Pure-BMesh merge — copy verts/faces directly so build_shape never
+            # touches bpy.data (headless-safety mandate §5.2). Preserves the
+            # material slot and smooth flags that tag_caps() set on the source.
             source_bm.verts.ensure_lookup_table()
-            me_temp = bpy.data.meshes.new("temp_merge")
-            source_bm.to_mesh(me_temp)
+            vmap = {}
+            for v in source_bm.verts:
+                vmap[v.index] = target_bm.verts.new(v.co)
+            target_bm.verts.ensure_lookup_table()
+            for f in source_bm.faces:
+                try:
+                    nf = target_bm.faces.new([vmap[v.index] for v in f.verts])
+                    nf.material_index = f.material_index
+                    nf.smooth = f.smooth
+                except ValueError:
+                    pass
             source_bm.free()
-            target_bm.from_mesh(me_temp)
-            bpy.data.meshes.remove(me_temp)
 
         merge_bm(bm, bm_right)
         merge_bm(bm, bm_left)

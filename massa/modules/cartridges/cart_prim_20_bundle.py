@@ -15,7 +15,6 @@ CARTRIDGE_META = {
         "USE_WELD": False,  # CRITICAL: Strands must stay separate
         "ALLOW_SOLIDIFY": False,
         "ALLOW_FUSE": False,
-        "PROTECT_NORMALS": True,  # Keep custom normals
         "FIX_DEGENERATE": True,
     },
 }
@@ -56,7 +55,7 @@ class MASSA_OT_PrimBundle(Massa_OT_Base):
         """
         return {
             0: {"name": "Insulation", "uv": "SKIP", "phys": "SYNTH_RUBBER"},
-            1: {"name": "Cut Ends", "uv": "BOX", "phys": "METAL_COPPER"},
+            1: {"name": "Cut Ends", "uv": "BOX", "phys": "METAL_ALUMINUM"},
         }
 
     def draw_shape_ui(self, layout):

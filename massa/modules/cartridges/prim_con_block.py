@@ -154,7 +154,7 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
         bmesh.ops.translate(bm, verts=base_verts, vec=(0, -w / 2, 0))
 
         # Move EXTRUDED verts to end position (+w/2)
-        bmesh.ops.translate(bm, verts=verts_extruded, vec=(0, w, 0))
+        bmesh.ops.translate(bm, verts=verts_extruded, vec=(0, w / 2, 0))
 
         # 6. SUBD SEGMENTATION PASS
         # Slice Length (X)
@@ -228,30 +228,44 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
             e.smooth = True
             e[edge_slots] = 0
 
-        # A. CAP IDENTIFICATION (Normal Y)
+        # A. CAP IDENTIFICATION (By geometric normal to safely identify ends)
         cap_faces = set([f for f in bm.faces if abs(f.normal.y) > 0.8])
+
+        # B. CAP PERIMETER (Slot 1 - Yellow)
         cap_edges = set()
-        for f in cap_faces:
-            for e in f.edges:
-                # Only mark perimeter edges of the cap (where the edge connects a cap face to a non-cap face)
-                link_caps = sum(1 for lf in e.link_faces if lf in cap_faces)
-                if link_caps == 1:
-                    cap_edges.add(e)
-                    mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
-
-        # B. MARK SHARP CONTOURS (90 degree angles)
         for e in bm.edges:
-            if e not in cap_edges and e.is_manifold and len(e.link_faces) == 2:
-                try:
-                    if e.calc_face_angle(0.0) > math.radians(80):
-                        mark_edge(e, slot=2, sharp=True)
-                except ValueError:
-                    pass
+            if not e.is_manifold or len(e.link_faces) != 2:
+                continue
+            f1, f2 = e.link_faces
+            if (f1 in cap_faces) != (f2 in cap_faces):
+                cap_edges.add(e)
+                mark_edge(e, slot=1, seam=True, sharp=True, protect=True)
 
-        # C. SMART ZIPPERS (Vertical Cuts)
-        wall_faces = set(bm.faces) - set(cap_faces)
-        
-        # Group wall faces into islands
+        # C. MARK SHARP CONTOURS (Slot 2 - Red)
+        wall_faces = set(bm.faces) - cap_faces
+        for e in bm.edges:
+            if e in cap_edges:
+                continue
+            if not e.is_manifold or len(e.link_faces) != 2:
+                continue
+            f1, f2 = e.link_faces
+            # Use absolute dot product of normals to detect 90-degree angles
+            # This safely ignores flipped normals on flat subdivision cuts (dot will be ~ -1.0 or 1.0)
+            dot_val = abs(f1.normal.dot(f2.normal))
+            if dot_val < 0.5:  # 90 degrees will be ~0.0
+                mark_edge(e, slot=2, sharp=True)
+
+        # D. SEGMENTATION GUIDE SEAMS (Slot 3 - Blue)
+        if seg_y > 1:
+            for e in bm.edges:
+                if e in cap_edges or e[edge_slots] == 2:
+                    continue
+                v1, v2 = e.verts
+                if abs(v1.co.y - v2.co.y) < 0.001:
+                    if -w/2 + 0.01 < v1.co.y < w/2 - 0.01:
+                        mark_edge(e, slot=3, seam=True, protect=False)
+
+        # E. SMART ZIPPERS (For Manual UV Continuity)
         islands = []
         visited = set()
         for f in wall_faces:
@@ -270,7 +284,6 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
                                         stack.append(lf)
                 islands.append(island)
                 
-        # For each island, pick a zipper path from front cap to back cap.
         for island in islands:
             island_edges = {e for f in island for e in f.edges if e not in cap_edges}
             island_y_edges = [
@@ -281,19 +294,9 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
             if not island_y_edges:
                 continue
                 
-            # Prefer edges that are sharp corners for the zipper to hide the seam
-            def is_sharp_enough(e):
-                if not e.is_manifold or len(e.link_faces) != 2:
-                    return False
-                try:
-                    return e.calc_face_angle(0.0) > math.radians(45)
-                except ValueError:
-                    return False
-
-            sharp_y_edges = [e for e in island_y_edges if is_sharp_enough(e)]
+            sharp_y_edges = [e for e in island_y_edges if e[edge_slots] == 2]
             candidate_edges = sharp_y_edges if sharp_y_edges else island_y_edges
                 
-            # Group into pillars
             pillars = {}
             for e in candidate_edges:
                 mid = (e.verts[0].co + e.verts[1].co) / 2
@@ -303,10 +306,13 @@ class MASSA_OT_prim_con_block(Massa_OT_Base):
                 pillars[key].append(e)
                 
             if pillars:
-                # Pick the pillar with the lowest Z, then lowest X
                 zipper_key = min(pillars.keys(), key=lambda k: (k[1], k[0]))
                 for e in pillars[zipper_key]:
-                    mark_edge(e, slot=3, seam=True, protect=True)
+                    if e[edge_slots] == 0:
+                        mark_edge(e, slot=3, seam=True, protect=True)
+                    else:
+                        e.seam = True
+                        e[force_seam] = 1
 
         # 9. MANUAL UV MAPPING (SKIP Mode)
         uv_layer = bm.loops.layers.uv.verify()

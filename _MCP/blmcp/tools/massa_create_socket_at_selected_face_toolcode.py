@@ -76,7 +76,24 @@ def main(params: Params) -> Result:
     try:
         op_id = obj.get("massa_op_id")
         if op_id:
-            from massa.modules.cartridges import CLASSES
+            import importlib
+            import sys
+
+            # MASSA may be loaded as an extension (bl_ext.<repo>.massa_mesh_gen)
+            # or as a legacy ``massa`` add-on.
+            CLASSES = None
+            roots = sorted(
+                n for n in sys.modules
+                if "massa" in n and n.count(".") == (2 if n.startswith("bl_ext.") else 0)
+            )
+            for root in roots + ["massa"]:
+                try:
+                    CLASSES = importlib.import_module(root + ".modules.cartridges").CLASSES
+                    break
+                except ImportError:
+                    continue
+            if CLASSES is None:
+                raise ImportError("MASSA add-on is not loaded")
 
             class _PermissiveSelf:
                 def __getattr__(self, _name):

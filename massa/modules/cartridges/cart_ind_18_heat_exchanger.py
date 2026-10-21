@@ -60,9 +60,9 @@ class MASSA_OT_IndHeatExchanger(Massa_OT_Base):
         return {
             0: {"name": "Frame/Shell", "uv": "BOX", "phys": "METAL_STEEL"},
             1: {"name": "Fins/Core", "uv": "BOX", "phys": "METAL_ALUMINUM"},
-            2: {"name": "Pipes/Fittings", "uv": "BOX", "phys": "METAL_COPPER"},
-            3: {"name": "Fan/Grill", "uv": "BOX", "phys": "METAL_MESH"},
-            9: {"name": "Socket Anchor", "sock": True, "uv": "BOX", "phys": "DEBUG_9"}
+            2: {"name": "Pipes/Fittings", "uv": "BOX", "phys": "METAL_ALUMINUM"},
+            3: {"name": "Fan/Grill", "uv": "BOX", "phys": "METAL_IRON"},
+            9: {"name": "Socket Anchor", "sock": True, "uv": "BOX", "phys": "MASSA_DEBUG_9"}
         }
 
     def draw_shape_ui(self, layout):

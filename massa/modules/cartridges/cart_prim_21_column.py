@@ -44,8 +44,9 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Shaft Surface", "uv": "SKIP", "phys": "CONSTR_CONCRETE"},
-            1: {"name": "Base & Capital", "uv": "BOX", "phys": "CONSTR_CONCRETE"},
+            0: {"name": "Shaft Surface", "uv": "SKIP", "phys": "CONCRETE_RAW"},
+            1: {"name": "Base & Capital", "uv": "BOX", "phys": "CONCRETE_RAW"},
+            9: {"name": "Anchor", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }
 
     def draw_shape_ui(self, layout):
@@ -263,7 +264,7 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
 
         # Base
         build_cap(0, c_h, self.cap_scale)
-        
+
         # Capital
         top_r_scale = self.taper_ratio * self.cap_scale
         build_cap(h - c_h, h, top_r_scale)
@@ -271,34 +272,29 @@ class MASSA_OT_PrimColumn(Massa_OT_Base):
         # Cleanup
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-    def execute(self, context):
-        rt = super().execute(context)
-        if "FINISHED" in rt:
-            obj = context.active_object
+        # --- STEP 3: SOCKET ANCHORS (Slot 9) ---
+        # Standard face-tag sockets (replaces the old execute() override that
+        # created empties via bpy.data.objects). Two tiny up-facing quads tucked
+        # just inside the base and capital so the socket-forge spawns Bottom/Top
+        # anchors — both +Z for stacking — without leaving visible floating geo.
+        # Created AFTER recalc_face_normals so it cannot reorient these loose
+        # faces; normal is then forced +Z explicitly.
+        def socket_quad(cz, s=0.04):
+            hs = s / 2.0
+            vs = [
+                bm.verts.new((-hs, -hs, cz)),
+                bm.verts.new((hs, -hs, cz)),
+                bm.verts.new((hs, hs, cz)),
+                bm.verts.new((-hs, hs, cz)),
+            ]
+            try:
+                f = bm.faces.new(vs)  # CCW in XY -> +Z winding
+                f.material_index = 9
+                f.normal_update()
+                if f.normal.z < 0:
+                    f.normal_flip()
+            except ValueError:
+                pass
 
-            def ensure_socket(name_suffix, loc_local, rot_euler):
-                s_name = f"SOCKET_{obj.name}_{name_suffix}"
-                sock = None
-                for child in obj.children:
-                    if child.name.startswith(f"SOCKET_{obj.name}") and name_suffix in child.name:
-                        sock = child
-                        break
-
-                if not sock:
-                    sock = bpy.data.objects.new(s_name, None)
-                    sock.empty_display_type = 'ARROWS'
-                    sock.empty_display_size = 0.2
-                    context.collection.objects.link(sock)
-                    sock.parent = obj
-
-                sock.location = loc_local
-                sock.rotation_euler = rot_euler
-
-            # Bottom Socket (Up)
-            ensure_socket("Bottom", (0, 0, 0), (0, 0, 0))
-
-            # Top Socket (Up for stacking)
-            h = self.height
-            ensure_socket("Top", (0, 0, h), (0, 0, 0))
-
-        return rt
+        socket_quad(0.001)         # Bottom anchor (just inside base)
+        socket_quad(h - 0.001)     # Top anchor (just inside capital)

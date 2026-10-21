@@ -40,18 +40,21 @@ class MASSA_OT_PrimCableTray(Massa_OT_Base):
         }
 
     def draw_shape_ui(self, layout):
+        layout.label(text="DIMENSIONS", icon="FIXED_SIZE")
         col = layout.column(align=True)
         col.prop(self, "width")
         col.prop(self, "height")
         col.prop(self, "length")
-        
+
         layout.separator()
-        layout.label(text="RAILS")
+        layout.label(text="RAILS", icon="MOD_WIREFRAME")
+        col = layout.column(align=True)
         col.prop(self, "rail_thick")
         col.prop(self, "flange_size")
-        
+
         layout.separator()
-        layout.label(text="RUNGS")
+        layout.label(text="RUNGS", icon="MOD_ARRAY")
+        col = layout.column(align=True)
         col.prop(self, "rung_spacing")
         col.prop(self, "rung_width")
         col.prop(self, "rung_height")

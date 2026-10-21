@@ -139,10 +139,10 @@ class MASSA_OT_Walkway(Massa_OT_Base):
     def get_slot_meta(self):
         return {
             0: {"name": "Deck Surface", "uv": "BOX", "phys": "METAL_IRON"},
-            1: {"name": "Main Beams", "uv": "BOX", "phys": "METAL_SS"},
-            2: {"name": "Railings/Cage", "uv": "SKIP", "phys": "METAL_SS"},
-            3: {"name": "Supports", "uv": "BOX", "phys": "CONSTR_CONCRETE"},
-            4: {"name": "Panels/Glass", "uv": "BOX", "phys": "METAL_TITANIUM"},
+            1: {"name": "Main Beams", "uv": "BOX", "phys": "METAL_STEEL"},
+            2: {"name": "Railings/Cage", "uv": "SKIP", "phys": "METAL_STEEL"},
+            3: {"name": "Supports", "uv": "BOX", "phys": "CONCRETE_RAW"},
+            4: {"name": "Panels/Glass", "uv": "BOX", "phys": "SYNTH_GLASS"},
         }
 
     def draw_shape_ui(self, layout):

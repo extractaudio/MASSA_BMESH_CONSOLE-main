@@ -25,6 +25,7 @@ The canonical reference implementation is [`massa/modules/cartridges/cart_prim_0
     *   [`get_slot_meta` Return Dict](#41-get_slot_meta-return-dict)
     *   [Slot Conventions for Structural Cartridges](#42-slot-conventions-for-structural-cartridges)
     *   [UV Strategy per Slot](#43-uv-strategy-per-slot)
+    *   [Valid `phys` Keys & the Silent-Failure Trap](#44-valid-phys-keys--the-silent-failure-trap)
 5.  [Geometry & Topology (`build_shape`)](#5-geometry--topology-build_shape)
     *   [The Phase Pattern](#51-the-phase-pattern)
     *   [Headless Safety Rules](#52-headless-safety-rules-non-negotiable)
@@ -54,6 +55,13 @@ The canonical reference implementation is [`massa/modules/cartridges/cart_prim_0
 10. [Edge Slot Visualization (`viz_edge_mode = SLOTS`)](#10-edge-slot-visualization-viz_edge_mode--slots)
 11. [Cartridge Self-Audit Checklist](#11-cartridge-self-audit-checklist)
 12. [Anatomy of the Golden Beam — End-to-End Walkthrough](#12-anatomy-of-the-golden-beam--end-to-end-walkthrough)
+13. [Beyond the Beam — Archetypes & Cross-Cutting Patterns](#13-beyond-the-beam--archetypes--cross-cutting-patterns)
+    *   [The Five Topology Archetypes](#131-the-five-topology-archetypes)
+    *   [Swept-Tube Frames & Per-Vertex UV Tuples](#132-swept-tube-frames--per-vertex-uv-tuples)
+    *   [Tri-Planar Box UV (Arbitrary Orientation)](#133-tri-planar-box-uv-arbitrary-orientation)
+    *   [Building in Sub-BMeshes & Merging Without `bpy.data`](#134-building-in-sub-bmeshes--merging-without-bpydata)
+    *   [`USE_WELD: False` — Island Cartridges](#135-use_weld-false--island-cartridges)
+    *   [Detached Socket Quads](#136-detached-socket-quads)
 
 ---
 
@@ -134,6 +142,8 @@ Every cartridge **must** define a module-level `CARTRIDGE_META` dictionary.
 | `FIX_DEGENERATE` | `True` | If `True`, engine runs `apply_cleanup` (zero-area + thin face removal) before and after the polish stack. |
 | `REMOVE_LOOSE` | `True` | If `True`, engine deletes vertices not connected to any edge. |
 | `LOCK_PIVOT` | `False` | If `True`, engine skips `apply_transform_alignment` — the cartridge keeps the origin at its generation start point. Use for cartridges with intentional pivot offset (e.g. doors hinged at one edge). |
+
+> **Only the flags in this table are read by the engine.** Any other key placed in `flags` (a typo, or an aspirational flag such as `PROTECT_NORMALS`) is **silently ignored** — it does nothing and produces no warning. There is no engine-level "protect normals" toggle: control shading with per-face `f.smooth` and explicit normal handling (§5.6). Do not invent flags and assume they take effect.
 
 **Beam Reference example:**
 
@@ -283,6 +293,37 @@ The `"uv"` key tells the engine how to handle UVs for faces assigned to that slo
 | `"UNWRAP"` | LSCM / Angle-Based Unwrap. Requires seams to be marked (`e.seam = True` or via Edge Slots 1/3). Use as a fallback for organic/complex slots where manual UVs aren't tractable. |
 
 > **Golden Rule:** The main "Surface" slot (slot 0 for structural cartridges) should almost always be `"SKIP"` with manual UVs. The Beam Reference uses `"SKIP"` for walls and `"BOX"` for caps.
+
+> **These seven values (`SKIP`, `BOX`, `FIT`, `TUBE_X`, `TUBE_Y`, `TUBE_Z`, `UNWRAP`) are the entire valid set** — they come from `UV_MAP_ITEMS` in [`massa/utils/mat_utils.py`](massa/utils/mat_utils.py). The per-slot `uv_mode_<i>` is an `EnumProperty`, so any other string (`"KEEP"`, `"SEAM"`, …) is **silently rejected and falls back to `"SKIP"`**. When you write manual UVs, set `"SKIP"` explicitly — do not rely on a non-existent strategy name.
+
+### 4.4 Valid `phys` Keys & the Silent-Failure Trap
+
+> **An invalid `phys` key never raises — it silently degrades.** Each slot's material is a Blender `EnumProperty` (`phys_mat_<i>` / `mat_<i>`) whose items are generated from `MASTER_MAT_DB` ([`massa/utils/mat_utils.py`](massa/utils/mat_utils.py)). Assigning a key that isn't in the registry (e.g. `"METAL_COPPER"`, `"STONE_MARBLE"`, `"EMISSION"`, `"DEBUG_9"`) is rejected by the enum; the slot then falls back to its **debug slot-color** material and **`GENERIC` density (1000 kg/m³)**. **The AUDIT does *not* flag this** — it only shows up as a wrong-colored render. Always pick from the list below.
+
+**The complete valid key set:**
+
+| Category | Keys |
+|:---|:---|
+| Debug colors | `MASSA_DEBUG_0` … `MASSA_DEBUG_9` (note the `MASSA_` prefix — bare `"DEBUG_9"` is **invalid**) |
+| Concrete | `CONCRETE_RAW`, `CONCRETE_POL`, `CONCRETE_BLOCK` |
+| Metal | `METAL_STEEL`, `METAL_ALUMINUM`, `METAL_IRON`, `METAL_RUST` |
+| Wood | `WOOD_OAK`, `WOOD_PINE`, `WOOD_PAINTED`, `WOOD_ROUGH` |
+| Synthetic | `SYNTH_PLASTIC`, `SYNTH_RUBBER`, `SYNTH_GLASS` |
+| Other | `CERAMIC_TILE`, `FABRIC_CANVAS`, `GENERIC` |
+
+There is **no** copper, brass, gold, titanium, stainless (`METAL_SS`), marble, brick, plaster, mesh, or emission material. Map to the nearest valid key:
+
+| Intended look | Use instead |
+|:---|:---|
+| Copper / Brass / Gold | `METAL_ALUMINUM` (brightest valid metal) |
+| Stainless / Titanium / generic bright metal | `METAL_STEEL` |
+| Marble / polished stone | `CONCRETE_POL` |
+| Brick | `CONCRETE_BLOCK` |
+| Plaster | `CONCRETE_POL` |
+| Glass panel | `SYNTH_GLASS` |
+| Emissive / light panel | `GENERIC` (no emissive material exists) |
+
+`phys="GENERIC"` is always valid and resolves to the real Generic material rather than being skipped.
 
 ---
 
@@ -666,11 +707,13 @@ This pattern applies to any closed-loop UV mapping — pipes, tubes, columns, ta
 
 ## 8. Socket Protocols
 
-Sockets are attachment points for the Massa ecosystem (snapping, physics constraints, child placement). They are **always derived from existing geometry** — never from extra helper meshes.
+Sockets are attachment points for the Massa ecosystem (snapping, physics constraints, child placement). They are **derived from faces inside the cartridge's own BMesh** — never from a separate helper object or a `bpy.data.objects.new(...)` empty created in `execute()`.
+
+> **How the forge works** ([`massa/modules/massa_sockets.py`](massa/modules/massa_sockets.py)): after `build_shape`, the engine collects every face whose `material_index` belongs to a slot flagged `"sock": True`, **groups those faces into connectivity islands**, and spawns **one Empty per island** at the island's area-weighted center, oriented with **Z+ along the largest face's normal**. Socket faces are **not deleted** — they remain in the output mesh, so if you create dedicated socket faces, tuck them where they will be hidden (see §13.6).
 
 ### 8.1 Standard: Tag Existing Faces
 
-**Two tagging methods:**
+**Three tagging methods** (A and B reuse existing geometry and are preferred; C is the accepted fallback when no existing face fits — see §13.6):
 
 **Method A — Slot-based** (in `get_slot_meta`):
 
@@ -750,6 +793,8 @@ def execute(self, context):
 
 This pattern works for any post-generation customization that requires `bpy.context` — including modifier tweaks, custom properties, drivers, etc.
 
+> **Do NOT *create* sockets in `execute()`.** The override is only for *adjusting* forge-spawned empties. Spawning your own `bpy.data.objects.new(...)` empties duplicates the engine's logic, skips the socket metadata/naming, and produces empties the rest of the ecosystem doesn't recognize. If you need a socket where no existing face suits, tag a dedicated face (§13.6) and let the forge spawn it — orient it by controlling the tagged face's normal, or re-orient the forge-spawned empty here.
+
 ---
 
 ## 9. UI Standards (`draw_shape_ui`)
@@ -812,10 +857,12 @@ Before considering a cartridge "Golden," verify all of the following:
 
 **Structural:**
 - [ ] `CARTRIDGE_META` defined with required keys (`name`, `id`, `icon`, `flags`)
+- [ ] Only documented capability flags used (§2.3) — unrecognized flags are silently ignored
 - [ ] `id` matches `bl_idname` suffix exactly (`massa.gen_<id>`)
 - [ ] Class inherits `Massa_OT_Base`
-- [ ] `get_slot_meta()` defined with valid `phys` keys from `MASTER_MAT_DB`
-- [ ] `build_shape(self, bm)` defined — no `bpy.ops`, no `bpy.context` reads
+- [ ] `get_slot_meta()` defined; **every `phys` key exists in `MASTER_MAT_DB`** (§4.4) — invalid keys silently fall back to debug color and the AUDIT will **not** catch it
+- [ ] Every `uv` strategy is one of the seven valid values (§4.3); invalid strings silently become `SKIP`
+- [ ] `build_shape(self, bm)` defined — no `bpy.ops`, no `bpy.context` reads, **no `bpy.data` creation** (merge sub-bmeshes per §13.4)
 - [ ] `uv_scale` and `fit_uvs` properties present
 - [ ] `draw_shape_ui(self, layout)` defined
 
@@ -846,7 +893,8 @@ Before considering a cartridge "Golden," verify all of the following:
 - [ ] No UV spikes (extreme distortion)
 
 **Sockets (if used):**
-- [ ] Sockets tagged on existing faces — no extra geometry created
+- [ ] Sockets tagged on faces in the cartridge's own BMesh — no separate helper object; dedicated socket quads (§13.6) are tucked out of sight with forced normals
+- [ ] No socket empties created via `bpy.data.objects` in `execute()` (§8.3)
 - [ ] Slot 9 used as canonical Anchor (if applicable)
 - [ ] `execute()` override (if present) calls `super().execute(context)` first
 
@@ -897,6 +945,110 @@ If you've never written a Cartridge before, **read the Beam Reference first.** T
 
 ---
 
-> **Massa Cartridge Mandate v2.0**
-> *Reference: `cart_prim_01_beam.py`*
+## 13. Beyond the Beam — Archetypes & Cross-Cutting Patterns
+
+The Beam Reference covers the *extrude-a-profile* family. The remaining primitives (`cart_prim_02`–`24`) use a handful of additional strategies. This section captures the patterns that recur across them so a new cartridge can pick the right one. **Whatever the archetype, you still owe the four data channels — material slots, edge slots, UVs, sockets — and the dependency order in §5.1.**
+
+### 13.1 The Five Topology Archetypes
+
+| # | Archetype | Core technique | UV regime | Representative primitives |
+|:---|:---|:---|:---|:---|
+| **A** | **Extrude-a-profile** | 2D `pts` → cap face → `extrude_face_region` → translate | Arc-length wall + wrap-fix (§7) | 01 beam, 03 corrugated, 06 gusset, 22 duct, 23 cable-tray, 24 gutter |
+| **B** | **Swept-tube / ring-skin** | spine → ring of verts per spine point in a stable frame → hand-stitch quads | Per-vertex UV tuples (§13.2) | 05 catenary, 09 chain, 11 helix, 16 lathe, 20 bundle |
+| **C** | **Radial / lathe / spin** | `create_circle`+`bridge_loops`, `create_cone`, `spin` | Tube (`atan2`→U) + box caps | 02 pipe, 08 bolt, 18 tank, 21 column |
+| **D** | **Instanced array** (`USE_WELD: False`) | loop → build unit part at origin → assign slot/UV/edge-slots *before* transform → `Matrix` into place | Local box-map per part | 07 louver, 10 arch, 12 truss, 15 scale, 17 grommets |
+| **E** | **Destructive / CSG** | start solid → `bisect_plane`+`holes_fill`, or build sub-bmeshes + `remove_doubles` | Tri-planar box (§13.3) | 13 shard, 14 y-joint |
+
+> **Classify faces by position/normal, then drive everything off that classification** (slot, normal, seam, UV). This single idea — used by the beam (`abs(cen.y) < 0.01`), the tank (body vs cap by centre-Y), the tray (slots re-derived from Z at the end) — is what makes a cartridge robust against the engine reordering faces.
+
+### 13.2 Swept-Tube Frames & Per-Vertex UV Tuples
+
+Two hard-won lessons for archetype **B**:
+
+**1. Build the ring frame from radial + binormal of the tangent — *not* `rotation_difference()`.** `rotation_difference` banks a swept tube unpredictably, so a fixed seam index wanders around the surface. The radial/binormal frame keeps the seam following the sweep smoothly (helix `cart_prim_11`):
+
+```python
+tangent  = Vector((tx, ty, tz)).normalized()
+radial   = Vector((math.cos(angle), math.sin(angle), 0.0)).normalized()
+binormal = tangent.cross(radial).normalized()
+world_p  = center + (radial * math.cos(theta) + binormal * math.sin(theta)) * r_wire
+```
+
+**2. Compute UVs *during* vertex generation and carry them as `(vert, u, v)` tuples**, then apply during face creation with explicit U-seam (radial wrap) and V-seam (length wrap) handling:
+
+```python
+if j_next == 0:          # closing the radial loop → shift U up by one period
+    u3 += 1.0; u4 += 1.0
+if is_v_seam:            # closing the length loop → shift V up by total length
+    v2 += total_len; v3 += total_len
+```
+
+Use **true arc length** for V so the texture doesn't stretch — helix: `sqrt((2πR·turns)² + H²)`; chain: sum of segment lengths **plus the closing gap**.
+
+### 13.3 Tri-Planar Box UV (Arbitrary Orientation)
+
+For archetypes **D** and **E**, where face orientation is unpredictable, project each face onto its dominant-normal axis. This is the box-map counterpart to the beam's analytic UVs. Support `fit_uvs` by normalizing against the mesh bounding box:
+
+```python
+if self.fit_uvs:
+    # min_v / max_v over bm.verts; dims[i] = max(0.001, max_v[i] - min_v[i])
+    ...
+for f in bm.faces:
+    nx, ny, nz = abs(f.normal.x), abs(f.normal.y), abs(f.normal.z)
+    for l in f.loops:
+        co = l.vert.co
+        if   nz >= nx and nz >= ny: u, v = co.x, co.y   # top / bottom → XY
+        elif nx >= ny:              u, v = co.y, co.z   # side X      → YZ
+        else:                       u, v = co.x, co.z   # side Y      → XZ
+        if self.fit_uvs:            u, v = (u - min_v.x)/dims.x, (v - min_v.y)/dims.y  # per-axis
+        else:                       u, v = u * scale, v * scale
+        l[uv_layer].uv = (u, v)
+```
+
+Even box-mapped slots owe **both** `fit_uvs` modes (§3.1). A slot whose `uv` is `"UNWRAP"` while the cartridge *also* writes manual UVs is contradictory — the engine re-unwraps and discards your work. Use `"SKIP"` whenever you write the UVs yourself.
+
+### 13.4 Building in Sub-BMeshes & Merging Without `bpy.data`
+
+Headless safety (§5.2) forbids `bpy.data` inside `build_shape`, which rules out the tempting `source_bm.to_mesh(bpy.data.meshes.new(...))` merge. When you build a part in a separate `bmesh.new()` (a ghost graph in the truss, CSG branches in the y-joint), merge it by **copying verts/faces directly**:
+
+```python
+def merge_bm(target, source):
+    source.verts.ensure_lookup_table()
+    vmap = {v.index: target.verts.new(v.co) for v in source.verts}
+    target.verts.ensure_lookup_table()
+    for f in source.faces:
+        try:
+            nf = target.faces.new([vmap[v.index] for v in f.verts])
+            nf.material_index = f.material_index   # preserve slot
+            nf.smooth = f.smooth                   # preserve shading
+        except ValueError:
+            pass                                   # duplicate/degenerate face
+    source.free()
+```
+
+A throwaway `bmesh.new()` is **not** `bpy.data` — it is allowed and must be `free()`d. Set seams/edge-slots/UVs on the *merged* result, after `remove_doubles` stitches the parts.
+
+### 13.5 `USE_WELD: False` — Island Cartridges
+
+Set `USE_WELD: False` (and usually `ALLOW_FUSE: False`) when the cartridge **intentionally produces many disconnected islands that must not merge**: chain links (09), roof scales (15), cable strands (20). Welding would fuse touching links/tiles into one blob and destroy per-island shading, sockets, and physics. For these, assign slots / UVs / edge-slots to each island **before** the transform that places it — exactly as archetype **D** does.
+
+### 13.6 Detached Socket Quads
+
+When no existing face is a good anchor (e.g. a column needs an up-facing socket at the centre of a ring-cap), create a **tiny dedicated quad inside the working BMesh** and tag it with a `sock`-flagged slot's `material_index`. This is the accepted form of §8's "no helper geometry" — it lives in the cartridge's own mesh, not a separate object. Three rules:
+
+1. **Tuck it inside solid geometry.** The forge does not delete socket faces (§8), so a quad on a visible surface becomes an artifact. Place it e.g. `z = 0.001` just inside a cap.
+2. **Force the normal.** Sockets orient Z+ along the face normal, so wind the quad CCW for +Z. If you run `recalc_face_normals` afterward (it can flip a *loose* face), create the quad **after** it and force the direction:
+   ```python
+   f.normal_update()
+   if f.normal.z < 0:
+       f.normal_flip()
+   ```
+3. **Keep it small** (e.g. `0.04`) so weld/cleanup can't reach surrounding geometry.
+
+Panel (04), gusset (06), and column (21) use this pattern. The forge groups the two column quads into two islands and spawns one up-facing Anchor empty for each.
+
+---
+
+> **Massa Cartridge Mandate v2.1**
+> *Reference: `cart_prim_01_beam.py` · Cross-cutting patterns distilled from `cart_prim_02`–`24`*
 > *Maintained by 3D_Massa*

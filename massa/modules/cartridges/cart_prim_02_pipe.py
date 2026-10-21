@@ -76,7 +76,8 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
         # 1. SETUP LAYERS
         # ----------------------------------------------------------------------
         uv_layer = bm.loops.layers.uv.verify()
-        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        edge_slots = (bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+                      or bm.edges.layers.int.new("MASSA_EDGE_SLOTS"))
 
         # 2. CREATE BASE RING (The Donut Method)
         res_out = bmesh.ops.create_circle(bm, radius=ro, segments=sr, cap_ends=False)
@@ -241,19 +242,15 @@ class MASSA_OT_PrimPipe(Massa_OT_Base):
 
         # 7. SEAMS & EDGE ROLES
 
-        # Mark cap borders as seams
+        # Mark cap borders as seams — these are Perimeter edges (Slot 1),
+        # not longitudinal Guides. Cap rings sit at constant Z (or the elbow
+        # end planes) so they never overlap the Slot 3 longitudinal seam below.
         cap_set = set(final_caps)
         for f in final_caps:
             for e in f.edges:
                 if len(e.link_faces) == 1 or any(lf not in cap_set for lf in e.link_faces):
                     e.seam = True
-                    # Set as Perimeter (1) to show Yellow in Slots view, but it acts as a seam
-                    # The user requested 'remove the perimeter setting by default', so we don't
-                    # enforce Perimeter behaviors if they don't want them, but we assign Slot 1
-                    # so the UI isn't visually empty.
-                    # Actually, if we assign 3, it's Red. We will assign 3 as requested, but also
-                    # make sure auto_detect isn't broken.
-                    e[edge_slots] = 3
+                    e[edge_slots] = 1  # Perimeter (cap border)
 
         # Mark longitudinal seams
         for e in bm.edges:

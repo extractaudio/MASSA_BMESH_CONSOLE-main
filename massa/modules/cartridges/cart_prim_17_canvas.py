@@ -14,7 +14,6 @@ CARTRIDGE_META = {
         "ALLOW_SOLIDIFY": True,  # Essential for cloth thickness
         "USE_WELD": True,
         "ALLOW_CHAMFER": False,  # Cloth doesn't need chamfers
-        "PROTECT_NORMALS": False,  # Allow smooth shading
     },
 }
 
@@ -50,7 +49,7 @@ class MASSA_OT_PrimCanvas(Massa_OT_Base):
         """
         return {
             0: {"name": "Fabric", "uv": "SKIP", "phys": "FABRIC_CANVAS"},
-            1: {"name": "Grommets", "uv": "BOX", "phys": "METAL_BRASS"},
+            1: {"name": "Grommets", "uv": "BOX", "phys": "METAL_ALUMINUM"},
         }
 
     def draw_shape_ui(self, layout):
@@ -125,9 +124,6 @@ class MASSA_OT_PrimCanvas(Massa_OT_Base):
         # ----------------------------------------------------------------------
         # We calculate UVs *before* deformation so the texture follows the grid logic
         uv_layer = bm.loops.layers.uv.verify()
-
-        s_u = 1.0 if self.fit_uvs else (self.uv_scale * w / 2.0)
-        s_v = 1.0 if self.fit_uvs else (self.uv_scale * d / 2.0)
 
         bm.faces.ensure_lookup_table()
         for f in bm.faces:

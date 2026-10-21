@@ -41,8 +41,8 @@ class MASSA_OT_PrimArch(Massa_OT_Base):
         V2 Standard: UV set to 'SKIP' to preserve custom continuous mapping.
         """
         return {
-            0: {"name": "Bricks", "uv": "SKIP", "phys": "STONE_MARBLE"},
-            1: {"name": "Keystone", "uv": "SKIP", "phys": "STONE_MARBLE"},
+            0: {"name": "Bricks", "uv": "SKIP", "phys": "CONCRETE_POL"},
+            1: {"name": "Keystone", "uv": "SKIP", "phys": "CONCRETE_POL"},
         }
 
     def draw_shape_ui(self, layout):

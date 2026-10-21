@@ -48,8 +48,8 @@ class MASSA_OT_PrimLathe(Massa_OT_Base):
         Slot 1: Base Anchor (Bottom Faces) -> flagged as 'sock': True for easy instancing.
         """
         return {
-            0: {"name": "Ceramic Surface", "uv": "KEEP", "phys": "STONE_MARBLE"},
-            1: {"name": "Base Anchor", "uv": "KEEP", "phys": "GENERIC", "sock": True},
+            0: {"name": "Ceramic Surface", "uv": "SKIP", "phys": "CERAMIC_TILE"},
+            1: {"name": "Base Anchor", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }
 
     def draw_shape_ui(self, layout):
@@ -248,7 +248,8 @@ class MASSA_OT_PrimLathe(Massa_OT_Base):
 
         # 5. MARK SEAMS & EDGE SLOTS
         # ----------------------------------------------------------------------
-        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        edge_slots = (bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+                      or bm.edges.layers.int.new("MASSA_EDGE_SLOTS"))
 
         # --- A. Slot 1: Perimeters ---
         # Target Rings (Indices map to 'nodes' list):

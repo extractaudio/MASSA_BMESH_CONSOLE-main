@@ -62,7 +62,7 @@ class MASSA_OT_PrimGusset(Massa_OT_Base):
         return {
             0: {"name": "Plate Surface", "uv": "SKIP", "phys": "METAL_STEEL"},
             1: {"name": "Cut Edges", "uv": "SKIP", "phys": "METAL_STEEL"},
-            3: {"name": "Guide Seam", "uv": "SEAM", "phys": "GENERIC"},
+            3: {"name": "Guide Seam", "uv": "SKIP", "phys": "GENERIC"},
             9: {"name": "Socket Anchor", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }
 

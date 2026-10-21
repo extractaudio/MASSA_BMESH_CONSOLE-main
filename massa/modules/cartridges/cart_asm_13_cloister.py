@@ -46,10 +46,10 @@ class MASSA_OT_AsmCloister(Massa_OT_Base):
 
     def get_slot_meta(self):
         return {
-            0: {"name": "Floor", "uv": "BOX", "phys": "STONE_MARBLE"},
-            1: {"name": "Walls", "uv": "BOX", "phys": "STONE_BRICK"},
-            2: {"name": "Vault", "uv": "BOX", "phys": "PLASTER"},
-            3: {"name": "Ribs", "uv": "BOX", "phys": "STONE_MARBLE"},
+            0: {"name": "Floor", "uv": "BOX", "phys": "CONCRETE_POL"},
+            1: {"name": "Walls", "uv": "BOX", "phys": "CONCRETE_BLOCK"},
+            2: {"name": "Vault", "uv": "BOX", "phys": "CONCRETE_POL"},
+            3: {"name": "Ribs", "uv": "BOX", "phys": "CONCRETE_POL"},
             9: {"name": "Sockets", "uv": "BOX", "phys": "GENERIC", "sock": True},
         }
 

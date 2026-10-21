@@ -194,7 +194,8 @@ class MASSA_OT_PrimCorrugated(Massa_OT_Base):
 
         # 5. MARK SEAMS
         # Initialize Edge Slot Data Layer
-        edge_slots = bm.edges.layers.int.new("MASSA_EDGE_SLOTS")
+        edge_slots = (bm.edges.layers.int.get("MASSA_EDGE_SLOTS")
+                      or bm.edges.layers.int.new("MASSA_EDGE_SLOTS"))
 
         # Explicit Seam Logic (Aligning with Beam/Pipe behavior)
         for e in bm.edges:

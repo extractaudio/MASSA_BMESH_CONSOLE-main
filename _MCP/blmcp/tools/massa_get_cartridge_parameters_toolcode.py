@@ -34,12 +34,30 @@ def _is_builtin_prop(ident: str) -> bool:
     return ident == "rna_type" or ident.startswith("bl_")
 
 
+def _import_massa_cartridges():
+    """Return MASSA's ``modules.cartridges`` package from whichever install is
+    loaded: an extension (``bl_ext.<repo>.massa_mesh_gen``) or a legacy ``massa`` add-on."""
+    import importlib
+    import sys
+
+    loaded = sorted(
+        n for n in sys.modules
+        if "massa" in n and n.count(".") == (2 if n.startswith("bl_ext.") else 0)
+    )
+    for root in loaded + ["massa"]:
+        try:
+            return importlib.import_module(root + ".modules.cartridges")
+        except ImportError:
+            continue
+    raise ImportError("MASSA add-on is not loaded (no 'massa' or bl_ext.*.massa* package)")
+
+
 def main(params: Params) -> Result:
     import math
     import bpy
 
     try:
-        from massa.modules.cartridges import CLASSES
+        CLASSES = _import_massa_cartridges().CLASSES
     except ImportError as exc:
         return Result(status="error", cartridge_id=params.cartridge_id, error=str(exc))
 

@@ -64,8 +64,8 @@ class MASSA_OT_PrimPanel(Massa_OT_Base):
             0: {"name": "Frame", "uv": "SKIP", "phys": "METAL_STEEL"},
             1: {"name": "Backing Plate", "uv": "SKIP", "phys": "GENERIC"},
             2: {"name": "Tile Body", "uv": "SKIP", "phys": "METAL_STEEL"},
-            3: {"name": "Tile Inset", "uv": "SKIP", "phys": "METAL_DARK"},
-            4: {"name": "Tech Detail", "uv": "SKIP", "phys": "EMISSION"},
+            3: {"name": "Tile Inset", "uv": "SKIP", "phys": "METAL_IRON"},
+            4: {"name": "Tech Detail", "uv": "SKIP", "phys": "GENERIC"},
             8: {"name": "Anchor (Bottom)", "uv": "SKIP", "phys": "GENERIC", "sock": True},
             9: {"name": "Mount (Top)", "uv": "SKIP", "phys": "GENERIC", "sock": True},
         }
